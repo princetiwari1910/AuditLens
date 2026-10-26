@@ -1,0 +1,67 @@
+{
+  "id": "workshop_ppe",
+  "name": "Workshop PPE & General Safety",
+  "description": "Verifies mandatory personal protective equipment, first aid station availability, floor cleanliness, and cable hazards.",
+  "disclaimer": "AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Verify against local regulations and a qualified inspector.",
+  "rules": [
+    {
+      "id": "person_wearing_helmet",
+      "title": "Personnel inside workshop wear hard hats / safety helmets",
+      "type": "colocation",
+      "severity": "high",
+      "sam_prompts": ["person", "safety helmet", "hard hat"],
+      "params": {
+        "container_prompt": "person",
+        "item_prompt": "safety helmet",
+        "min_overlap": 0.25
+      },
+      "fix_text": "Mandate hard hat compliance at all designated workshop entry points and provide helmets for all active personnel."
+    },
+    {
+      "id": "person_wearing_safety_gloves",
+      "title": "Personnel handling equipment wear protective safety gloves",
+      "type": "colocation",
+      "severity": "medium",
+      "sam_prompts": ["person", "safety gloves", "protective gloves"],
+      "params": {
+        "container_prompt": "person",
+        "item_prompt": "safety gloves",
+        "min_overlap": 0.15
+      },
+      "fix_text": "Provide cut-resistant safety gloves and enforce mandatory use during active machinery and material handling."
+    },
+    {
+      "id": "floor_free_of_clutter",
+      "title": "Workshop walkways and work bays are free of loose floor clutter",
+      "type": "absence",
+      "severity": "medium",
+      "sam_prompts": ["loose tools", "scrap metal", "wooden debris", "discarded materials"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Clean workshop floor, implement daily 5S housekeeping routines, and store loose materials in designated bins."
+    },
+    {
+      "id": "first_aid_box_visible",
+      "title": "First aid kit or station is accessible and clearly marked",
+      "type": "presence",
+      "severity": "high",
+      "sam_prompts": ["first aid kit", "first aid box", "medical cross box"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Install a fully stocked, wall-mounted first aid kit in a central, visible location with clear signage."
+    },
+    {
+      "id": "no_loose_cables_walkway",
+      "title": "No loose or unbridged power cords across walkways",
+      "type": "absence",
+      "severity": "high",
+      "sam_prompts": ["loose cable", "extension cord on floor", "exposed wire"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Reroute power cables overhead or install heavy-duty floor cable bridge protectors across walkway crossings."
+    }
+  ]
+}
