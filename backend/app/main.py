@@ -103,6 +103,60 @@ async def get_template_detail(template_id: str) -> dict[str, Any]:
 
 # ── Audits CRUD & Background Execution ────────────────────────────────────────
 
+@app.post("/api/audits/demo", status_code=status.HTTP_201_CREATED)
+async def create_demo_audit(
+    background_tasks: BackgroundTasks,
+    template_id: str = "fire_exit_safety",
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Launch an audit on the pre-generated synthetic walkthrough video for zero-upload demo."""
+    settings = get_settings()
+    sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
+    if not sample_path.exists():
+        from scripts.make_sample_video import generate_sample_video
+        generate_sample_video(sample_path, duration_s=25)
+
+    tmpl = get_template(template_id)
+    if not tmpl:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown template: '{template_id}'")
+
+    audit = Audit(
+        template_id=template_id,
+        status=AuditStatus.QUEUED.value,
+        video_path=str(sample_path.resolve()),
+    )
+    session.add(audit)
+    session.commit()
+    session.refresh(audit)
+
+    background_tasks.add_task(run_audit_job_sync, audit.id)
+    return {"id": audit.id, "status": audit.status}
+
+
+@app.post("/api/audits/{audit_id}/cancel")
+async def cancel_audit(
+    audit_id: str,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Cancel a queued or processing audit."""
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    if audit.status in (AuditStatus.QUEUED.value, AuditStatus.PROCESSING.value):
+        audit.status = AuditStatus.FAILED.value
+        audit.error = "Audit was canceled by user request."
+        session.add(audit)
+        session.commit()
+        event_manager.emit({
+            "type": "error",
+            "ts": "",
+            "audit_id": audit_id,
+            "payload": {"error": "Audit was canceled by user."},
+        })
+    return {"id": audit.id, "status": audit.status}
+
+
 @app.post("/api/audits", status_code=status.HTTP_201_CREATED)
 async def create_audit(
     background_tasks: BackgroundTasks,
