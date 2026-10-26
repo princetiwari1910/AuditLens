@@ -21,7 +21,7 @@ export function useAuditEvents(auditId: string | undefined): UseAuditEventsRetur
   const [progressPercent, setProgressPercent] = useState<number>(5);
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!auditId) return;

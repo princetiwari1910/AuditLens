@@ -9,7 +9,6 @@ import {
   Clock,
   History,
   FileCheck,
-  AlertCircle,
   Loader2,
 } from 'lucide-react';
 import {
@@ -17,13 +16,12 @@ import {
   getHealth,
   getTemplates,
   createDemoAudit,
-  createAudit,
   type HealthResponse,
 } from '../api/client';
 import type { Audit, Template } from '../api/types';
 import TemplateCard from '../components/TemplateCard';
 import Disclaimer from '../components/Disclaimer';
-import { formatTimestamp, getScoreGrade, getStatusMeta } from '../utils/formatters';
+import { getScoreGrade } from '../utils/formatters';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -32,15 +30,11 @@ export default function Home() {
   const [recentAudits, setRecentAudits] = useState<Audit[]>([]);
   const [customRuleText, setCustomRuleText] = useState('');
   const [isStartingDemo, setIsStartingDemo] = useState(false);
-  const [isStartingCustom, setIsStartingCustom] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      getHealth().then(setHealth).catch(console.error),
-      getTemplates().then(setTemplates).catch(console.error),
-      getAudits().then(setRecentAudits).catch(console.error),
-    ]).finally(() => setIsLoading(false));
+    getHealth().then(setHealth).catch(console.error);
+    getTemplates().then(setTemplates).catch(console.error);
+    getAudits().then(setRecentAudits).catch(console.error);
   }, []);
 
   async function handleLoadDemo() {
@@ -164,7 +158,7 @@ export default function Home() {
             />
             <button
               type="submit"
-              disabled={!customRuleText.trim() || isStartingCustom}
+              disabled={!customRuleText.trim()}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
             >
               <Upload className="h-4 w-4" />

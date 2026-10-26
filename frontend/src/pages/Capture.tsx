@@ -9,7 +9,6 @@ import {
   Play,
   Pause,
   AlertCircle,
-  FileCheck,
   CheckCircle2,
   Sparkles,
   ArrowLeft,
@@ -47,7 +46,7 @@ export default function Capture() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {

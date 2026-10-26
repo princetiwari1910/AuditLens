@@ -1,17 +1,17 @@
 /* ── AuditLens Design Tokens ─────────────────────────────────────────── */
 
 :root {
-  /* Accent */
+  /* Primary Accent */
   --color-accent: #2563eb;
   --color-accent-hover: #1d4ed8;
   --color-accent-light: #dbeafe;
 
-  /* Status */
+  /* Semantic Status Colors (accessible & color-blind optimized) */
   --color-pass: #16a34a;
   --color-fail: #dc2626;
   --color-unsure: #d97706;
 
-  /* Neutral */
+  /* Surfaces & Backgrounds */
   --color-bg: #ffffff;
   --color-bg-secondary: #f8fafc;
   --color-surface: #ffffff;
@@ -19,11 +19,11 @@
   --color-text: #0f172a;
   --color-text-secondary: #64748b;
 
-  /* Spacing */
+  /* Geometry */
   --radius: 0.5rem;
   --radius-lg: 0.75rem;
 
-  /* Shadows */
+  /* Elevation */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -36,11 +36,53 @@
     --color-accent-hover: #60a5fa;
     --color-accent-light: #1e3a5f;
 
-    --color-bg: #0f172a;
-    --color-bg-secondary: #1e293b;
+    --color-bg: #0b1120;
+    --color-bg-secondary: #0f172a;
     --color-surface: #1e293b;
     --color-border: #334155;
-    --color-text: #f1f5f9;
+    --color-text: #f8fafc;
     --color-text-secondary: #94a3b8;
+  }
+}
+
+/* ── Print Stylesheet for Export to PDF via window.print() ─────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide interactive video player, scrubber, navigation and action bars */
+  header,
+  nav,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure card borders and backgrounds print crisply */
+  .rounded-xl,
+  .rounded-2xl {
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Page break rules */
+  .page-break-before {
+    page-break-before: always !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
   }
 }

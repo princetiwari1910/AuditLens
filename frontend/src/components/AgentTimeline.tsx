@@ -1,14 +1,11 @@
-import React from 'react';
 import {
   CheckCircle2,
-  Clock,
   AlertCircle,
   Wrench,
   Search,
   Ruler,
   Layers,
   Sparkles,
-  ShieldAlert,
 } from 'lucide-react';
 import type { SSEEvent } from '../api/types';
 import { getStatusMeta } from '../utils/formatters';
@@ -25,7 +22,6 @@ interface AgentTimelineProps {
 export default function AgentTimeline({
   events,
   currentRule,
-  currentTool,
   progressPercent,
   isCompleted,
   error,
@@ -112,11 +108,11 @@ export default function AgentTimeline({
                       {p.rule_id ? String(p.rule_id) : ''}
                     </span>
                   </div>
-                  {p.args_summary && (
+                  {p.args_summary ? (
                     <p className="text-[var(--color-text-secondary)] font-mono text-[11px] truncate mt-0.5">
                       args: {JSON.stringify(p.args_summary)}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             );

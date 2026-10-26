@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, HardHat, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, HardHat, ArrowRight } from 'lucide-react';
 import type { Template } from '../api/types';
 import RuleChip from './RuleChip';
 

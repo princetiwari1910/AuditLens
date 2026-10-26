@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Shield, ArrowRight, AlertTriangle, RefreshCw, XCircle, ArrowLeft } from 'lucide-react';
+import { ArrowRight, AlertTriangle, RefreshCw, XCircle, ArrowLeft } from 'lucide-react';
 import { useAuditEvents } from '../api/sse';
 import { cancelAudit } from '../api/client';
 import AgentTimeline from '../components/AgentTimeline';

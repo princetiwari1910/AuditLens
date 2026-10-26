@@ -1,4 +1,3 @@
-import React from 'react';
 import { Eye, ShieldAlert, Hash, Ruler, Users } from 'lucide-react';
 import type { RuleType } from '../api/types';
 

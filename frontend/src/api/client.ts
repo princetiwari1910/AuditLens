@@ -1,6 +1,6 @@
 /** Typed API client for AuditLens backend. */
 
-import type { Audit, Template, Finding } from './types';
+import type { Audit, Template } from './types';
 
 const BASE = '/api';
 
