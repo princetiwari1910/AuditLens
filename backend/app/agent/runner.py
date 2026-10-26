@@ -176,6 +176,7 @@ class AgentRunner:
             segmentation_provider=self.segmentation_provider,
             transcription_provider=self.transcription_provider,
             voice_notes=voice_notes_data,
+            session=session,
         )
         registry = ToolRegistry(ctx)
 

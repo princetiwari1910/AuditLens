@@ -7,8 +7,12 @@ import json
 import uuid
 from typing import Any, Callable
 
+from sqlmodel import Session
+
 from app.agent.measure import compute_pixels_per_meter, estimate_clear_width
 from app.agent.rules import compute_bbox_overlap
+from app.cache import compute_cache_key, get_cached_result, set_cached_result
+from app.costlog import log_cost
 from app.models import FindingStatus, RuleModel
 
 
@@ -36,6 +40,7 @@ class ExecutionContext:
         segmentation_provider: Any,
         transcription_provider: Any,
         voice_notes: list[dict[str, Any]] | None = None,
+        session: Session | None = None,
     ) -> None:
         self.audit_id = audit_id
         self.rules = rules
@@ -43,6 +48,7 @@ class ExecutionContext:
         self.segmentation_provider = segmentation_provider
         self.transcription_provider = transcription_provider
         self.voice_notes = voice_notes or []
+        self.session = session
 
         # Evidence store: maps result_id -> EvidenceEntry
         self.evidence_store: dict[str, EvidenceEntry] = {}
@@ -255,28 +261,72 @@ class ToolRegistry:
         else:
             selected_frames = self.ctx.frames
 
-        frame_paths = [f["path"] for f in selected_frames]
-        timestamps = [f["timestamp_s"] for f in selected_frames]
+        detections: list[dict[str, Any]] = []
+        frames_to_query: list[dict[str, Any]] = []
+        frame_cache_keys: dict[int, str] = {}
 
-        raw_detections = self.ctx.segmentation_provider.find_objects(
-            frame_paths=frame_paths,
-            prompt=prompt,
-            timestamps_s=timestamps,
-        )
+        # 1. Check Cache
+        session = self.ctx.session
+        for f in selected_frames:
+            f_idx = f["idx"]
+            f_hash = f.get("sha256", str(f_idx))
+            ckey = compute_cache_key(f_hash, "segmentation", prompt)
+            frame_cache_keys[f_idx] = ckey
 
-        detections = []
-        for d in raw_detections:
-            if d.score >= min_score:
-                # Map back to frame index
-                f_idx = selected_frames[d.frame_id]["idx"] if d.frame_id < len(selected_frames) else d.frame_id
-                detections.append({
-                    "frame_id": f_idx,
+            cached_data = None
+            if session is not None:
+                cached_data = get_cached_result(session, ckey)
+
+            if cached_data is not None:
+                for d in cached_data:
+                    if d.get("score", 0.0) >= min_score:
+                        detections.append(d)
+            else:
+                frames_to_query.append(f)
+
+        # 2. Query provider for cache misses
+        if frames_to_query:
+            query_paths = [f["path"] for f in frames_to_query]
+            query_timestamps = [f["timestamp_s"] for f in frames_to_query]
+
+            raw_detections = self.ctx.segmentation_provider.find_objects(
+                frame_paths=query_paths,
+                prompt=prompt,
+                timestamps_s=query_timestamps,
+            )
+
+            # Log provider cost
+            if session is not None:
+                log_cost(
+                    session,
+                    provider="segmentation",
+                    operation="segmentation",
+                    units=float(len(frames_to_query)),
+                    audit_id=self.ctx.audit_id,
+                )
+
+            # Group new detections by frame index and cache
+            by_frame: dict[int, list[dict[str, Any]]] = {f["idx"]: [] for f in frames_to_query}
+            for d in raw_detections:
+                target_f = frames_to_query[d.frame_id] if d.frame_id < len(frames_to_query) else frames_to_query[0]
+                det_dict = {
+                    "frame_id": target_f["idx"],
                     "timestamp_s": d.timestamp_s,
                     "prompt": d.prompt,
                     "score": d.score,
                     "bbox": d.bbox,
                     "polygon": d.polygon,
-                })
+                }
+                by_frame[target_f["idx"]].append(det_dict)
+                if d.score >= min_score:
+                    detections.append(det_dict)
+
+            # Store in cache
+            if session is not None:
+                for f in frames_to_query:
+                    f_idx = f["idx"]
+                    ckey = frame_cache_keys[f_idx]
+                    set_cached_result(session, ckey, "segmentation", prompt, by_frame[f_idx])
 
         res_id = self.ctx.register_evidence(
             "find_objects",
