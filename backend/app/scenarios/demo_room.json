@@ -1,0 +1,170 @@
+[
+  {
+    "prompt": "fire extinguisher",
+    "aliases": ["extinguisher", "red extinguisher"],
+    "start_s": 0.0,
+    "end_s": 9.0,
+    "bbox": {"x": 0.078, "y": 0.305, "w": 0.055, "h": 0.181},
+    "polygon": [
+      [0.078, 0.305],
+      [0.133, 0.305],
+      [0.133, 0.486],
+      [0.078, 0.486]
+    ],
+    "score": 0.92
+  },
+  {
+    "prompt": "emergency exit sign",
+    "aliases": ["exit sign", "green running man sign"],
+    "start_s": 2.0,
+    "end_s": 15.0,
+    "bbox": {"x": 0.438, "y": 0.111, "w": 0.125, "h": 0.083},
+    "polygon": [
+      [0.438, 0.111],
+      [0.563, 0.111],
+      [0.563, 0.194],
+      [0.438, 0.194]
+    ],
+    "score": 0.95
+  },
+  {
+    "prompt": "exit door",
+    "aliases": ["emergency exit", "fire door"],
+    "start_s": 2.0,
+    "end_s": 15.0,
+    "bbox": {"x": 0.430, "y": 0.200, "w": 0.140, "h": 0.360},
+    "polygon": [
+      [0.430, 0.200],
+      [0.570, 0.200],
+      [0.570, 0.560],
+      [0.430, 0.560]
+    ],
+    "score": 0.91
+  },
+  {
+    "prompt": "exit door",
+    "aliases": ["emergency exit", "fire door"],
+    "start_s": 16.0,
+    "end_s": 25.0,
+    "bbox": {"x": 0.781, "y": 0.250, "w": 0.109, "h": 0.361},
+    "polygon": [
+      [0.781, 0.250],
+      [0.890, 0.250],
+      [0.890, 0.611],
+      [0.781, 0.611]
+    ],
+    "score": 0.88
+  },
+  {
+    "prompt": "a4",
+    "aliases": ["a4 sheet", "reference a4", "scale reference"],
+    "start_s": 6.0,
+    "end_s": 19.0,
+    "bbox": {"x": 0.375, "y": 0.694, "w": 0.086, "h": 0.104},
+    "polygon": [
+      [0.375, 0.694],
+      [0.461, 0.694],
+      [0.461, 0.798],
+      [0.375, 0.798]
+    ],
+    "score": 0.89
+  },
+  {
+    "prompt": "box",
+    "aliases": ["blocking obstacle box", "pallet", "obstacle", "furniture", "chair"],
+    "start_s": 8.0,
+    "end_s": 21.0,
+    "bbox": {"x": 0.484, "y": 0.639, "w": 0.117, "h": 0.181},
+    "polygon": [
+      [0.484, 0.639],
+      [0.601, 0.639],
+      [0.601, 0.820],
+      [0.484, 0.820]
+    ],
+    "score": 0.88
+  },
+  {
+    "prompt": "person",
+    "aliases": ["worker", "technician"],
+    "start_s": 11.0,
+    "end_s": 25.0,
+    "bbox": {"x": 0.280, "y": 0.361, "w": 0.094, "h": 0.361},
+    "polygon": [
+      [0.280, 0.361],
+      [0.374, 0.361],
+      [0.374, 0.722],
+      [0.280, 0.722]
+    ],
+    "score": 0.94
+  },
+  {
+    "prompt": "safety helmet",
+    "aliases": ["hard hat", "helmet"],
+    "start_s": 11.0,
+    "end_s": 25.0,
+    "bbox": {"x": 0.292, "y": 0.361, "w": 0.070, "h": 0.063},
+    "polygon": [
+      [0.292, 0.361],
+      [0.362, 0.361],
+      [0.362, 0.424],
+      [0.292, 0.424]
+    ],
+    "score": 0.91
+  },
+  {
+    "prompt": "safety gloves",
+    "aliases": ["protective gloves", "gloves"],
+    "start_s": 13.0,
+    "end_s": 25.0,
+    "bbox": {"x": 0.340, "y": 0.540, "w": 0.040, "h": 0.050},
+    "polygon": [
+      [0.340, 0.540],
+      [0.380, 0.540],
+      [0.380, 0.590],
+      [0.340, 0.590]
+    ],
+    "score": 0.85
+  },
+  {
+    "prompt": "first aid kit",
+    "aliases": ["first aid box", "medical cross box"],
+    "start_s": 4.0,
+    "end_s": 9.0,
+    "bbox": {"x": 0.850, "y": 0.320, "w": 0.070, "h": 0.090},
+    "polygon": [
+      [0.850, 0.320],
+      [0.920, 0.320],
+      [0.920, 0.410],
+      [0.850, 0.410]
+    ],
+    "score": 0.48
+  },
+  {
+    "prompt": "loose cable",
+    "aliases": ["extension cord on floor", "exposed wire", "cable"],
+    "start_s": 9.0,
+    "end_s": 14.0,
+    "bbox": {"x": 0.320, "y": 0.810, "w": 0.180, "h": 0.040},
+    "polygon": [
+      [0.320, 0.810],
+      [0.500, 0.810],
+      [0.500, 0.850],
+      [0.320, 0.850]
+    ],
+    "score": 0.42
+  },
+  {
+    "prompt": "loose tools",
+    "aliases": ["scrap metal", "wooden debris", "discarded materials"],
+    "start_s": 15.0,
+    "end_s": 20.0,
+    "bbox": {"x": 0.550, "y": 0.740, "w": 0.060, "h": 0.050},
+    "polygon": [
+      [0.550, 0.740],
+      [0.610, 0.740],
+      [0.610, 0.790],
+      [0.550, 0.790]
+    ],
+    "score": 0.38
+  }
+]
