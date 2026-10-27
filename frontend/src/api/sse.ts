@@ -116,6 +116,13 @@ export function useAuditEvents(auditId: string | undefined): UseAuditEventsRetur
       }
     } catch (err: any) {
       console.warn('Fallback polling request error:', err);
+      if (err?.status === 404 || (err instanceof Error && err.message.includes('404'))) {
+        stopPolling();
+        setError('Audit not found');
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+        }
+      }
     }
   }, [auditId, stopPolling]);
 

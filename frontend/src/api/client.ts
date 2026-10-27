@@ -5,6 +5,16 @@ import { API_BASE_URL } from './config';
 
 const BASE = `${API_BASE_URL}/api`;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -18,7 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const body = await res.text();
       if (body) errMsg = body;
     }
-    throw new Error(errMsg);
+    throw new ApiError(errMsg, res.status);
   }
   return res.json() as Promise<T>;
 }

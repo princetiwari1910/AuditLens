@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Shield,
   Printer,
@@ -10,8 +10,19 @@ import {
   ArrowLeft,
   Layers,
   Loader2,
+  FileQuestion,
+  PlayCircle,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
-import { getAudit, getAuditCost, getHealth, type CostSummary, type HealthResponse } from '../api/client';
+import {
+  getAudit,
+  getAuditCost,
+  getHealth,
+  createDemoAudit,
+  type CostSummary,
+  type HealthResponse,
+} from '../api/client';
 import { API_BASE_URL } from '../api/config';
 import type { Audit } from '../api/types';
 import SummaryCard from '../components/SummaryCard';
@@ -19,8 +30,57 @@ import VideoWithMarkers from '../components/VideoWithMarkers';
 import FindingCard from '../components/FindingCard';
 import Disclaimer from '../components/Disclaimer';
 
+export interface AuditNotFoundViewProps {
+  id?: string;
+  onLoadDemo?: () => void;
+  isStartingDemo?: boolean;
+}
+
+export function AuditNotFoundView({ id, onLoadDemo, isStartingDemo }: AuditNotFoundViewProps) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--color-bg)] px-6 py-12">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-lg">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 mb-5">
+          <FileQuestion className="h-7 w-7" />
+        </div>
+        <h1 className="text-xl font-bold text-[var(--color-text)]">Audit Not Found</h1>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+          The audit with ID {id ? (
+            <code className="rounded bg-[var(--color-bg)] px-1.5 py-0.5 font-mono text-xs text-[var(--color-text)]">{id}</code>
+          ) : (
+            'specified'
+          )} does not exist or has been deleted.
+        </p>
+
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            to="/"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
+          <button
+            onClick={onLoadDemo}
+            disabled={isStartingDemo}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
+          >
+            {isStartingDemo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <PlayCircle className="h-4 w-4" />
+            )}
+            Load Demo Audit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Report() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [audit, setAudit] = useState<Audit | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -30,16 +90,116 @@ export default function Report() {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [isCostOpen, setIsCostOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotFound, setIsNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isStartingDemo, setIsStartingDemo] = useState(false);
+
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const loadAuditData = useCallback(async (auditId: string) => {
+    try {
+      const auditData = await getAudit(auditId);
+      setAudit(auditData);
+      setIsNotFound(false);
+      setLoadError(null);
+
+      // Fetch health in background
+      getHealth().then(setHealth).catch(console.error);
+
+      // Only fetch cost if audit exists and is completed or failed
+      if (auditData.status === 'completed' || auditData.status === 'failed') {
+        getAuditCost(auditId).then(setCostSummary).catch(console.error);
+      } else if (auditData.status === 'processing') {
+        // If still processing, poll every 2 seconds
+        stopPolling();
+        pollTimerRef.current = setTimeout(() => {
+          loadAuditData(auditId);
+        }, 2000);
+      }
+    } catch (err: any) {
+      stopPolling();
+      if (err?.status === 404 || err?.message?.includes('404')) {
+        setIsNotFound(true);
+        setLoadError('The requested audit could not be found.');
+      } else {
+        setLoadError(err?.message || 'Failed to load audit report.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [stopPolling]);
 
   useEffect(() => {
     if (!id) return;
     setIsLoading(true);
-    Promise.all([
-      getAudit(id).then(setAudit).catch(console.error),
-      getAuditCost(id).then(setCostSummary).catch(console.error),
-      getHealth().then(setHealth).catch(console.error),
-    ]).finally(() => setIsLoading(false));
-  }, [id]);
+    setIsNotFound(false);
+    setLoadError(null);
+    loadAuditData(id);
+
+    return () => {
+      stopPolling();
+    };
+  }, [id, loadAuditData, stopPolling]);
+
+  async function handleLoadDemo() {
+    try {
+      setIsStartingDemo(true);
+      const res = await createDemoAudit('fire_exit_safety');
+      navigate(`/audits/${res.id}/processing`);
+    } catch (err: any) {
+      alert(`Could not start demo audit: ${err.message}`);
+    } finally {
+      setIsStartingDemo(false);
+    }
+  }
+
+  if (isNotFound) {
+    return <AuditNotFoundView id={id} onLoadDemo={handleLoadDemo} isStartingDemo={isStartingDemo} />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--color-bg)] px-6 py-12">
+        <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-lg">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 mb-5">
+            <AlertCircle className="h-7 w-7" />
+          </div>
+          <h1 className="text-xl font-bold text-[var(--color-text)]">Failed to Load Report</h1>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            {loadError}
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+            <button
+              onClick={() => {
+                if (id) {
+                  setIsLoading(true);
+                  loadAuditData(id);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !audit) {
     return (
