@@ -131,26 +131,31 @@ def generate_sample_video(output_path: str | Path, duration_s: int = 25, fps: in
 
     writer.release()
 
-    # If ffmpeg is installed, remux/re-encode to ensure H.264 yuv420p + faststart for full Chrome compatibility
+    # Guarantee H.264 yuv420p + faststart for HTML5 browser player compatibility
     ffmpeg_bin = shutil.which("ffmpeg")
-    if ffmpeg_bin:
-        tmp_opt = out_file.with_name(f"opt_{out_file.name}")
-        cmd = [
-            ffmpeg_bin,
-            "-y",
-            "-i", str(out_file),
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
-            str(tmp_opt),
-        ]
-        try:
-            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if res.returncode == 0 and tmp_opt.exists() and tmp_opt.stat().st_size > 0:
-                tmp_opt.replace(out_file)
-        except Exception:
-            if tmp_opt.exists():
-                tmp_opt.unlink()
+    if not ffmpeg_bin:
+        raise RuntimeError(
+            "ffmpeg is required to encode browser-compatible H.264 (yuv420p) video, but 'ffmpeg' was not found in PATH. "
+            "Please install ffmpeg (e.g. `brew install ffmpeg`) and ensure it is on PATH."
+        )
+
+    tmp_opt = out_file.with_name(f"opt_{out_file.name}")
+    cmd = [
+        ffmpeg_bin,
+        "-y",
+        "-i", str(out_file),
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(tmp_opt),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0 or not tmp_opt.exists() or tmp_opt.stat().st_size == 0:
+        if tmp_opt.exists():
+            tmp_opt.unlink()
+        raise RuntimeError(f"ffmpeg failed to encode H.264 video: {res.stderr}")
+
+    tmp_opt.replace(out_file)
 
     print(f"Sample video created successfully: {out_file} ({out_file.stat().st_size / (1024*1024):.2f} MB)")
     return out_file

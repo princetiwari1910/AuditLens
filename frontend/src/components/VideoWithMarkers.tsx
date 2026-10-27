@@ -71,7 +71,7 @@ export default function VideoWithMarkers({
     <div className="rounded-2xl border border-[var(--color-border)] bg-black overflow-hidden shadow-md print:hidden">
       {/* Video Display Area with Canvas Overlay */}
       <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center">
-        {videoError ? (
+        {videoError && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center text-slate-200">
             <AlertCircle className="h-10 w-10 text-red-500 mb-2" />
             <p className="text-sm font-semibold text-white">Video Playback Error</p>
@@ -85,31 +85,69 @@ export default function VideoWithMarkers({
               Open video URL directly
             </a>
           </div>
-        ) : (
-          <>
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              muted={isMuted}
-              playsInline
-              onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
-              onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration || 25)}
-              onEnded={() => setIsPlaying(false)}
-              onError={() => {
-                setVideoError('Walkthrough video could not be loaded. Please ensure the video file exists and range streaming is supported.');
-              }}
-              className="h-full w-full object-contain"
-            />
-
-            {/* Synchronized Letterbox Overlay Canvas */}
-            <OverlayCanvas
-              videoElement={videoRef.current}
-              findings={findings}
-              selectedFindingId={selectedFindingId}
-              currentTime={currentTime}
-            />
-          </>
         )}
+
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          muted={isMuted}
+          playsInline
+          onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
+          onLoadedMetadata={() => {
+            console.log('[VideoPlayer] Loaded metadata:', {
+              duration: videoRef.current?.duration,
+              videoWidth: videoRef.current?.videoWidth,
+              videoHeight: videoRef.current?.videoHeight,
+              readyState: videoRef.current?.readyState,
+              src: videoRef.current?.currentSrc || videoUrl,
+            });
+            setVideoError(null);
+            if (videoRef.current) setDuration(videoRef.current.duration || 25);
+          }}
+          onCanPlay={() => {
+            console.log('[VideoPlayer] onCanPlay readyState:', videoRef.current?.readyState);
+            setVideoError(null);
+          }}
+          onEnded={() => setIsPlaying(false)}
+          onError={(e) => {
+            const target = e.currentTarget as HTMLVideoElement;
+            const mediaErr = target?.error;
+            const activeSrc = target?.currentSrc || target?.src || videoUrl;
+
+            console.error('[VideoPlayer] <video> onError:', {
+              code: mediaErr?.code,
+              message: mediaErr?.message,
+              src: activeSrc,
+              videoUrlProp: videoUrl,
+              readyState: target?.readyState,
+              networkState: target?.networkState,
+            });
+
+            // Prevent setting error state too early or if src is unset/empty
+            if (!videoUrl || !activeSrc || activeSrc === window.location.href) {
+              console.warn('[VideoPlayer] Ignoring onError because src is empty or not yet set');
+              return;
+            }
+
+            const codeDesc =
+              mediaErr?.code === 1 ? 'Aborted' :
+              mediaErr?.code === 2 ? 'Network error' :
+              mediaErr?.code === 3 ? 'Decode error' :
+              mediaErr?.code === 4 ? 'Format / codec not supported by browser' :
+              'Unknown media error';
+
+            setVideoError(`Playback error (code ${mediaErr?.code ?? 'N/A'}: ${codeDesc}${mediaErr?.message ? ` - ${mediaErr.message}` : ''})`);
+          }}
+          className="h-full w-full object-contain"
+        />
+
+        {/* Synchronized Letterbox Overlay Canvas */}
+        <OverlayCanvas
+          videoElement={videoRef.current}
+          findings={findings}
+          selectedFindingId={selectedFindingId}
+          currentTime={currentTime}
+        />
       </div>
 
       {/* Timeline Controls & Finding Markers */}

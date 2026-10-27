@@ -79,6 +79,7 @@ app.add_middleware(
     allow_credentials=True if settings.cors_origins_list != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Range", "Accept-Ranges", "Content-Length", "Content-Type"],
 )
 
 
@@ -135,7 +136,11 @@ async def get_sample_video():
     return FileResponse(
         path=sample_path,
         media_type="video/mp4",
-        headers={"Accept-Ranges": "bytes"},
+        headers={
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length, Content-Type",
+        },
     )
 
 
@@ -505,7 +510,11 @@ async def get_audit_video(
     return FileResponse(
         path=video_path,
         media_type=media_type,
-        headers={"Accept-Ranges": "bytes"},
+        headers={
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Range, Accept-Ranges, Content-Length, Content-Type",
+        },
     )
 
 

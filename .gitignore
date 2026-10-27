@@ -25,6 +25,9 @@ data/
 *.swo
 .DS_Store
 
+# Local binaries
+bin/
+
 # Coverage
 htmlcov/
 .coverage
