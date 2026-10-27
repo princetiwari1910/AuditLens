@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import type { Finding } from '../api/types';
 import OverlayCanvas from './OverlayCanvas';
 import { formatTimestamp, getStatusMeta } from '../utils/formatters';
@@ -22,6 +22,12 @@ export default function VideoWithMarkers({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(25);
   const [isMuted, setIsMuted] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  // Clear video error state whenever videoUrl changes
+  useEffect(() => {
+    setVideoError(null);
+  }, [videoUrl]);
 
   // Sync video time when user clicks a finding in the checklist
   useEffect(() => {
@@ -65,24 +71,45 @@ export default function VideoWithMarkers({
     <div className="rounded-2xl border border-[var(--color-border)] bg-black overflow-hidden shadow-md print:hidden">
       {/* Video Display Area with Canvas Overlay */}
       <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          muted={isMuted}
-          playsInline
-          onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
-          onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration || 25)}
-          onEnded={() => setIsPlaying(false)}
-          className="h-full w-full object-contain"
-        />
+        {videoError ? (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center text-slate-200">
+            <AlertCircle className="h-10 w-10 text-red-500 mb-2" />
+            <p className="text-sm font-semibold text-white">Video Playback Error</p>
+            <p className="text-xs text-slate-400 max-w-sm mt-1">{videoError}</p>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
+            >
+              Open video URL directly
+            </a>
+          </div>
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              muted={isMuted}
+              playsInline
+              onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
+              onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration || 25)}
+              onEnded={() => setIsPlaying(false)}
+              onError={() => {
+                setVideoError('Walkthrough video could not be loaded. Please ensure the video file exists and range streaming is supported.');
+              }}
+              className="h-full w-full object-contain"
+            />
 
-        {/* Synchronized Letterbox Overlay Canvas */}
-        <OverlayCanvas
-          videoElement={videoRef.current}
-          findings={findings}
-          selectedFindingId={selectedFindingId}
-          currentTime={currentTime}
-        />
+            {/* Synchronized Letterbox Overlay Canvas */}
+            <OverlayCanvas
+              videoElement={videoRef.current}
+              findings={findings}
+              selectedFindingId={selectedFindingId}
+              currentTime={currentTime}
+            />
+          </>
+        )}
       </div>
 
       {/* Timeline Controls & Finding Markers */}

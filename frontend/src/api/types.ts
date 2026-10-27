@@ -50,6 +50,7 @@ export interface Audit {
   template_id: string;
   created_at: string;
   duration_s?: number;
+  video_url?: string | null;
   summary?: AuditSummary;
   findings: Finding[];
   error?: string;

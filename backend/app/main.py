@@ -6,6 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import json
 from pathlib import Path
+import shutil
 from typing import Any, AsyncGenerator
 
 from fastapi import (
@@ -40,6 +41,7 @@ from app.storage import (
     StorageValidationError,
     get_audio_dir,
     get_audit_dir,
+    get_audit_video_path,
     get_frames_dir,
     get_overlays_dir,
     save_upload_file,
@@ -104,13 +106,33 @@ async def get_template_detail(template_id: str) -> dict[str, Any]:
 
 # ── Audits CRUD & Background Execution ────────────────────────────────────────
 
+@app.get("/api/sample-video")
+async def get_sample_video():
+    """Serve the reference walkthrough video data/sample_walkthrough.mp4 with range-request support."""
+    settings = get_settings()
+    sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
+    if not sample_path.exists():
+        from scripts.make_sample_video import generate_sample_video
+        generate_sample_video(sample_path, duration_s=25)
+
+    return FileResponse(
+        path=sample_path,
+        media_type="video/mp4",
+        headers={"Accept-Ranges": "bytes"},
+    )
+
+
 @app.post("/api/audits/demo", status_code=status.HTTP_201_CREATED)
 async def create_demo_audit(
     background_tasks: BackgroundTasks,
     template_id: str = "fire_exit_safety",
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
-    """Launch an audit on the pre-generated synthetic walkthrough video for zero-upload demo."""
+    """
+    Launch a demo audit on data/sample_walkthrough.mp4 running the full real pipeline:
+    stores the video in the audit folder, executes frame sampling, runs tool-based evaluation,
+    generates OpenCV overlays, and streams live SSE timeline events to the processing page.
+    """
     settings = get_settings()
     sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
     if not sample_path.exists():
@@ -124,11 +146,18 @@ async def create_demo_audit(
     audit = Audit(
         template_id=template_id,
         status=AuditStatus.QUEUED.value,
-        video_path=str(sample_path.resolve()),
     )
     session.add(audit)
     session.commit()
     session.refresh(audit)
+
+    # Store a physical copy of the walkthrough video in the audit's own directory
+    audit_dir = get_audit_dir(audit.id)
+    dest_video = audit_dir / "walkthrough.mp4"
+    shutil.copyfile(sample_path, dest_video)
+    audit.video_path = str(dest_video.resolve())
+    session.add(audit)
+    session.commit()
 
     background_tasks.add_task(run_audit_job_sync, audit.id)
     return {"id": audit.id, "status": audit.status}
@@ -285,12 +314,19 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
             "sources": sources,
         })
 
+    has_video = bool(
+        (audit.video_path and Path(audit.video_path).exists())
+        or get_audit_video_path(audit_id)
+    )
+    video_url = f"/api/audits/{audit.id}/video" if has_video else None
+
     return {
         "id": audit.id,
         "status": audit.status,
         "template_id": audit.template_id,
         "created_at": audit.created_at.isoformat() if audit.created_at else None,
         "duration_s": audit.duration_s,
+        "video_url": video_url,
         "summary": summary,
         "findings": findings_data,
         "error": audit.error,
@@ -400,6 +436,48 @@ async def get_audit_overlay(
             detail=f"Overlay for finding '{finding_id}' not found",
         )
     return FileResponse(finding.overlay_path, media_type="image/jpeg")
+
+
+@app.get("/api/audits/{audit_id}/video")
+async def get_audit_video(
+    audit_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Serve the audit's walkthrough video with HTTP Range request support (206 Partial Content).
+    Enables video player playback, scrubbing, and bounding box synchronization.
+    """
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audit '{audit_id}' not found",
+        )
+
+    video_path: Path | None = None
+    if audit.video_path and Path(audit.video_path).exists():
+        video_path = Path(audit.video_path)
+    else:
+        video_path = get_audit_video_path(audit_id)
+
+    if not video_path or not video_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Walkthrough video for audit '{audit_id}' not found",
+        )
+
+    ext = video_path.suffix.lower()
+    media_type = "video/mp4"
+    if ext == ".webm":
+        media_type = "video/webm"
+    elif ext == ".mov":
+        media_type = "video/quicktime"
+
+    return FileResponse(
+        path=video_path,
+        media_type=media_type,
+        headers={"Accept-Ranges": "bytes"},
+    )
 
 
 # ── Comparison & Cost ─────────────────────────────────────────────────────────

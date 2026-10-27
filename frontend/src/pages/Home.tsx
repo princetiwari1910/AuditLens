@@ -100,7 +100,7 @@ export default function Home() {
               ) : (
                 <PlayCircle className="h-4 w-4 text-[var(--color-accent)]" />
               )}
-              <span>Load Demo Audit <strong className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">(Demo Data)</strong></span>
+              <span>Load Demo Audit <strong className="text-[10px] text-blue-600 dark:text-blue-400 font-mono">(Sample Walkthrough)</strong></span>
             </button>
           </div>
         </div>

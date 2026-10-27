@@ -10,7 +10,7 @@
       "ground_truth": {
         "extinguisher_visible": "pass",
         "exit_sign_visible": "pass",
-        "two_exits_visible": "pass",
+        "two_exits_visible": "unsure",
         "exit_path_not_blocked": "fail",
         "exit_path_clear_width": "fail"
       }

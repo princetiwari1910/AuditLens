@@ -209,7 +209,8 @@ def evaluate_absence_rule(
 def deduplicate_detections(detections: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     De-duplicate detections across time and space.
-    Detections within 2.0 seconds and overlapping bounding boxes are treated as the same instance.
+    Continuous observations of the same object (contiguous track within 2.5s or similar spatial location)
+    are merged into a single distinct instance.
     """
     if not detections:
         return []
@@ -220,26 +221,31 @@ def deduplicate_detections(detections: list[dict[str, Any]]) -> list[dict[str, A
     for d in sorted_dets:
         t = float(d.get("timestamp_s", 0.0))
         bbox = d.get("bbox", {})
-        bx = bbox.get("x", 0.0)
-        by = bbox.get("y", 0.0)
+        bx = float(bbox.get("x", 0.0))
+        by = float(bbox.get("y", 0.0))
 
         is_duplicate = False
         for u in unique_instances:
-            u_t = float(u.get("timestamp_s", 0.0))
+            last_t = float(u.get("last_seen_s", u.get("timestamp_s", 0.0)))
             u_box = u.get("bbox", {})
-            ux = u_box.get("x", 0.0)
-            uy = u_box.get("y", 0.0)
+            ux = float(u_box.get("x", 0.0))
+            uy = float(u_box.get("y", 0.0))
 
-            # Within 2.5 seconds and spatial center distance < 0.25 normalized
-            if abs(t - u_t) <= 2.5 and (abs(bx - ux) + abs(by - uy)) < 0.25:
+            spatial_dist = abs(bx - ux) + abs(by - uy)
+            # Same spatial position or continuous track within 2.5 seconds
+            if spatial_dist < 0.15 or (abs(t - last_t) <= 2.5 and spatial_dist < 0.25):
                 is_duplicate = True
-                # Keep higher scoring instance
+                u["last_seen_s"] = t
                 if float(d.get("score", 0.0)) > float(u.get("score", 0.0)):
-                    u.update(d)
+                    u["score"] = d.get("score", 0.0)
+                    u["bbox"] = d.get("bbox")
+                    u["polygon"] = d.get("polygon")
                 break
 
         if not is_duplicate:
-            unique_instances.append(dict(d))
+            item = dict(d)
+            item["last_seen_s"] = t
+            unique_instances.append(item)
 
     return unique_instances
 

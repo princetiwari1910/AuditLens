@@ -30,6 +30,16 @@ def get_audit_dir(audit_id: str) -> Path:
     return d
 
 
+def get_audit_video_path(audit_id: str) -> Path | None:
+    """Return the path to the stored walkthrough video for an audit if it exists."""
+    audit_dir = get_audit_dir(audit_id)
+    for ext in ALLOWED_VIDEO_EXTENSIONS:
+        candidate = audit_dir / f"walkthrough{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def get_frames_dir(audit_id: str) -> Path:
     """Return and create the frames directory for an audit."""
     d = get_audit_dir(audit_id) / "frames"

@@ -60,7 +60,7 @@ export default function Report() {
     return true;
   });
 
-  const videoUrl = `/api/audits/${id}/frames/0`; // Or direct video if served
+  const videoUrl = audit.video_url || `/api/audits/${id}/video`;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
