@@ -18,6 +18,7 @@ export default function Processing() {
     currentRule,
     currentTool,
     progressPercent,
+    retry,
   } = useAuditEvents(id);
 
   // Auto-navigate to report on completion
@@ -112,7 +113,7 @@ export default function Processing() {
             <p className="font-mono text-xs opacity-90">{error}</p>
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => window.location.reload()}
+                onClick={retry}
                 className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
               >
                 <RefreshCw className="h-3.5 w-3.5" />

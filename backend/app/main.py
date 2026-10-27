@@ -340,24 +340,28 @@ async def audit_events_stream(audit_id: str, session: Session = Depends(get_sess
     """
     Server-Sent Events endpoint streaming real-time agent execution events.
     Replays past events from JSONL, then streams live events until terminal event.
+    Supports HTTP keep-alive pings every 12s, proxy unbuffering, and guaranteed final events.
     """
     audit = session.get(Audit, audit_id)
     if not audit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
 
     async def event_generator():
-        async for event in event_manager.subscribe(audit_id):
+        async for event in event_manager.subscribe(audit_id, session=session):
             yield {
-                "event": event.get("type", "message"),
+                "event": "message",
                 "data": json.dumps(event),
             }
 
     return EventSourceResponse(
         event_generator(),
+        media_type="text/event-stream",
+        ping=12,
         headers={
-            "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
         },
     )
 

@@ -13,6 +13,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import type { Finding } from '../api/types';
+import { API_BASE_URL } from '../api/config';
 import { formatTimestamp, getSeverityMeta, getStatusMeta } from '../utils/formatters';
 
 interface FindingCardProps {
@@ -31,6 +32,9 @@ export default function FindingCard({
   const severityMeta = getSeverityMeta(finding.severity);
 
   const rawMeas = finding.measurement as any;
+  const overlaySrc = finding.overlay_url
+    ? (finding.overlay_url.startsWith('http') ? finding.overlay_url : `${API_BASE_URL}${finding.overlay_url}`)
+    : '';
 
   function renderStatusIcon() {
     switch (finding.status) {
@@ -162,7 +166,7 @@ export default function FindingCard({
                 className="group relative flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 hover:border-[var(--color-accent)] transition-colors"
               >
                 <img
-                  src={finding.overlay_url}
+                  src={overlaySrc}
                   alt={`Evidence overlay for ${finding.rule_id}`}
                   loading="lazy"
                   className="h-10 w-16 rounded object-cover bg-black"
@@ -215,7 +219,7 @@ export default function FindingCard({
               </button>
             </div>
             <img
-              src={finding.overlay_url}
+              src={overlaySrc}
               alt="Enlarged overlay"
               className="max-h-[80vh] w-auto object-contain mx-auto"
             />

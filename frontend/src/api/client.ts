@@ -1,8 +1,9 @@
 /** Typed API client for AuditLens backend. */
 
 import type { Audit, Template } from './types';
+import { API_BASE_URL } from './config';
 
-const BASE = '/api';
+const BASE = `${API_BASE_URL}/api`;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

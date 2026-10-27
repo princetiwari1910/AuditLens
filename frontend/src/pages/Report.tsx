@@ -12,6 +12,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getAudit, getAuditCost, getHealth, type CostSummary, type HealthResponse } from '../api/client';
+import { API_BASE_URL } from '../api/config';
 import type { Audit } from '../api/types';
 import SummaryCard from '../components/SummaryCard';
 import VideoWithMarkers from '../components/VideoWithMarkers';
@@ -60,7 +61,9 @@ export default function Report() {
     return true;
   });
 
-  const videoUrl = audit.video_url || `/api/audits/${id}/video`;
+  const videoUrl = audit.video_url
+    ? (audit.video_url.startsWith('http') ? audit.video_url : `${API_BASE_URL}${audit.video_url}`)
+    : `${API_BASE_URL}/api/audits/${id}/video`;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
