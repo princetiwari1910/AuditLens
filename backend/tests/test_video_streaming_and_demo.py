@@ -124,7 +124,22 @@ def test_demo_audit_stores_video_and_produces_unsure(client_with_demo_video):
 
 
 def test_video_endpoint_not_found(client_with_demo_video):
-    """Verify GET /api/audits/{id}/video returns 404 for nonexistent audit."""
+    """Verify GET /api/audits/{id}/video returns clear 404 for nonexistent audit or missing video file."""
     client, _ = client_with_demo_video
+
+    # 1. Nonexistent audit ID
     resp = client.get("/api/audits/nonexistent_audit_id/video")
     assert resp.status_code == 404
+    assert "not found" in resp.json()["detail"].lower()
+
+    # 2. Existing audit without stored video file
+    from app.db import engine
+    from sqlmodel import Session
+    with Session(engine()) as session:
+        audit_no_vid = Audit(id="audit_no_vid_123", template_id="fire_exit_safety", video_path="/nonexistent/walkthrough.mp4")
+        session.add(audit_no_vid)
+        session.commit()
+
+    resp2 = client.get("/api/audits/audit_no_vid_123/video")
+    assert resp2.status_code == 404
+    assert "video" in resp2.json()["detail"].lower()

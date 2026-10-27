@@ -40,6 +40,20 @@ class MockSegmentationProvider:
             with open(self.scenario_path, "r", encoding="utf-8") as f:
                 self.scenario_items = json.load(f)
 
+    @property
+    def version(self) -> str:
+        return "mock-1.0"
+
+    @property
+    def scenario_hash(self) -> str:
+        if self.scenario_path.exists():
+            try:
+                content = self.scenario_path.read_bytes()
+                return hashlib.sha256(content).hexdigest()[:16]
+            except Exception:
+                pass
+        return "none"
+
     def _matches_scenario_item(self, prompt: str, item: dict[str, Any]) -> bool:
         norm_prompt = _normalize_str(prompt)
         item_prompt = _normalize_str(item.get("prompt", ""))

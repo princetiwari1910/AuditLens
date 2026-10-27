@@ -25,18 +25,39 @@ class CacheReport:
         return (self.hits / self.total) if self.total > 0 else 0.0
 
 
-def compute_cache_key(frame_hash_or_bytes: str | bytes, provider: str, prompt: str) -> str:
+def compute_cache_key(
+    frame_hash_or_bytes: str | bytes,
+    provider: str,
+    prompt: str,
+    provider_version: str = "1.0.0",
+    scenario_hash: str = "",
+) -> str:
     """
-    Generate deterministic cache key:
-    key = sha256(frame_identifier + ":" + provider + ":" + normalized_prompt)
+    Generate deterministic cache key incorporating frame hash, provider name,
+    prompt, provider version, and scenario hash:
+    key = sha256(frame_identifier + ":" + provider + ":" + prompt + ":" + provider_version + ":" + scenario_hash)
     """
     if isinstance(frame_hash_or_bytes, bytes):
         frame_id = hashlib.sha256(frame_hash_or_bytes).hexdigest()
     else:
         frame_id = str(frame_hash_or_bytes)
 
-    raw = f"{frame_id}:{provider.strip().lower()}:{prompt.strip().lower()}"
+    raw = (
+        f"{frame_id}:"
+        f"{provider.strip().lower()}:"
+        f"{prompt.strip().lower()}:"
+        f"{provider_version.strip()}:"
+        f"{scenario_hash.strip()}"
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def clear_cache_entries(session: Session) -> int:
+    """Delete all entries from the cache_entry table."""
+    from sqlmodel import delete
+    result = session.exec(delete(CacheEntry))
+    session.commit()
+    return getattr(result, "rowcount", 0)
 
 
 def get_cached_result(session: Session, key: str, report: CacheReport | None = None) -> Any | None:

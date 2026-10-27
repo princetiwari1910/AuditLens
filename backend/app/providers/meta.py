@@ -19,6 +19,14 @@ class MetaSegmentationProvider:
     TODO(meta): implement once API credentials arrive from dev.meta.ai/docs.
     """
 
+    @property
+    def version(self) -> str:
+        return "sam-3.1"
+
+    @property
+    def scenario_hash(self) -> str:
+        return "meta-api"
+
     def find_objects(
         self,
         frame_paths: list[str],

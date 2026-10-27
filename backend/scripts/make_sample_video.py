@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import shutil
+import subprocess
 import numpy as np
 import cv2
 
@@ -26,16 +28,19 @@ def generate_sample_video(output_path: str | Path, duration_s: int = 25, fps: in
     height = 720
     total_frames = duration_s * fps
 
-    # Try mp4v codec
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(str(out_file), fourcc, fps, (width, height))
+    # Try H.264 codecs first for browser HTML5 / Chrome compatibility (avc1)
+    writer = None
+    for codec in ["avc1", "H264", "x264", "mp4v"]:
+        try:
+            fourcc = cv2.VideoWriter_fourcc(*codec)
+            test_writer = cv2.VideoWriter(str(out_file), fourcc, fps, (width, height))
+            if test_writer.isOpened():
+                writer = test_writer
+                break
+        except Exception:
+            continue
 
-    if not writer.isOpened():
-        # Fallback to avc1
-        fourcc = cv2.VideoWriter_fourcc(*"avc1")
-        writer = cv2.VideoWriter(str(out_file), fourcc, fps, (width, height))
-
-    if not writer.isOpened():
+    if not writer or not writer.isOpened():
         raise RuntimeError(f"Could not open VideoWriter for {out_file}")
 
     print(f"Generating {duration_s}s synthetic video ({total_frames} frames) -> {out_file}...")
@@ -125,6 +130,28 @@ def generate_sample_video(output_path: str | Path, duration_s: int = 25, fps: in
         writer.write(img)
 
     writer.release()
+
+    # If ffmpeg is installed, remux/re-encode to ensure H.264 yuv420p + faststart for full Chrome compatibility
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin:
+        tmp_opt = out_file.with_name(f"opt_{out_file.name}")
+        cmd = [
+            ffmpeg_bin,
+            "-y",
+            "-i", str(out_file),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(tmp_opt),
+        ]
+        try:
+            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res.returncode == 0 and tmp_opt.exists() and tmp_opt.stat().st_size > 0:
+                tmp_opt.replace(out_file)
+        except Exception:
+            if tmp_opt.exists():
+                tmp_opt.unlink()
+
     print(f"Sample video created successfully: {out_file} ({out_file.stat().st_size / (1024*1024):.2f} MB)")
     return out_file
 

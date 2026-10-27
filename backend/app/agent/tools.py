@@ -267,10 +267,21 @@ class ToolRegistry:
 
         # 1. Check Cache
         session = self.ctx.session
+        provider = self.ctx.segmentation_provider
+        provider_name = "segmentation"
+        provider_version = getattr(provider, "version", "1.0.0")
+        scenario_hash = getattr(provider, "scenario_hash", "")
+
         for f in selected_frames:
             f_idx = f["idx"]
             f_hash = f.get("sha256", str(f_idx))
-            ckey = compute_cache_key(f_hash, "segmentation", prompt)
+            ckey = compute_cache_key(
+                f_hash,
+                provider_name,
+                prompt,
+                provider_version=provider_version,
+                scenario_hash=scenario_hash,
+            )
             frame_cache_keys[f_idx] = ckey
 
             cached_data = None

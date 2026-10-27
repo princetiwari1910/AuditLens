@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import logging
 from pathlib import Path
 import shutil
 from typing import Any, AsyncGenerator
@@ -50,11 +51,15 @@ from app.storage import (
 from app.template_loader import get_template, list_templates
 
 
+logger = logging.getLogger("auditlens.main")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup / shutdown lifecycle."""
     settings = get_settings()
     settings.ensure_dirs()
+    logger.info("AuditLens starting up. Resolved DATA_DIR: %s", settings.DATA_DIR.resolve())
     init_db()
     yield
 
@@ -80,9 +85,13 @@ app.add_middleware(
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
-async def health() -> dict[str, str]:
+async def health() -> dict[str, Any]:
     settings = get_settings()
-    return {"status": "ok", "provider_mode": settings.PROVIDER_MODE}
+    return {
+        "status": "ok",
+        "provider_mode": settings.PROVIDER_MODE,
+        "data_dir": str(settings.DATA_DIR.resolve()),
+    }
 
 
 # ── Templates ─────────────────────────────────────────────────────────────────
@@ -111,9 +120,17 @@ async def get_sample_video():
     """Serve the reference walkthrough video data/sample_walkthrough.mp4 with range-request support."""
     settings = get_settings()
     sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
-    if not sample_path.exists():
-        from scripts.make_sample_video import generate_sample_video
-        generate_sample_video(sample_path, duration_s=25)
+    if not sample_path.exists() or sample_path.stat().st_size == 0:
+        logger.info("Sample walkthrough video missing at %s; generating synthetic H.264 walkthrough video...", sample_path)
+        try:
+            from scripts.make_sample_video import generate_sample_video
+            generate_sample_video(sample_path, duration_s=25)
+        except Exception as exc:
+            logger.exception("Failed to generate synthetic walkthrough video: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not generate sample walkthrough video: {str(exc)}",
+            )
 
     return FileResponse(
         path=sample_path,
@@ -135,9 +152,17 @@ async def create_demo_audit(
     """
     settings = get_settings()
     sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
-    if not sample_path.exists():
-        from scripts.make_sample_video import generate_sample_video
-        generate_sample_video(sample_path, duration_s=25)
+    if not sample_path.exists() or sample_path.stat().st_size == 0:
+        logger.info("Sample walkthrough video missing at %s; generating synthetic H.264 walkthrough video...", sample_path)
+        try:
+            from scripts.make_sample_video import generate_sample_video
+            generate_sample_video(sample_path, duration_s=25)
+        except Exception as exc:
+            logger.exception("Failed to generate synthetic walkthrough video: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not generate sample walkthrough video: {str(exc)}",
+            )
 
     tmpl = get_template(template_id)
     if not tmpl:

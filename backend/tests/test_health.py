@@ -14,3 +14,6 @@ def test_health_returns_ok():
     body = resp.json()
     assert body["status"] == "ok"
     assert body["provider_mode"] in ("mock", "meta")
+    assert "data_dir" in body
+    from pathlib import Path
+    assert Path(body["data_dir"]).is_absolute()

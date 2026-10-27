@@ -6,7 +6,12 @@ import os
 from pathlib import Path
 from functools import lru_cache
 
+from typing import Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DATA_DIR: Path = (PROJECT_ROOT / "data").resolve()
 
 
 class Settings(BaseSettings):
@@ -15,8 +20,18 @@ class Settings(BaseSettings):
     # Provider mode: "mock" or "meta"
     PROVIDER_MODE: str = "mock"
 
-    # File storage root
-    DATA_DIR: Path = Path("./data")
+    # File storage root (defaults to <PROJECT_ROOT>/data)
+    DATA_DIR: Path = DEFAULT_DATA_DIR
+
+    @field_validator("DATA_DIR", mode="before")
+    @classmethod
+    def resolve_data_dir(cls, v: Any) -> Path:
+        if v is None or v == "":
+            return DEFAULT_DATA_DIR
+        p = Path(v)
+        if not p.is_absolute():
+            return (PROJECT_ROOT / p).resolve()
+        return p.resolve()
 
     # Upload limits
     MAX_UPLOAD_MB: int = 200
