@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Upload limits
     MAX_UPLOAD_MB: int = 200
+    MAX_VIDEO_DURATION_S: int = 90  # 90-second maximum walkthrough limit
 
     # Frame sampling
     FRAME_FPS: int = 1
@@ -27,22 +28,35 @@ class Settings(BaseSettings):
     # Rule evaluation
     MIN_CONFIDENCE_PASS: float = 0.6
 
-    # Meta API (used only when PROVIDER_MODE == "meta")
-    META_API_KEY: str = ""      # TODO(meta): set from Meta developer portal
-    META_BASE_URL: str = ""     # TODO(meta): set from official docs
+    # CORS Allowed Origins (comma-separated or single string e.g. "http://localhost:5173,https://auditlens.app")
+    CORS_ORIGINS: str = "*"
+
+    # Target Meta Foundation Models:
+    # - Segmentation: SAM 3.1
+    # - Agent Planner: Muse Spark (tool-calling over ToolRegistry)
+    # - Transcription: Muse Voice Transcribe
+    # TODO(meta): configure once credentials and access are provisioned
+    META_API_KEY: str = ""
+    META_BASE_URL: str = ""
 
     # Estimated unit prices – placeholders until official pricing is known
-    # TODO(meta): update with real pricing from dev.meta.ai/docs
-    UNIT_PRICE_SEGMENTATION: float = 0.002   # per image
-    UNIT_PRICE_AGENT_INPUT: float = 0.003    # per 1K input tokens
-    UNIT_PRICE_AGENT_OUTPUT: float = 0.015   # per 1K output tokens
-    UNIT_PRICE_TRANSCRIPTION: float = 0.006  # per minute of audio
+    # TODO(meta): update with official rates from dev.meta.ai/docs
+    UNIT_PRICE_SEGMENTATION: float = 0.002   # per image processed (SAM 3.1)
+    UNIT_PRICE_AGENT_INPUT: float = 0.003    # per 1K input tokens (Muse Spark)
+    UNIT_PRICE_AGENT_OUTPUT: float = 0.015   # per 1K output tokens (Muse Spark)
+    UNIT_PRICE_TRANSCRIPTION: float = 0.006  # per minute of audio (Muse Voice Transcribe)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property
     def max_upload_bytes(self) -> int:
         return self.MAX_UPLOAD_MB * 1024 * 1024
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        if self.CORS_ORIGINS.strip() == "*":
+            return ["*"]
+        return [orig.strip() for orig in self.CORS_ORIGINS.split(",") if orig.strip()]
 
     def ensure_dirs(self) -> None:
         """Create required data directories on startup."""

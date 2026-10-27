@@ -97,24 +97,27 @@ export default function FindingCard({
 
           {/* Measurement Details (if present) */}
           {rawMeas && rawMeas.width_m !== undefined && (
-            <div className="rounded-lg bg-[var(--color-bg-secondary)] p-3 text-xs space-y-1.5 border border-[var(--color-border)]">
-              <div className="flex items-center justify-between font-mono font-medium text-[var(--color-text)]">
-                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                  <Ruler className="h-3.5 w-3.5" />
-                  Estimated Clear Width:
+            <div className="rounded-lg bg-[var(--color-bg-secondary)] p-3.5 text-xs space-y-2 border border-[var(--color-border)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-mono">
+                <span className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <Ruler className="h-4 w-4" />
+                  Approximate Clear Width:
                 </span>
-                <span className="text-sm font-bold">
+                <span className="text-sm font-black text-[var(--color-text)]">
                   {rawMeas.width_m.toFixed(2)} m (± {rawMeas.uncertainty_m?.toFixed(2)} m)
+                  <span className="ml-1.5 text-[10px] font-sans font-medium uppercase tracking-wider rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0.5">
+                    Approximate
+                  </span>
                 </span>
               </div>
               {rawMeas.method && (
                 <p className="text-[11px] text-[var(--color-text-secondary)]">
-                  <strong>Calibration Method:</strong> {rawMeas.method}
+                  <strong>Scale Method:</strong> {rawMeas.method}
                 </p>
               )}
               {rawMeas.assumptions && (
                 <p className="text-[11px] text-[var(--color-text-secondary)] italic">
-                  <strong>Assumptions & Limits:</strong> {rawMeas.assumptions}
+                  <strong>Uncertainty & Assumptions:</strong> {rawMeas.assumptions}
                 </p>
               )}
             </div>

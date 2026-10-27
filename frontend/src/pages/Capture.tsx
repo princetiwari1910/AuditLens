@@ -21,6 +21,7 @@ import Disclaimer from '../components/Disclaimer';
 import { formatTimestamp } from '../utils/formatters';
 
 const MAX_UPLOAD_MB = 200;
+const MAX_DURATION_S = 90;
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'image/jpeg', 'image/png'];
 
 export default function Capture() {
@@ -32,6 +33,7 @@ export default function Capture() {
   const [template, setTemplate] = useState<Template | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,23 +68,55 @@ export default function Capture() {
 
   function handleFileSelected(selectedFile: File) {
     setValidationError(null);
+    setVideoDuration(null);
 
     // Type validation
     if (!ALLOWED_TYPES.includes(selectedFile.type) && !selectedFile.name.match(/\.(mp4|mov|webm|jpg|jpeg|png)$/i)) {
-      setValidationError(`Unsupported format "${selectedFile.type}". Please upload MP4, MOV, WebM, or JPG/PNG.`);
+      setValidationError(`Unsupported format "${selectedFile.type || 'unknown'}". Please upload MP4, MOV, WebM, or JPG/PNG.`);
       return;
     }
 
     // Size validation
     const sizeMb = selectedFile.size / (1024 * 1024);
     if (sizeMb > MAX_UPLOAD_MB) {
-      setValidationError(`File size (${sizeMb.toFixed(1)} MB) exceeds ${MAX_UPLOAD_MB} MB limit.`);
+      setValidationError(`File size (${sizeMb.toFixed(1)} MB) exceeds maximum allowed limit of ${MAX_UPLOAD_MB} MB.`);
       return;
     }
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
+    const isVid = selectedFile.type.startsWith('video/') || selectedFile.name.match(/\.(mp4|mov|webm)$/i);
+    const objectUrl = URL.createObjectURL(selectedFile);
+
+    if (isVid) {
+      // Validate video decodability and 90-second duration limit
+      const tempVideo = document.createElement('video');
+      tempVideo.preload = 'metadata';
+      tempVideo.onloadedmetadata = () => {
+        const dur = tempVideo.duration;
+        setVideoDuration(dur);
+        if (dur > MAX_DURATION_S) {
+          setValidationError(
+            `Walkthrough video exceeds the 90-second limit (${Math.round(dur)}s). Please trim or upload a clip under ${MAX_DURATION_S}s.`
+          );
+          setFile(null);
+          setPreviewUrl(null);
+          URL.revokeObjectURL(objectUrl);
+        } else {
+          setFile(selectedFile);
+          setPreviewUrl(objectUrl);
+        }
+      };
+      tempVideo.onerror = () => {
+        setValidationError('The selected video file appears corrupt or cannot be decoded.');
+        setFile(null);
+        setPreviewUrl(null);
+        URL.revokeObjectURL(objectUrl);
+      };
+      tempVideo.src = objectUrl;
+    } else {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setFile(selectedFile);
+      setPreviewUrl(objectUrl);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -170,7 +204,11 @@ export default function Capture() {
 
       navigate(`/audits/${res.id}/processing`);
     } catch (err: any) {
-      setValidationError(err.message || 'Failed to initiate audit.');
+      if (err.name === 'TypeError' || err.message?.includes('Failed to fetch')) {
+        setValidationError('Network drop: Failed to connect to AuditLens backend. Please check server connection.');
+      } else {
+        setValidationError(err.message || 'Failed to initiate audit.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +303,7 @@ export default function Capture() {
                     {file.name}
                   </span>
                   <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                    ({(file.size / (1024 * 1024)).toFixed(1)} MB)
+                    ({(file.size / (1024 * 1024)).toFixed(1)} MB{videoDuration !== null ? ` · ${Math.round(videoDuration)}s` : ''})
                   </span>
                 </div>
                 <button

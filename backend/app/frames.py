@@ -58,7 +58,15 @@ def sample_frames_from_video(
     if native_fps <= 0 or total_frames <= 0:
         cap.release()
         raise VideoProcessingError(
-            f"Video has invalid metadata (fps={native_fps}, frames={total_frames}): {video_str}"
+            f"Video has invalid metadata (fps={native_fps}, frames={total_frames}): {video_str}. File may be corrupt or unreadable."
+        )
+
+    duration_s = total_frames / native_fps
+    if duration_s > settings.MAX_VIDEO_DURATION_S:
+        cap.release()
+        raise VideoProcessingError(
+            f"Walkthrough video duration ({duration_s:.1f}s) exceeds maximum allowed limit of {settings.MAX_VIDEO_DURATION_S}s. "
+            "Please upload a focused walkthrough clip of 90 seconds or less."
         )
 
     # Calculate frame step based on requested sample_fps

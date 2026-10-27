@@ -62,7 +62,7 @@ def compute_summary_score(findings: list[dict[str, Any]]) -> dict[str, Any]:
 def parse_custom_rule(text: str, rule_idx: int = 1) -> RuleModel:
     """
     Parse a user-entered freeform sentence into a structured RuleModel using keyword heuristics.
-    TODO(meta): Replace keyword heuristic with Meta LLM natural language rule compiler.
+    TODO(meta): Replace keyword heuristic with Muse Spark natural language rule compiler.
     """
     norm = text.strip()
     lower = norm.lower()

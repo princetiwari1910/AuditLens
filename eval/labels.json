@@ -1,0 +1,19 @@
+{
+  "description": "Benchmark ground-truth annotation format for AuditLens evaluation suite.",
+  "version": "1.0",
+  "benchmarks": [
+    {
+      "id": "synthetic_walkthrough_01",
+      "video_path": "data/sample_walkthrough.mp4",
+      "template_id": "fire_exit_safety",
+      "description": "Synthetic 25s walkthrough containing mounted extinguisher, overhead exit sign, A4 reference, blocking box, and secondary exit.",
+      "ground_truth": {
+        "extinguisher_visible": "pass",
+        "exit_sign_visible": "pass",
+        "two_exits_visible": "pass",
+        "exit_path_not_blocked": "fail",
+        "exit_path_clear_width": "fail"
+      }
+    }
+  ]
+}

@@ -64,11 +64,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS configured from environment variable (default: "*")
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True if settings.cors_origins_list != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -315,7 +316,14 @@ async def audit_events_stream(audit_id: str, session: Session = Depends(get_sess
                 "data": json.dumps(event),
             }
 
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(
+        event_generator(),
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ── Voice Notes Upload ────────────────────────────────────────────────────────

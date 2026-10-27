@@ -31,6 +31,9 @@ test:
 lint:
 	cd frontend && npx tsc --noEmit
 
+eval:
+	backend/.venv/bin/python eval/run_eval.py --mode both
+
 # ── Utilities ────────────────────────────────────────────────────────────
 sample-video:
 	cd backend && .venv/bin/python scripts/make_sample_video.py

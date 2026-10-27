@@ -58,6 +58,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
+      {/* Mock Mode Alert Banner */}
+      {health?.provider_mode === 'mock' && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-200">
+          <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against deterministic scenarios.</span>
+        </div>
+      )}
+
       {/* Top Navigation */}
       <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur px-6 py-4 sticky top-0 z-20">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
@@ -93,7 +100,7 @@ export default function Home() {
               ) : (
                 <PlayCircle className="h-4 w-4 text-[var(--color-accent)]" />
               )}
-              <span>Load Demo Audit</span>
+              <span>Load Demo Audit <strong className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">(Demo Data)</strong></span>
             </button>
           </div>
         </div>

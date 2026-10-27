@@ -1,53 +1,138 @@
 # AuditLens
 
-> Safety audits from walkthrough videos — an assistive pre-audit tool.
+> **Walk through. Get proof. Fix what matters.**  
+> An assistive safety pre-audit tool powered by foundation models.
 
-Upload a phone walkthrough video (or photos) of a room, workshop, or lab.
-Choose a safety checklist or write your own rules. Receive an evidence-backed
-audit report with findings, overlays, confidence scores, measurements, and
-plain-language fixes.
+Upload a phone walkthrough video or photos of a room, workshop, or lab. Choose a safety checklist or type your own rule. Receive an evidence-backed audit report with synchronized bounding-box overlays, optical clearance width measurements, confidence scores, and plain-language fixes.
 
-**⚠️ Disclaimer:** AuditLens is an assistive pre-audit tool. It does not certify
-legal compliance. Verify against local regulations and a qualified inspector.
+**⚠️ Disclaimer:** AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Always verify against local regulations and a qualified inspector.
 
-## Quick Start
+---
+
+## 🚀 Quick Start (Local Development)
+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- `ffmpeg` (`brew install ffmpeg` on macOS, or `apt-get install ffmpeg` on Linux)
 
 ```bash
-# Prerequisites: Python 3.11+, Node 18+, ffmpeg
-# brew install ffmpeg  (if not installed)
+# 1. Setup Python venv and install frontend dependencies
+make setup
 
-make setup   # creates venv, installs deps, copies .env
-make dev     # starts backend (:8000) and frontend (:5173)
+# 2. Start backend (:8000) and frontend (:5173) concurrently
+make dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-## Commands
+- Click **"Load Demo Audit (Demo Data)"** on the top right to run an end-to-end audit with the pre-generated synthetic video in 1 click without uploading any files.
 
-| Command              | Description                           |
-| -------------------- | ------------------------------------- |
-| `make setup`         | Install all dependencies              |
-| `make dev`           | Start both servers                    |
-| `make test`          | Run backend tests                     |
-| `make lint`          | TypeScript type-check                 |
-| `make sample-video`  | Generate a synthetic test video       |
-| `make clean`         | Remove venv, node_modules, data       |
+---
 
-## Architecture
+## 🛠️ CLI Runner & Evaluation Benchmark
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+AuditLens can run completely headless from the command line:
 
-## Current Phase: Mock Mode
+```bash
+# Generate the synthetic 25-second walkthrough video
+make sample-video
 
-All AI providers return deterministic mock data. No API key is needed.
-See [docs/META_INTEGRATION.md](docs/META_INTEGRATION.md) for the plan to
-integrate real providers.
+# Run full audit from terminal with live event timeline & findings table
+backend/.venv/bin/python backend/scripts/run_audit_cli.py --video data/sample_walkthrough.mp4 --template fire_exit_safety
 
-## Tech Stack
+# Run the Precision & Recall evaluation benchmark suite (comparing baseline vs full pipeline)
+backend/.venv/bin/python eval/run_eval.py --mode both
+```
 
-- **Backend:** Python 3.11, FastAPI, SQLModel + SQLite, OpenCV (headless)
-- **Frontend:** React + Vite + TypeScript, Tailwind CSS, TanStack Query
+---
 
-## License
+## 🧪 Testing
 
-Hackathon project — Meta Global AI Developer Hackathon.
+```bash
+# Run all 30 backend pytest tests (rules, cache, cost, evidence-first, API)
+make test
+
+# Run frontend unit tests (letterbox coordinate projection & formatters)
+cd frontend && npm test
+
+# TypeScript typecheck & production build
+make lint
+cd frontend && npm run build
+```
+
+---
+
+## 🐳 Production Deployment & Hosting
+
+### Option A: Docker Deployment (Recommended)
+
+AuditLens includes a production-ready `Dockerfile` with `ffmpeg` and OpenCV native libraries pre-installed.
+
+```bash
+# Build Docker container
+docker build -t auditlens-backend -f backend/Dockerfile backend/
+
+# Run container with persistent data volume mounted
+docker run -d \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/data \
+  -e CORS_ORIGINS="https://yourdomain.com,http://localhost:5173" \
+  -e PROVIDER_MODE=mock \
+  --name auditlens-api \
+  auditlens-backend
+```
+
+### Option B: Reverse Proxy Configuration (Nginx & SSE)
+
+When running behind an Nginx or Cloudflare reverse proxy, disable response buffering so Server-Sent Events (SSE) stream in real time without lag:
+
+```nginx
+location /api/audits/ {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    # Critical SSE proxy directives
+    proxy_set_header Connection '';
+    proxy_http_version 1.1;
+    chunked_transfer_encoding off;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 300s;
+}
+```
+
+---
+
+## 🧠 Architecture & Foundation Model Targets
+
+AuditLens isolates all AI reasoning behind strict interfaces so switching between mock and real execution requires zero refactoring:
+
+| Capability | Interface | Current Mock | Target Foundation Model |
+|---|---|---|---|
+| **Visual Grounding & Segmentation** | `SegmentationProvider` | `scenarios/demo_room.json` | **SAM 3.1** |
+| **Agent Reasoning & Tool Calling** | `AgentProvider` | Deterministic `ToolRegistry` Planner | **Muse Spark** |
+| **Audio Speech-to-Text** | `TranscriptionProvider` | Canned Hinglish voice memos | **Muse Voice Transcribe** |
+
+See [docs/META_INTEGRATION.md](docs/META_INTEGRATION.md) for the drop-in integration checklist.
+
+---
+
+## 📄 Makefile Commands
+
+| Command | Description |
+|---|---|
+| `make setup` | Create virtualenv, install pip & npm packages, setup `.env` |
+| `make dev` | Start backend (:8000) and frontend (:5173) concurrently |
+| `make test` | Run all 30 backend pytest unit & smoke tests |
+| `make lint` | Run TypeScript typecheck (`tsc --noEmit`) |
+| `make sample-video` | Generate the 25-second synthetic walkthrough video |
+| `make clean` | Remove `.venv`, `node_modules`, and local build artifacts |
+
+---
+
+## ⚖️ License & Hackathon Context
+
+Built for the **Meta Global AI Developer Hackathon**.
+Assisting workplace facility managers and lab technicians perform rapid pre-audits between official inspections.

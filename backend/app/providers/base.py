@@ -34,7 +34,7 @@ class Transcript:
 
 
 class SegmentationProvider(Protocol):
-    """Visual grounding & segmentation model interface (e.g. Segment Anything / SAM)."""
+    """Visual grounding & segmentation model interface (Target: SAM 3.1)."""
 
     def find_objects(
         self,
@@ -47,7 +47,7 @@ class SegmentationProvider(Protocol):
 
 
 class TranscriptionProvider(Protocol):
-    """Audio speech-to-text interface (e.g. Meta ASR)."""
+    """Audio speech-to-text interface (Target: Muse Voice Transcribe)."""
 
     def transcribe(
         self,
@@ -59,7 +59,7 @@ class TranscriptionProvider(Protocol):
 
 
 class AgentProvider(Protocol):
-    """Orchestrator interface for reasoning and tool execution."""
+    """Orchestrator interface for reasoning and tool execution (Target: Muse Spark)."""
 
     def run_audit(
         self,

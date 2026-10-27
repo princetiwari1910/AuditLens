@@ -11,7 +11,7 @@ import {
   Layers,
   Loader2,
 } from 'lucide-react';
-import { getAudit, getAuditCost, type CostSummary } from '../api/client';
+import { getAudit, getAuditCost, getHealth, type CostSummary, type HealthResponse } from '../api/client';
 import type { Audit } from '../api/types';
 import SummaryCard from '../components/SummaryCard';
 import VideoWithMarkers from '../components/VideoWithMarkers';
@@ -22,6 +22,7 @@ export default function Report() {
   const { id } = useParams<{ id: string }>();
 
   const [audit, setAudit] = useState<Audit | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pass' | 'fail' | 'unsure'>('all');
@@ -35,6 +36,7 @@ export default function Report() {
     Promise.all([
       getAudit(id).then(setAudit).catch(console.error),
       getAuditCost(id).then(setCostSummary).catch(console.error),
+      getHealth().then(setHealth).catch(console.error),
     ]).finally(() => setIsLoading(false));
   }, [id]);
 
@@ -102,13 +104,33 @@ export default function Report() {
               AuditLens Safety Verification Report
             </h1>
           </div>
-          <span className="font-mono text-xs text-slate-500">
-            Generated: {new Date().toLocaleDateString()}
-          </span>
+          <div className="text-right">
+            <span className="font-mono text-xs text-slate-500 block">
+              Generated: {new Date().toLocaleDateString()}
+            </span>
+            <span className="font-mono text-[10px] uppercase font-bold text-slate-700">
+              Provider: {health?.provider_mode === 'meta' ? 'META FOUNDATION (SAM 3.1 + Muse Spark)' : 'MOCK (Simulated Detections)'}
+            </span>
+          </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-5xl px-6 py-8 space-y-8">
+        {/* On-screen Provider Mode Stamp Banner */}
+        <div className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-mono">
+          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
+            <span>Execution Provider Mode:</span>
+            <span className="font-bold text-[var(--color-text)] uppercase">
+              {health?.provider_mode || 'MOCK'}
+            </span>
+            <span className="text-[11px] text-[var(--color-text-secondary)]">
+              {health?.provider_mode === 'meta' ? '(SAM 3.1 + Muse Spark)' : '(Simulated Detections)'}
+            </span>
+          </div>
+          <span className="text-[11px] text-[var(--color-text-secondary)]">
+            Audit ID: {audit.id.slice(0, 14)}
+          </span>
+        </div>
         {/* Summary Card with Circular Gauge */}
         <SummaryCard
           summary={audit.summary}

@@ -1,4 +1,8 @@
-"""Real Meta API providers (TODO: implement after Meta API access)."""
+"""Target Meta Foundation Model provider stubs (SAM 3.1, Muse Spark, Muse Voice Transcribe).
+
+NOTE: Do not assume specific request/response shapes here; leave them as TODO(meta)
+to be implemented directly against the official documentation at dev.meta.ai/docs.
+"""
 
 from __future__ import annotations
 
@@ -11,8 +15,8 @@ ERR_MSG = "Implement after Meta API access: see docs/META_INTEGRATION.md"
 
 class MetaSegmentationProvider:
     """
-    Segmentation provider integrating with Meta SAM API.
-    TODO(meta): implement once API credentials arrive.
+    Segmentation provider integrating with SAM 3.1 API.
+    TODO(meta): implement once API credentials arrive from dev.meta.ai/docs.
     """
 
     def find_objects(
@@ -21,14 +25,14 @@ class MetaSegmentationProvider:
         prompt: str,
         timestamps_s: list[float] | None = None,
     ) -> list[Detection]:
-        # TODO(meta): Call Meta SAM endpoint, normalize bounding boxes & polygons to [0, 1]
+        # TODO(meta): Call SAM 3.1 endpoint, normalize bounding boxes & polygons to [0, 1]
         raise NotImplementedError(ERR_MSG)
 
 
 class MetaTranscriptionProvider:
     """
-    Speech-to-text provider integrating with Meta ASR API.
-    TODO(meta): implement once API credentials arrive.
+    Speech-to-text provider integrating with Muse Voice Transcribe API.
+    TODO(meta): implement once API credentials arrive from dev.meta.ai/docs.
     """
 
     def transcribe(
@@ -36,14 +40,14 @@ class MetaTranscriptionProvider:
         audio_path: str,
         language_hint: str | None = None,
     ) -> Transcript:
-        # TODO(meta): Call Meta ASR endpoint, return Transcript with segments
+        # TODO(meta): Call Muse Voice Transcribe endpoint, return Transcript with segments
         raise NotImplementedError(ERR_MSG)
 
 
 class MetaAgentProvider:
     """
-    Planner provider integrating with Meta Llama / LLM tool-calling.
-    TODO(meta): implement once API credentials arrive.
+    Planner provider integrating with Muse Spark agent tool-calling over the ToolRegistry.
+    TODO(meta): implement once API credentials arrive from dev.meta.ai/docs.
     """
 
     def run_audit(
@@ -53,5 +57,5 @@ class MetaAgentProvider:
         tools: Any,
         emit: Callable[[dict[str, Any]], None],
     ) -> list[Any]:
-        # TODO(meta): Invoke Meta LLM with tool schemas and execute planner
+        # TODO(meta): Invoke Muse Spark with tool schemas and execute planner
         raise NotImplementedError(ERR_MSG)
