@@ -92,6 +92,12 @@ async def health() -> dict[str, Any]:
         "status": "ok",
         "provider_mode": settings.PROVIDER_MODE,
         "data_dir": str(settings.DATA_DIR.resolve()),
+        "demo_replay": bool(settings.DEMO_REPLAY),
+        "models": {
+            "segmentation": settings.MODEL_ID_SEGMENTATION,
+            "agent": settings.MODEL_ID_AGENT,
+            "transcription": settings.MODEL_ID_TRANSCRIPTION,
+        },
     }
 
 
@@ -176,6 +182,11 @@ async def create_demo_audit(
     audit = Audit(
         template_id=template_id,
         status=AuditStatus.QUEUED.value,
+        provider_mode=settings.PROVIDER_MODE,
+        model_segmentation=settings.MODEL_ID_SEGMENTATION,
+        model_agent=settings.MODEL_ID_AGENT,
+        model_transcription=settings.MODEL_ID_TRANSCRIPTION,
+        is_replay=bool(settings.DEMO_REPLAY),
     )
     session.add(audit)
     session.commit()
@@ -255,6 +266,11 @@ async def create_audit(
         template_id=template_id or "custom",
         custom_rules_json=custom_rules if custom_rules else None,
         status=AuditStatus.QUEUED.value,
+        provider_mode=settings.PROVIDER_MODE,
+        model_segmentation=settings.MODEL_ID_SEGMENTATION,
+        model_agent=settings.MODEL_ID_AGENT,
+        model_transcription=settings.MODEL_ID_TRANSCRIPTION,
+        is_replay=bool(settings.DEMO_REPLAY),
     )
     session.add(audit)
     session.commit()
@@ -312,6 +328,16 @@ async def list_audits(session: Session = Depends(get_session)) -> list[dict[str,
             "duration_s": a.duration_s,
             "summary": summary,
             "error": a.error,
+            "provider_mode": a.provider_mode,
+            "model_segmentation": a.model_segmentation,
+            "model_agent": a.model_agent,
+            "model_transcription": a.model_transcription,
+            "is_replay": a.is_replay,
+            "models": {
+                "segmentation": a.model_segmentation,
+                "agent": a.model_agent,
+                "transcription": a.model_transcription,
+            },
         })
     return results
 
@@ -360,6 +386,16 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
         "summary": summary,
         "findings": findings_data,
         "error": audit.error,
+        "provider_mode": audit.provider_mode,
+        "model_segmentation": audit.model_segmentation,
+        "model_agent": audit.model_agent,
+        "model_transcription": audit.model_transcription,
+        "is_replay": audit.is_replay,
+        "models": {
+            "segmentation": audit.model_segmentation,
+            "agent": audit.model_agent,
+            "transcription": audit.model_transcription,
+        },
     }
 
 
@@ -386,7 +422,7 @@ async def audit_events_stream(audit_id: str, session: Session = Depends(get_sess
     return EventSourceResponse(
         event_generator(),
         media_type="text/event-stream",
-        ping=12,
+        ping=15,
         headers={
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",

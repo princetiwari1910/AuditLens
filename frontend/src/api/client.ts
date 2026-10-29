@@ -36,13 +36,38 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface HealthResponse {
   status: string;
   provider_mode: string;
+  data_dir?: string;
+  demo_replay?: boolean;
+  models?: {
+    segmentation?: string;
+    agent?: string;
+    transcription?: string;
+  };
+}
+
+export interface ProviderCostData {
+  name?: string;
+  model_id?: string;
+  role?: string;
+  calls: number;
+  cache_hits?: number;
+  latency_ms?: number;
+  units: number;
+  cost_usd: number;
+  simulated?: boolean;
 }
 
 export interface CostSummary {
   audit_id: string;
+  provider_mode?: string;
   total_calls: number;
   total_cost_usd: number;
-  by_provider: Record<string, { calls: number; units: number; cost_usd: number }>;
+  by_provider: Record<string, ProviderCostData>;
+  models?: {
+    segmentation?: string;
+    agent?: string;
+    transcription?: string;
+  };
 }
 
 export interface CompareResult {

@@ -1,0 +1,528 @@
+{
+  "recorded_at": "2026-10-29T05:15:03Z",
+  "template_id": "fire_exit_safety",
+  "duration_s": 0.21,
+  "summary": {
+    "score": 50,
+    "pass": 2,
+    "fail": 2,
+    "unsure": 1,
+    "by_severity": {
+      "high": 4,
+      "medium": 1,
+      "low": 0
+    }
+  },
+  "events": [
+    {
+      "type": "audit_started",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_count": 5,
+        "frame_count": 25
+      }
+    },
+    {
+      "type": "frames_sampled",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "frame_count": 25
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "list_rules",
+        "args_summary": {}
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "list_rules",
+        "result_summary": "Loaded 5 rules",
+        "duration_ms": 0
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "extinguisher_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "fire extinguisher"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 10 detections",
+        "duration_ms": 18
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "id": "f_ddb38435",
+        "audit_id": "demo_rec_1793250902",
+        "rule_id": "extinguisher_visible",
+        "status": "pass",
+        "confidence": 0.92,
+        "frame_idx": 0,
+        "timestamp_s": 0.0,
+        "measurement": null,
+        "rationale": "Object confirmed present with 92% confidence at 0.0s.",
+        "fix_text": "",
+        "severity": "high",
+        "sources": [
+          "segmentation"
+        ],
+        "evidence_ids": [
+          "res_f412107c8ae0",
+          "res_7d27dcbe5f2c"
+        ],
+        "overlay_url": "/api/audits/demo_rec_1793250902/overlays/f_ddb38435"
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_sign_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "emergency exit sign"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 37 detections",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "id": "f_13ccf290",
+        "audit_id": "demo_rec_1793250902",
+        "rule_id": "exit_sign_visible",
+        "status": "pass",
+        "confidence": 0.95,
+        "frame_idx": 2,
+        "timestamp_s": 2.0,
+        "measurement": null,
+        "rationale": "Object confirmed present with 95% confidence at 2.0s.",
+        "fix_text": "",
+        "severity": "high",
+        "sources": [
+          "segmentation"
+        ],
+        "evidence_ids": [
+          "res_f412107c8ae0",
+          "res_4c05b4242f25"
+        ],
+        "overlay_url": "/api/audits/demo_rec_1793250902/overlays/f_13ccf290"
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "two_exits_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "exit door"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 23 detections",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "id": "f_a91cae30",
+        "audit_id": "demo_rec_1793250902",
+        "rule_id": "two_exits_visible",
+        "status": "unsure",
+        "confidence": 0.5,
+        "frame_idx": 2,
+        "timestamp_s": 2.0,
+        "measurement": null,
+        "rationale": "Observed 2 candidate instances, but some have marginal confidence.",
+        "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
+        "severity": "medium",
+        "sources": [
+          "segmentation"
+        ],
+        "evidence_ids": [
+          "res_f412107c8ae0",
+          "res_954bea426f9e"
+        ],
+        "overlay_url": "/api/audits/demo_rec_1793250902/overlays/f_a91cae30"
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_not_blocked",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "box"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 20 detections for 'box'",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_not_blocked",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "pallet"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 14 detections for 'pallet'",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_not_blocked",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "trash bin"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 11 detections for 'trash bin'",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_not_blocked",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "furniture"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 14 detections for 'furniture'",
+        "duration_ms": 15
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_not_blocked",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "ladder"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 10 detections for 'ladder'",
+        "duration_ms": 16
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "id": "f_1a3b4294",
+        "audit_id": "demo_rec_1793250902",
+        "rule_id": "exit_path_not_blocked",
+        "status": "fail",
+        "confidence": 0.95,
+        "frame_idx": 0,
+        "timestamp_s": 0.0,
+        "measurement": null,
+        "rationale": "Blocking hazard detected at 0.0s (95% confidence).",
+        "fix_text": "Immediately remove all boxes, pallets, and temporary storage from designated exit routes.",
+        "severity": "high",
+        "sources": [
+          "segmentation"
+        ],
+        "evidence_ids": [
+          "res_f412107c8ae0",
+          "res_f396a7f49d1f",
+          "res_956b0eb23b10",
+          "res_65d090c1bf14",
+          "res_0b928b01de7a",
+          "res_f0592b5ba744"
+        ],
+        "overlay_url": "/api/audits/demo_rec_1793250902/overlays/f_1a3b4294"
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "rule_id": "exit_path_clear_width",
+        "tool": "measure_clear_width",
+        "args_summary": {
+          "prompts": [
+            "box",
+            "chair",
+            "cable",
+            "obstruction"
+          ]
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "tool": "measure_clear_width",
+        "result_summary": "Width: 0.00m (+/- 0.05m)",
+        "duration_ms": 65
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "id": "f_844631b3",
+        "audit_id": "demo_rec_1793250902",
+        "rule_id": "exit_path_clear_width",
+        "status": "fail",
+        "confidence": 0.88,
+        "frame_idx": 0,
+        "timestamp_s": 0.0,
+        "measurement": {
+          "width_m": 0.0,
+          "uncertainty_m": 0.05,
+          "pixels_per_meter": 370.64,
+          "method": "A4 optical reference calibration (110.1px = 0.297m)",
+          "assumptions": "Linear gap projection at floor level between detected obstacle bounding boxes. Assumes reference object resides at comparable depth with minimal perspective foreshortening.",
+          "reference_type": "optical_reference",
+          "raw_pixel_width": 0.0,
+          "result_id": "res_e3c222fc0fcf"
+        },
+        "rationale": "Measured walkway clear width of 0.00 m (+/- 0.05 m) is below required 1.00 m.",
+        "fix_text": "Reorganize stored items and furniture so at least 1.0 m clear walkway width is continuously preserved.",
+        "severity": "high",
+        "sources": [
+          "segmentation",
+          "measurement"
+        ],
+        "evidence_ids": [
+          "res_f412107c8ae0",
+          "res_e3c222fc0fcf"
+        ],
+        "overlay_url": "/api/audits/demo_rec_1793250902/overlays/f_844631b3"
+      }
+    },
+    {
+      "type": "audit_completed",
+      "ts": "2026-10-29T05:15:03Z",
+      "audit_id": "demo_rec_1793250902",
+      "payload": {
+        "summary": {
+          "score": 50,
+          "pass": 2,
+          "fail": 2,
+          "unsure": 1,
+          "by_severity": {
+            "high": 4,
+            "medium": 1,
+            "low": 0
+          }
+        },
+        "findings_count": 5
+      }
+    }
+  ],
+  "findings": [
+    {
+      "rule_id": "extinguisher_visible",
+      "status": "pass",
+      "confidence": 0.92,
+      "timestamp_s": 0.0,
+      "frame_idx": 0,
+      "measurement_json": null,
+      "rationale": "Object confirmed present with 92% confidence at 0.0s.",
+      "fix_text": "",
+      "severity": "high",
+      "sources_json": "[\"segmentation\"]"
+    },
+    {
+      "rule_id": "exit_sign_visible",
+      "status": "pass",
+      "confidence": 0.95,
+      "timestamp_s": 2.0,
+      "frame_idx": 2,
+      "measurement_json": null,
+      "rationale": "Object confirmed present with 95% confidence at 2.0s.",
+      "fix_text": "",
+      "severity": "high",
+      "sources_json": "[\"segmentation\"]"
+    },
+    {
+      "rule_id": "two_exits_visible",
+      "status": "unsure",
+      "confidence": 0.5,
+      "timestamp_s": 2.0,
+      "frame_idx": 2,
+      "measurement_json": null,
+      "rationale": "Observed 2 candidate instances, but some have marginal confidence.",
+      "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
+      "severity": "medium",
+      "sources_json": "[\"segmentation\"]"
+    },
+    {
+      "rule_id": "exit_path_not_blocked",
+      "status": "fail",
+      "confidence": 0.95,
+      "timestamp_s": 0.0,
+      "frame_idx": 0,
+      "measurement_json": null,
+      "rationale": "Blocking hazard detected at 0.0s (95% confidence).",
+      "fix_text": "Immediately remove all boxes, pallets, and temporary storage from designated exit routes.",
+      "severity": "high",
+      "sources_json": "[\"segmentation\"]"
+    },
+    {
+      "rule_id": "exit_path_clear_width",
+      "status": "fail",
+      "confidence": 0.88,
+      "timestamp_s": 0.0,
+      "frame_idx": 0,
+      "measurement_json": "{\"width_m\": 0.0, \"uncertainty_m\": 0.05, \"pixels_per_meter\": 370.64, \"method\": \"A4 optical reference calibration (110.1px = 0.297m)\", \"assumptions\": \"Linear gap projection at floor level between detected obstacle bounding boxes. Assumes reference object resides at comparable depth with minimal perspective foreshortening.\", \"reference_type\": \"optical_reference\", \"raw_pixel_width\": 0.0, \"result_id\": \"res_e3c222fc0fcf\"}",
+      "rationale": "Measured walkway clear width of 0.00 m (+/- 0.05 m) is below required 1.00 m.",
+      "fix_text": "Reorganize stored items and furniture so at least 1.0 m clear walkway width is continuously preserved.",
+      "severity": "high",
+      "sources_json": "[\"segmentation\", \"measurement\"]"
+    }
+  ],
+  "cost_summary": {
+    "audit_id": "demo_rec_1793250902",
+    "provider_mode": "mock",
+    "total_calls": 15,
+    "total_cost_usd": 0.6084,
+    "by_provider": {
+      "segmentation": {
+        "name": "Segmentation",
+        "model_id": "SAM 3.1",
+        "role": "SAM 3.1: finds and measures items",
+        "calls": 13,
+        "cache_hits": 1,
+        "latency_ms": 61,
+        "units": 300.0,
+        "cost_usd": 0.6,
+        "simulated": true
+      },
+      "agent": {
+        "name": "Agent / Reasoning",
+        "model_id": "Muse Spark",
+        "role": "Muse Spark: reasons over rules, dispatches tools, and evaluates evidence",
+        "calls": 2,
+        "cache_hits": 0,
+        "latency_ms": 37,
+        "units": 1.8,
+        "cost_usd": 0.0083,
+        "simulated": true
+      },
+      "transcription": {
+        "name": "Voice Transcription",
+        "model_id": "Muse Voice Transcribe",
+        "role": "Muse Voice Transcribe: transcribes audio notes into searchable evidence",
+        "calls": 0,
+        "cache_hits": 0,
+        "latency_ms": 0,
+        "units": 0.0,
+        "cost_usd": 0.0,
+        "simulated": true
+      }
+    },
+    "models": {
+      "segmentation": "SAM 3.1",
+      "agent": "Muse Spark",
+      "transcription": "Muse Voice Transcribe"
+    }
+  }
+}

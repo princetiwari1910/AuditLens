@@ -1,4 +1,4 @@
-.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video
+.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video record-demo
 
 # ── Setup ────────────────────────────────────────────────────────────────
 setup: setup-backend setup-frontend
@@ -37,6 +37,9 @@ eval:
 # ── Utilities ────────────────────────────────────────────────────────────
 sample-video:
 	cd backend && .venv/bin/python scripts/make_sample_video.py
+
+record-demo:
+	cd backend && .venv/bin/python scripts/record_demo.py
 
 clear-cache:
 	cd backend && .venv/bin/python scripts/clear_cache.py

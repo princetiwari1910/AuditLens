@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auditlens-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/data
+      - CORS_ORIGINS=*
+      - PROVIDER_MODE=mock
+      - DEMO_REPLAY=0
+      - FRAME_FPS=1
+      - MAX_UPLOAD_MB=200
+      - MAX_VIDEO_DURATION_S=90
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

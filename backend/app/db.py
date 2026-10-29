@@ -40,10 +40,36 @@ def reset_engine():
 
 
 def init_db(engine_instance=None) -> None:
-    """Create all tables defined in models.py."""
+    """Create all tables defined in models.py and add any newly introduced columns."""
     import app.models  # noqa: F401
     eng = engine_instance or engine()
     SQLModel.metadata.create_all(eng)
+
+    # Migrate any added columns on existing SQLite databases safely
+    try:
+        with eng.connect() as conn:
+            audit_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(audit)").fetchall()]
+            for col_name, col_type in [
+                ("provider_mode", "VARCHAR DEFAULT 'mock'"),
+                ("model_segmentation", "VARCHAR DEFAULT 'SAM 3.1'"),
+                ("model_agent", "VARCHAR DEFAULT 'Muse Spark'"),
+                ("model_transcription", "VARCHAR DEFAULT 'Muse Voice Transcribe'"),
+                ("is_replay", "BOOLEAN DEFAULT 0"),
+            ]:
+                if col_name not in audit_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE audit ADD COLUMN {col_name} {col_type}")
+
+            cost_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(cost_log)").fetchall()]
+            for col_name, col_type in [
+                ("model_id", "VARCHAR DEFAULT ''"),
+                ("latency_ms", "INTEGER DEFAULT 0"),
+                ("cache_hit", "BOOLEAN DEFAULT 0"),
+            ]:
+                if col_name not in cost_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE cost_log ADD COLUMN {col_name} {col_type}")
+            conn.commit()
+    except Exception:
+        pass
 
 
 def get_session() -> Generator[Session, None, None]:

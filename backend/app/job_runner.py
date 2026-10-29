@@ -23,6 +23,122 @@ from app.template_loader import get_template
 logger = logging.getLogger("auditlens.job_runner")
 
 
+def replay_demo_audit(audit_id: str, session: Session) -> None:
+    """
+    Replay a recorded completed audit fixture with realistic timeline pacing.
+    Used as an offline fallback when DEMO_REPLAY=1 or live AI APIs are unavailable.
+    Guarantees the audit is explicitly flagged with is_replay=True.
+    """
+    settings = get_settings()
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        return
+
+    audit.is_replay = True
+    audit.status = AuditStatus.PROCESSING.value
+    session.add(audit)
+    session.commit()
+
+    fixture_path = settings.DATA_DIR / "fixtures" / "demo_recording.json"
+    if not fixture_path.exists():
+        fixture_path = Path(__file__).resolve().parent / "fixtures" / "demo_recording.json"
+
+    if not fixture_path.exists():
+        from scripts.record_demo import record_demo
+        fixture_path = record_demo(template_id=audit.template_id or "fire_exit_safety")
+
+    with open(fixture_path, "r", encoding="utf-8") as fp:
+        fixture = json.load(fp)
+
+    logger.info("replay_demo_audit: replaying audit %s from fixture %s", audit_id, fixture_path)
+
+    # 1. Replay timeline events with pacing
+    events = fixture.get("events", [])
+    for ev in events:
+        ev_copy = dict(ev)
+        ev_copy["audit_id"] = audit_id
+        ev_copy["ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if "payload" in ev_copy and isinstance(ev_copy["payload"], dict):
+            ev_copy["payload"]["is_replay"] = True
+        event_manager.emit(ev_copy)
+        time.sleep(0.08)
+
+    # 2. Persist recorded findings
+    from app.models import Finding
+    from app.storage import get_overlays_dir
+    overlays_dir = get_overlays_dir(audit_id)
+
+    findings_data = fixture.get("findings", [])
+    for fd in findings_data:
+        finding_id = f"find_rec_{fd['rule_id']}_{audit_id[-6:]}"
+        overlay_path = overlays_dir / f"overlay_{finding_id}.jpg"
+        if not overlay_path.exists():
+            from app.agent.runner import draw_overlay_image
+            draw_overlay_image(
+                base_frame_path="",
+                output_path=overlay_path,
+                finding={"status": fd["status"], "id": finding_id, "rationale": fd["rationale"]},
+            )
+
+        f_row = Finding(
+            id=finding_id,
+            audit_id=audit_id,
+            rule_id=fd["rule_id"],
+            status=fd["status"],
+            confidence=fd["confidence"],
+            timestamp_s=fd["timestamp_s"],
+            frame_idx=fd["frame_idx"],
+            overlay_path=str(overlay_path),
+            measurement_json=fd.get("measurement_json"),
+            rationale=fd.get("rationale", "") + " [Recorded run]",
+            fix_text=fd.get("fix_text", ""),
+            severity=fd.get("severity", "medium"),
+            sources_json=fd.get("sources_json", '["segmentation"]'),
+        )
+        session.add(f_row)
+
+    # 3. Populate cost accounting entries
+    from app.costlog import log_cost
+    log_cost(
+        session,
+        provider="segmentation",
+        operation="segmentation",
+        units=5.0,
+        audit_id=audit_id,
+        model_id=settings.MODEL_ID_SEGMENTATION,
+        latency_ms=120,
+        cache_hit=False,
+    )
+    log_cost(
+        session,
+        provider="agent",
+        operation="agent_input",
+        units=1.2,
+        audit_id=audit_id,
+        model_id=settings.MODEL_ID_AGENT,
+        latency_ms=45,
+        cache_hit=False,
+    )
+
+    audit.status = AuditStatus.COMPLETED.value
+    audit.summary_json = json.dumps(fixture.get("summary", {}))
+    audit.duration_s = fixture.get("duration_s", 25.0)
+    session.add(audit)
+    session.commit()
+
+    event_manager.emit({
+        "type": "audit_completed",
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "audit_id": audit_id,
+        "payload": {
+            "summary": fixture.get("summary", {}),
+            "findings_count": len(findings_data),
+            "is_replay": True,
+        },
+    })
+    logger.info("replay_demo_audit: completed replaying audit %s", audit_id)
+
+
 def run_audit_job_sync(audit_id: str) -> None:
     """
     Synchronous entrypoint for background audit processing.
@@ -48,6 +164,10 @@ def run_audit_job_sync(audit_id: str) -> None:
 
             if audit.status == AuditStatus.COMPLETED.value:
                 logger.info("run_audit_job_sync: audit %s already completed; skipping", audit_id)
+                return
+
+            if settings.DEMO_REPLAY or audit.is_replay:
+                replay_demo_audit(audit_id, session)
                 return
 
             audit.status = AuditStatus.PROCESSING.value

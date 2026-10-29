@@ -42,6 +42,8 @@ export default function Processing() {
     }
   }
 
+  const isReplayRun = events.some((e) => Boolean((e.payload as any)?.is_replay));
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-16">
       {/* Header */}
@@ -55,15 +57,31 @@ export default function Processing() {
             Home
           </Link>
           <div className="flex items-center gap-2">
-            <span className={`inline-block h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-            <span className="text-xs font-mono text-[var(--color-text-secondary)]">
-              {isConnected ? 'Live SSE Stream Active' : 'Connecting to Stream...'}
-            </span>
+            {isReplayRun ? (
+              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                Recorded run (Offline Replay)
+              </span>
+            ) : (
+              <>
+                <span className={`inline-block h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
+                <span className="text-xs font-mono text-[var(--color-text-secondary)]">
+                  {isConnected ? 'Live SSE Stream Active' : 'Connecting to Stream...'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-10 space-y-8">
+        {isReplayRun && (
+          <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
+            <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-500/20 px-1.5 py-0.5 rounded mr-1">
+              Recorded Run
+            </span>
+            <span>Replaying captured audit fixture with realistic timing. This run is an offline fallback, not a live execution.</span>
+          </div>
+        )}
         {/* Title */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">

@@ -29,6 +29,7 @@ import SummaryCard from '../components/SummaryCard';
 import VideoWithMarkers from '../components/VideoWithMarkers';
 import FindingCard from '../components/FindingCard';
 import Disclaimer from '../components/Disclaimer';
+import ModelsUsedPanel from '../components/ModelsUsedPanel';
 
 export interface AuditNotFoundViewProps {
   id?: string;
@@ -272,34 +273,58 @@ export default function Report() {
               Generated: {new Date().toLocaleDateString()}
             </span>
             <span className="font-mono text-[10px] uppercase font-bold text-slate-700">
-              Provider: {health?.provider_mode === 'meta' ? 'META FOUNDATION (SAM 3.1 + Muse Spark)' : 'MOCK (Simulated Detections)'}
+              Provider Mode: {(audit.provider_mode || health?.provider_mode || 'MOCK').toUpperCase()}
+              {audit.is_replay ? ' (RECORDED RUN)' : ''}
+            </span>
+            <span className="font-mono text-[9px] text-slate-600 block">
+              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio)
             </span>
           </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-5xl px-6 py-8 space-y-8">
-        {/* On-screen Provider Mode Stamp Banner */}
-        <div className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-mono">
-          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-            <span>Execution Provider Mode:</span>
+        {/* On-screen Provider Mode & Model Stamp Banner */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-2 text-[var(--color-text-secondary)]">
+            <span>Provider Mode:</span>
             <span className="font-bold text-[var(--color-text)] uppercase">
-              {health?.provider_mode || 'MOCK'}
+              {audit.provider_mode || health?.provider_mode || 'MOCK'}
             </span>
+            {audit.is_replay && (
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                RECORDED RUN
+              </span>
+            )}
             <span className="text-[11px] text-[var(--color-text-secondary)]">
-              {health?.provider_mode === 'meta' ? '(SAM 3.1 + Muse Spark)' : '(Simulated Detections)'}
+              ({audit.model_segmentation || 'SAM 3.1'} • {audit.model_agent || 'Muse Spark'} • {audit.model_transcription || 'Muse Voice Transcribe'})
             </span>
           </div>
           <span className="text-[11px] text-[var(--color-text-secondary)]">
             Audit ID: {audit.id.slice(0, 14)}
           </span>
         </div>
+
+        {/* Models Used & Provider Evidence Panel (Shown on screen and in print view) */}
+        <ModelsUsedPanel
+          costSummary={costSummary}
+          providerMode={audit.provider_mode || health?.provider_mode || 'mock'}
+          models={{
+            segmentation: audit.model_segmentation,
+            agent: audit.model_agent,
+            transcription: audit.model_transcription,
+          }}
+          isReplay={audit.is_replay}
+        />
+
         {/* Summary Card with Circular Gauge */}
         <SummaryCard
           summary={audit.summary}
           templateId={audit.template_id}
           auditId={audit.id}
           createdAt={audit.created_at}
+          isReplay={audit.is_replay}
+          providerMode={audit.provider_mode || health?.provider_mode}
         />
 
         {/* Video Scrubber & Overlays (Hidden in Print) */}

@@ -83,6 +83,11 @@ class Audit(SQLModel, table=True):
     duration_s: float | None = Field(default=None)
     summary_json: str | None = Field(default=None)
     error: str | None = Field(default=None)
+    provider_mode: str = Field(default="mock")
+    model_segmentation: str = Field(default="SAM 3.1")
+    model_agent: str = Field(default="Muse Spark")
+    model_transcription: str = Field(default="Muse Voice Transcribe")
+    is_replay: bool = Field(default=False)
 
 
 class Frame(SQLModel, table=True):
@@ -144,4 +149,7 @@ class CostLog(SQLModel, table=True):
     operation: str
     units: float
     est_cost_usd: float
+    model_id: str = Field(default="")
+    latency_ms: int = Field(default=0)
+    cache_hit: bool = Field(default=False)
     created_at: datetime = Field(default_factory=_utc_now)

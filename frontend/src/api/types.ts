@@ -54,6 +54,16 @@ export interface Audit {
   summary?: AuditSummary;
   findings: Finding[];
   error?: string;
+  provider_mode?: string;
+  model_segmentation?: string;
+  model_agent?: string;
+  model_transcription?: string;
+  is_replay?: boolean;
+  models?: {
+    segmentation?: string;
+    agent?: string;
+    transcription?: string;
+  };
 }
 
 export interface SSEEvent {

@@ -50,10 +50,10 @@ backend/.venv/bin/python eval/run_eval.py --mode both
 ## 🧪 Testing
 
 ```bash
-# Run all 30 backend pytest tests (rules, cache, cost, evidence-first, API)
+# Run all 44 backend pytest tests (rules, cache, cost, evidence-first, API, replay)
 make test
 
-# Run frontend unit tests (letterbox coordinate projection & formatters)
+# Run frontend unit tests (letterbox coordinate projection, formatters, models used panel)
 cd frontend && npm test
 
 # TypeScript typecheck & production build
@@ -65,7 +65,14 @@ cd frontend && npm run build
 
 ## 🐳 Production Deployment & Hosting
 
-### Option A: Docker Deployment (Recommended)
+### Option A: Docker Compose (Quickest)
+
+```bash
+docker compose up --build
+```
+Mounts `./data` to `/data` with persistent SQLite and file uploads, and configures `CORS_ORIGINS=*`.
+
+### Option B: Docker Container
 
 AuditLens includes a production-ready `Dockerfile` with `ffmpeg` and OpenCV native libraries pre-installed.
 
@@ -76,12 +83,26 @@ docker build -t auditlens-backend -f backend/Dockerfile backend/
 # Run container with persistent data volume mounted
 docker run -d \
   -p 8000:8000 \
-  -v $(pwd)/data:/app/data \
+  -v $(pwd)/data:/data \
   -e CORS_ORIGINS="https://yourdomain.com,http://localhost:5173" \
   -e PROVIDER_MODE=mock \
   --name auditlens-api \
   auditlens-backend
 ```
+
+### Option C: Demo Recording & Offline Replay Fallback
+
+For reliable offline demonstrations or environments where live AI APIs cannot be reached:
+
+```bash
+# Record an audit run to data/fixtures/demo_recording.json
+make record-demo
+
+# Run backend with DEMO_REPLAY=1 to replay recorded events with realistic timing
+DEMO_REPLAY=1 make backend
+```
+> [!IMPORTANT]
+> The UI explicitly tags replayed executions with a prominent **"Recorded run"** badge. Replay is strictly a fallback and is never presented as live.
 
 ### Option B: Reverse Proxy Configuration (Nginx & SSE)
 
@@ -125,9 +146,10 @@ See [docs/META_INTEGRATION.md](docs/META_INTEGRATION.md) for the drop-in integra
 |---|---|
 | `make setup` | Create virtualenv, install pip & npm packages, setup `.env` |
 | `make dev` | Start backend (:8000) and frontend (:5173) concurrently |
-| `make test` | Run all 30 backend pytest unit & smoke tests |
+| `make test` | Run all 44 backend pytest unit, smoke, and replay tests |
 | `make lint` | Run TypeScript typecheck (`tsc --noEmit`) |
 | `make sample-video` | Generate the 25-second synthetic walkthrough video |
+| `make record-demo` | Capture completed audit events & findings to fixtures |
 | `make clean` | Remove `.venv`, `node_modules`, and local build artifacts |
 
 ---

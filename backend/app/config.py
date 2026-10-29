@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     # - Segmentation: SAM 3.1
     # - Agent Planner: Muse Spark (tool-calling over ToolRegistry)
     # - Transcription: Muse Voice Transcribe
+    MODEL_ID_SEGMENTATION: str = "SAM 3.1"
+    MODEL_ID_AGENT: str = "Muse Spark"
+    MODEL_ID_TRANSCRIPTION: str = "Muse Voice Transcribe"
+
+    # Demo Replay fallback flag (DEMO_REPLAY=1 replays recorded audit fixtures)
+    DEMO_REPLAY: bool = False
+
     # TODO(meta): configure once credentials and access are provisioned
     META_API_KEY: str = ""
     META_BASE_URL: str = ""

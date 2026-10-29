@@ -7,6 +7,8 @@ interface SummaryCardProps {
   templateId: string;
   auditId: string;
   createdAt: string;
+  isReplay?: boolean;
+  providerMode?: string;
 }
 
 export default function SummaryCard({
@@ -14,6 +16,8 @@ export default function SummaryCard({
   templateId,
   auditId,
   createdAt,
+  isReplay = false,
+  providerMode,
 }: SummaryCardProps) {
   const score = summary?.score ?? 0;
   const grade = getScoreGrade(score);
@@ -28,9 +32,21 @@ export default function SummaryCard({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         {/* Left: Audit Meta Details */}
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-mono font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 print:border print:border-slate-300">
-            <FileText className="h-3.5 w-3.5" />
-            <span>{templateId.replace(/_/g, ' ').toUpperCase()}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-mono font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 print:border print:border-slate-300">
+              <FileText className="h-3.5 w-3.5" />
+              <span>{templateId.replace(/_/g, ' ').toUpperCase()}</span>
+            </div>
+            {isReplay && (
+              <span className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                RECORDED RUN
+              </span>
+            )}
+            {providerMode && (
+              <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-600 dark:text-slate-300 uppercase">
+                {providerMode}
+              </span>
+            )}
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--color-text)]">

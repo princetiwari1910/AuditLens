@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import time
 import uuid
 from typing import Any, Callable
 
@@ -272,6 +273,7 @@ class ToolRegistry:
         provider_version = getattr(provider, "version", "1.0.0")
         scenario_hash = getattr(provider, "scenario_hash", "")
 
+        cached_hits_count = 0
         for f in selected_frames:
             f_idx = f["idx"]
             f_hash = f.get("sha256", str(f_idx))
@@ -289,22 +291,36 @@ class ToolRegistry:
                 cached_data = get_cached_result(session, ckey)
 
             if cached_data is not None:
+                cached_hits_count += 1
                 for d in cached_data:
                     if d.get("score", 0.0) >= min_score:
                         detections.append(d)
             else:
                 frames_to_query.append(f)
 
+        if session is not None and cached_hits_count > 0:
+            log_cost(
+                session,
+                provider="segmentation",
+                operation="segmentation",
+                units=0.0,
+                audit_id=self.ctx.audit_id,
+                latency_ms=1,
+                cache_hit=True,
+            )
+
         # 2. Query provider for cache misses
         if frames_to_query:
             query_paths = [f["path"] for f in frames_to_query]
             query_timestamps = [f["timestamp_s"] for f in frames_to_query]
 
+            t0 = time.time()
             raw_detections = self.ctx.segmentation_provider.find_objects(
                 frame_paths=query_paths,
                 prompt=prompt,
                 timestamps_s=query_timestamps,
             )
+            latency_ms = max(int((time.time() - t0) * 1000), 5)
 
             # Log provider cost
             if session is not None:
@@ -314,6 +330,8 @@ class ToolRegistry:
                     operation="segmentation",
                     units=float(len(frames_to_query)),
                     audit_id=self.ctx.audit_id,
+                    latency_ms=latency_ms,
+                    cache_hit=False,
                 )
 
             # Group new detections by frame index and cache
