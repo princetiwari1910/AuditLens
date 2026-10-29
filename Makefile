@@ -32,7 +32,7 @@ lint:
 	cd frontend && npx tsc --noEmit
 
 eval:
-	backend/.venv/bin/python eval/run_eval.py --mode both
+	backend/.venv/bin/python eval/run_eval.py --mode both --allow-mock
 
 # ── Utilities ────────────────────────────────────────────────────────────
 sample-video:

@@ -1,0 +1,115 @@
+{
+  "timestamp": "20261029_052449",
+  "provider_mode": "mock",
+  "allow_mock": true,
+  "simulated": true,
+  "benchmark_details": [
+    {
+      "clip_file": "data/sample_walkthrough.mp4",
+      "template": "fire_exit_safety",
+      "ground_truth": {
+        "extinguisher_visible": "pass",
+        "exit_sign_visible": "pass",
+        "two_exits_visible": "fail",
+        "exit_path_not_blocked": "fail",
+        "exit_path_clear_width": "fail"
+      },
+      "notes": "Synthetic 25s walkthrough containing mounted extinguisher, overhead exit sign, A4 reference, blocking box, and single primary exit.",
+      "pipeline_predictions": {
+        "extinguisher_visible": "pass",
+        "exit_sign_visible": "pass",
+        "two_exits_visible": "unsure",
+        "exit_path_not_blocked": "fail",
+        "exit_path_clear_width": "fail"
+      },
+      "baseline_predictions": {}
+    }
+  ],
+  "pipeline_summary": {
+    "mode": "pipeline",
+    "total_clips": 1,
+    "total_evaluations": 5,
+    "correct_count": 4,
+    "unsure_count": 1,
+    "overall_accuracy": 0.8,
+    "unsure_rate": 0.2,
+    "macro_precision": 1.0,
+    "macro_recall": 0.8,
+    "macro_f1": 0.8,
+    "average_latency_s": 0.244,
+    "average_cost_usd": 0.0,
+    "rule_metrics": {
+      "extinguisher_visible": {
+        "rule_id": "extinguisher_visible",
+        "ground_truth": "pass",
+        "prediction": "pass",
+        "is_correct": true,
+        "is_unsure": false,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "exit_sign_visible": {
+        "rule_id": "exit_sign_visible",
+        "ground_truth": "pass",
+        "prediction": "pass",
+        "is_correct": true,
+        "is_unsure": false,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "two_exits_visible": {
+        "rule_id": "two_exits_visible",
+        "ground_truth": "fail",
+        "prediction": "unsure",
+        "is_correct": false,
+        "is_unsure": true,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "exit_path_not_blocked": {
+        "rule_id": "exit_path_not_blocked",
+        "ground_truth": "fail",
+        "prediction": "fail",
+        "is_correct": true,
+        "is_unsure": false,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "exit_path_clear_width": {
+        "rule_id": "exit_path_clear_width",
+        "ground_truth": "fail",
+        "prediction": "fail",
+        "is_correct": true,
+        "is_unsure": false,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    }
+  },
+  "baseline_summary": null
+}
