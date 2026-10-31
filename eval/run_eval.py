@@ -410,9 +410,9 @@ def generate_markdown_report(
     # Stamping
     if provider_mode.lower() == "mock":
         lines.append("> [!WARNING]")
-        lines.append("> **⚠️ SIMULATED, NOT A RESULT**")
+        lines.append("> # ⚠️ MOCK, NOT A RESULT (SIMULATED, NOT A RESULT)")
         lines.append("> **Provider Mode:** mock (simulated detections)")
-        lines.append("> Results reflect local mock scenario behavior, not live Meta foundation model performance.\n")
+        lines.append("> Results reflect local mock scenario behavior, not live Meta foundation model performance. Comparative delta is hidden until live Meta foundation model providers are connected.\n")
     else:
         lines.append("> [!NOTE]")
         lines.append(f"> **Provider Mode:** {provider_mode.upper()} (SAM 3.1 + Muse Spark)")
@@ -428,41 +428,57 @@ def generate_markdown_report(
     lines.append("| Metric | Full Pipeline (AuditLens) | Vision-Chat Baseline (No Tools) | Delta (Advantage) |")
     lines.append("|---|---|---|---|")
 
+    is_mock = provider_mode.lower() == "mock"
+    delta_hidden_msg = "*[Hidden: needs real providers]*"
+
     pipe_acc = f"{pipeline_summary.overall_accuracy * 100:.1f}%" if pipeline_summary else "N/A"
     base_acc = f"{baseline_summary.overall_accuracy * 100:.1f}%" if baseline_summary else "N/A"
     delta_acc = (
-        f"+{(pipeline_summary.overall_accuracy - baseline_summary.overall_accuracy) * 100:.1f}%"
-        if pipeline_summary and baseline_summary else "N/A"
+        delta_hidden_msg
+        if is_mock
+        else (
+            f"+{(pipeline_summary.overall_accuracy - baseline_summary.overall_accuracy) * 100:.1f}%"
+            if pipeline_summary and baseline_summary else "N/A"
+        )
     )
     lines.append(f"| **Overall Accuracy** | **{pipe_acc}** | {base_acc} | {delta_acc} |")
 
     pipe_unsure = f"{pipeline_summary.unsure_rate * 100:.1f}%" if pipeline_summary else "N/A"
     base_unsure = f"{baseline_summary.unsure_rate * 100:.1f}%" if baseline_summary else "N/A"
-    lines.append(f"| **Unsure Rate (Needs Review)** | {pipe_unsure} | {base_unsure} | Resolved by Tools |")
+    delta_unsure = delta_hidden_msg if is_mock else "Resolved by Tools"
+    lines.append(f"| **Unsure Rate (Needs Review)** | {pipe_unsure} | {base_unsure} | {delta_unsure} |")
 
     pipe_f1 = f"{pipeline_summary.macro_f1:.3f}" if pipeline_summary else "N/A"
     base_f1 = f"{baseline_summary.macro_f1:.3f}" if baseline_summary else "N/A"
     delta_f1 = (
-        f"+{pipeline_summary.macro_f1 - baseline_summary.macro_f1:.3f}"
-        if pipeline_summary and baseline_summary else "N/A"
+        delta_hidden_msg
+        if is_mock
+        else (
+            f"+{pipeline_summary.macro_f1 - baseline_summary.macro_f1:.3f}"
+            if pipeline_summary and baseline_summary else "N/A"
+        )
     )
     lines.append(f"| **Macro F1 Score** | **{pipe_f1}** | {base_f1} | {delta_f1} |")
 
     pipe_prec = f"{pipeline_summary.macro_precision:.3f}" if pipeline_summary else "N/A"
     base_prec = f"{baseline_summary.macro_precision:.3f}" if baseline_summary else "N/A"
-    lines.append(f"| **Macro Precision** | {pipe_prec} | {base_prec} | Calibrated Overlays |")
+    delta_prec = delta_hidden_msg if is_mock else "Calibrated Overlays"
+    lines.append(f"| **Macro Precision** | {pipe_prec} | {base_prec} | {delta_prec} |")
 
     pipe_rec = f"{pipeline_summary.macro_recall:.3f}" if pipeline_summary else "N/A"
     base_rec = f"{baseline_summary.macro_recall:.3f}" if baseline_summary else "N/A"
-    lines.append(f"| **Macro Recall** | {pipe_rec} | {base_rec} | Full Video Coverage |")
+    delta_rec = delta_hidden_msg if is_mock else "Full Video Coverage"
+    lines.append(f"| **Macro Recall** | {pipe_rec} | {base_rec} | {delta_rec} |")
 
     pipe_lat = f"{pipeline_summary.average_latency_s:.2f} s" if pipeline_summary else "N/A"
     base_lat = f"{baseline_summary.average_latency_s:.2f} s" if baseline_summary else "N/A"
-    lines.append(f"| **Average Latency / Clip** | {pipe_lat} | {base_lat} | Sub-second Execution |")
+    delta_lat = delta_hidden_msg if is_mock else "Sub-second Execution"
+    lines.append(f"| **Average Latency / Clip** | {pipe_lat} | {base_lat} | {delta_lat} |")
 
     pipe_cost = f"${pipeline_summary.average_cost_usd:.4f} USD" if pipeline_summary else "N/A"
     base_cost = f"${baseline_summary.average_cost_usd:.4f} USD" if baseline_summary else "N/A"
-    lines.append(f"| **Average Cost / Clip** | {pipe_cost} | {base_cost} | Caching & Tool Efficiency |\n")
+    delta_cost = delta_hidden_msg if is_mock else "Caching & Tool Efficiency"
+    lines.append(f"| **Average Cost / Clip** | {pipe_cost} | {base_cost} | {delta_cost} |\n")
 
     # Confusion Matrix by Rule
     if pipeline_summary and pipeline_summary.rule_metrics:

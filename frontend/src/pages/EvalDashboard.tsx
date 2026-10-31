@@ -110,16 +110,19 @@ export default function EvalDashboard() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        {/* Banner */}
+        {/* Prominent MOCK Banner */}
         {isMock && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs font-medium text-amber-900 dark:text-amber-200">
-            <span className="font-bold uppercase tracking-wider bg-amber-500/20 px-1.5 py-0.5 rounded mr-2">
-              SIMULATED, NOT A RESULT
-            </span>
-            <span>
+          <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/15 p-5 text-sm font-medium text-amber-900 dark:text-amber-200 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold uppercase tracking-wider bg-amber-500/30 text-amber-900 dark:text-amber-100 px-2.5 py-1 rounded text-xs border border-amber-500/40">
+                ⚠️ MOCK, NOT A RESULT
+              </span>
+              <span className="text-sm font-bold">Simulated benchmark execution</span>
+            </div>
+            <p className="mt-2 text-xs text-amber-800 dark:text-amber-300">
               Evaluation executed in <strong>mock mode</strong> using synthetic annotations and simulated detections.
-              Numbers indicate pipeline logic verification, not live Meta foundation model performance.
-            </span>
+              Pipeline-vs-baseline comparison delta is hidden ("needs real providers").
+            </p>
           </div>
         )}
 
@@ -137,6 +140,93 @@ export default function EvalDashboard() {
             Run: {data.timestamp}
           </span>
         </div>
+
+        {/* Summary Comparison: Pipeline vs Baseline */}
+        {data.pipeline_summary && (
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
+              <div>
+                <h3 className="text-base font-bold text-[var(--color-text)] flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-[var(--color-accent)]" />
+                  Pipeline vs Vision-Chat Baseline Performance
+                </h3>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Comparison between full AuditLens pipeline and baseline vision model.
+                </p>
+              </div>
+              {isMock && (
+                <span className="text-xs font-mono font-semibold text-amber-600 dark:text-amber-400">
+                  Needs real providers to compute comparison delta
+                </span>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] text-[var(--color-text-secondary)] uppercase text-[10px]">
+                    <th className="py-2.5 px-3">Metric</th>
+                    <th className="py-2.5 px-3">Full Pipeline (AuditLens)</th>
+                    <th className="py-2.5 px-3">Vision-Chat Baseline (No Tools)</th>
+                    <th className="py-2.5 px-3">Delta (Advantage)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--color-border)]">
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-[var(--color-text)]">Overall Accuracy</td>
+                    <td className="py-2.5 px-3 font-bold text-green-700 dark:text-green-400">
+                      {(pSum.overall_accuracy * 100).toFixed(1)}%
+                    </td>
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
+                      {data.baseline_summary ? `${(data.baseline_summary.overall_accuracy * 100).toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-500">
+                      {isMock
+                        ? 'needs real providers'
+                        : data.baseline_summary
+                        ? `+${((pSum.overall_accuracy - data.baseline_summary.overall_accuracy) * 100).toFixed(1)}%`
+                        : 'N/A'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-[var(--color-text)]">Macro F1 Score</td>
+                    <td className="py-2.5 px-3 font-bold text-[var(--color-text)]">{pSum.macro_f1.toFixed(3)}</td>
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
+                      {data.baseline_summary ? data.baseline_summary.macro_f1.toFixed(3) : 'N/A'}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-500">
+                      {isMock
+                        ? 'needs real providers'
+                        : data.baseline_summary
+                        ? `+${(pSum.macro_f1 - data.baseline_summary.macro_f1).toFixed(3)}`
+                        : 'N/A'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-[var(--color-text)]">Unsure Rate (Needs Review)</td>
+                    <td className="py-2.5 px-3 text-amber-600 dark:text-amber-400">{(pSum.unsure_rate * 100).toFixed(1)}%</td>
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
+                      {data.baseline_summary ? `${(data.baseline_summary.unsure_rate * 100).toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-500">
+                      {isMock ? 'needs real providers' : 'Resolved by Tools'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-[var(--color-text)]">Average Cost / Clip</td>
+                    <td className="py-2.5 px-3 font-bold text-[var(--color-text)]">${pSum.average_cost_usd.toFixed(4)}</td>
+                    <td className="py-2.5 px-3 text-[var(--color-text-secondary)]">
+                      {data.baseline_summary ? `$${data.baseline_summary.average_cost_usd.toFixed(4)}` : 'N/A'}
+                    </td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-500">
+                      {isMock ? 'needs real providers' : 'Tool & Cache Efficiency'}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* KPI Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 font-mono">

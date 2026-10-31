@@ -1,9 +1,9 @@
 # AuditLens Evaluation Benchmark Results
 
 > [!WARNING]
-> **⚠️ SIMULATED, NOT A RESULT**
+> # ⚠️ MOCK, NOT A RESULT (SIMULATED, NOT A RESULT)
 > **Provider Mode:** mock (simulated detections)
-> Results reflect local mock scenario behavior, not live Meta foundation model performance.
+> Results reflect local mock scenario behavior, not live Meta foundation model performance. Comparative delta is hidden until live Meta foundation model providers are connected.
 
 - **Benchmark Run Timestamp:** `20261031_103712`
 - **Raw Run Directory:** [`eval/runs/20261031_103712`](eval/runs/20261031_103712)
@@ -13,13 +13,13 @@
 
 | Metric | Full Pipeline (AuditLens) | Vision-Chat Baseline (No Tools) | Delta (Advantage) |
 |---|---|---|---|
-| **Overall Accuracy** | **80.0%** | 60.0% | +20.0% |
-| **Unsure Rate (Needs Review)** | 20.0% | 0.0% | Resolved by Tools |
-| **Macro F1 Score** | **0.800** | 0.600 | +0.200 |
-| **Macro Precision** | 1.000 | 1.000 | Calibrated Overlays |
-| **Macro Recall** | 0.800 | 0.600 | Full Video Coverage |
-| **Average Latency / Clip** | 0.23 s | 0.22 s | Sub-second Execution |
-| **Average Cost / Clip** | $0.0000 USD | $0.0100 USD | Caching & Tool Efficiency |
+| **Overall Accuracy** | **80.0%** | 60.0% | *[Hidden: needs real providers]* |
+| **Unsure Rate (Needs Review)** | 20.0% | 0.0% | *[Hidden: needs real providers]* |
+| **Macro F1 Score** | **0.800** | 0.600 | *[Hidden: needs real providers]* |
+| **Macro Precision** | 1.000 | 1.000 | *[Hidden: needs real providers]* |
+| **Macro Recall** | 0.800 | 0.600 | *[Hidden: needs real providers]* |
+| **Average Latency / Clip** | 0.23 s | 0.22 s | *[Hidden: needs real providers]* |
+| **Average Cost / Clip** | $0.0000 USD | $0.0100 USD | *[Hidden: needs real providers]* |
 
 ## 🔍 Confusion Matrix by Rule (AuditLens Pipeline)
 
