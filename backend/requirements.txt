@@ -9,3 +9,5 @@ python-multipart>=0.0.9
 aiofiles>=24
 pytest>=8,<9
 httpx>=0.27,<1
+openai>=1.0.0
+meta-sam-parser>=0.0.6

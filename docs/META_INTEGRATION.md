@@ -1,129 +1,152 @@
 # Meta Foundation Model Integration Guide
 
-> **Phase 2 Implementation Target:** Transition from mock mode to Meta Foundation Models using the official developer portal at [dev.meta.ai/docs](https://dev.meta.ai/docs).
->
-> **Target Models:**
-> - **Segmentation & Grounding:** **SAM 3.1**
-> - **Agent Planner & Reasoning:** **Muse Spark** (with tool-calling over `ToolRegistry`)
-> - **Audio Speech-to-Text:** **Muse Voice Transcribe**
+> **STATUS:** **UNVERIFIED against live API**
+> All providers (`MetaSegmenter`, `MetaReasoner`, `MetaTranscriber`) are implemented against official documentation specifications from [dev.meta.ai/docs](https://dev.meta.ai/docs) and verified offline with doc fixtures and unit tests.
+> Status remains **UNVERIFIED** until `scripts/smoke_meta.py` passes with a valid live `MODEL_API_KEY`.
+> Default mode remains `PROVIDER_MODE=mock`.
 
 ---
 
-## 1. Architecture Overview (Zero-Refactor Transition)
+## 1. Official Documentation (Source of Truth)
 
-AuditLens was architected using strict provider interfaces (`providers/base.py`). The agent planning engine (`agent/runner.py`) interacts exclusively with standard Python tools registered in [`ToolRegistry`](file:///Users/princetiwari19/Documents/AuditLens/backend/app/agent/tools.py#L65).
+All provider code is strictly built against the official developer documentation:
+- **Media Segmentation & SAM:** [dev.meta.ai/docs/media-segmentation](https://dev.meta.ai/docs/media-segmentation)
+- **SAM Segmenting:** [dev.meta.ai/docs/sam/segmenting](https://dev.meta.ai/docs/sam/segmenting)
+- **SAM Reading Segmentation:** [dev.meta.ai/docs/sam/reading-segmentation](https://dev.meta.ai/docs/sam/reading-segmentation)
+- **SAM Client Libraries:** [dev.meta.ai/docs/sam/client-libraries](https://dev.meta.ai/docs/sam/client-libraries)
+- **Pricing & Rate Limits:** [dev.meta.ai/docs/pricing-rate-limits](https://dev.meta.ai/docs/pricing-rate-limits)
+- **Image Understanding:** [dev.meta.ai/docs/image-understanding](https://dev.meta.ai/docs/image-understanding)
+- **Structured Output:** [dev.meta.ai/docs/structured-output](https://dev.meta.ai/docs/structured-output)
+- **Speech to Text:** [dev.meta.ai/docs/speech-to-text](https://dev.meta.ai/docs/speech-to-text) and `/docs/api-reference/voice/transcribe`
 
-When switching from `PROVIDER_MODE=mock` to `PROVIDER_MODE=meta`, **zero database schema or API changes** are required. Simply implement the three classes in `backend/app/providers/meta.py`.
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          ToolRegistry                                  │
-│  list_rules · find_objects · measure_clear_width · check_colocation   │
-└─────────────────────────────────▲──────────────────────────────────────┘
-                                  │ tool calls
-┌─────────────────────────────────┴──────────────────────────────────────┐
-│                    Target: Muse Spark (Planner)                        │
-│            Grounded in tools; emits SSE events in real-time            │
-└───────────────┬────────────────────────────────────────┬───────────────┘
-                │ vision prompts                         │ audio memos
-┌───────────────▼──────────────┐         ┌───────────────▼───────────────┐
-│     Target: SAM 3.1          │         │ Target: Muse Voice Transcribe │
-│ (Segmentation & Masks)       │         │ (Multilingual ASR)            │
-└──────────────────────────────┘         └───────────────────────────────┘
-```
+If any older guide disagrees with the official developer portal pages above, **the official portal pages win**.
 
 ---
 
-## 2. Target Providers to Implement (`backend/app/providers/meta.py`)
+## 2. Model Endpoints & Payloads
 
-### A. SegmentationProvider — SAM 3.1
-- **Interface:** `find_objects(frame_paths: list[str], prompt: str, timestamps_s: list[float] | None = None) -> list[Detection]`
-- **Input:** List of local frame file paths (JPEG) and a natural language prompt (e.g. `"fire extinguisher"`, `"box"`, `"person"`).
-- **Output:** Standardized `Detection` objects:
+### A. MetaSegmenter (`sam-3.1`)
+- **SDK:** `OpenAI(api_key=os.environ["MODEL_API_KEY"], base_url="https://api.meta.ai/v1")`
+- **API:** Responses API (`client.responses.create(...)`) with streaming enabled (`stream=True`).
+- **Exact Request Payload:**
+  ```json
+  {
+    "model": "sam-3.1",
+    "input": [
+      {
+        "type": "input_text",
+        "text": "fire extinguisher"
+      },
+      {
+        "type": "input_image",
+        "image_url": "data:image/jpeg;base64,..."
+      }
+    ],
+    "stream": true,
+    "metadata": {
+      "mask_encoding": "one_bit",
+      "include_confidence": "true"
+    }
+  }
+  ```
+  *(Note: Metadata dictionary values MUST be strings: `"one_bit"` and `"true"`).*
+
+- **Prompt Sanitization:**
+  - One concept per request.
+  - No commas (split and take the first noun phrase).
+  - No spatial descriptors (`on the left`, `to the right`, `in the middle`, `blocking`, `obstructing`).
+  - No negation (`not`, `no`, `not blocked`, `unblocked`).
+  - Implemented via `sanitize_concept(prompt)`.
+
+- **Record Parsing (`meta-sam-parser>=0.0.6`):**
+  - Streaming chunks are processed with `meta_sam_parser.image_segmentation_format().create_parser()` (or `video_segmentation_format()` if `SAM_VIDEO_MODE=True`).
+  - The record grammar: `<0f> <object_id> <|box;x1=...;y1=...;x2=...;y2=...;w=...;h=...;c=...|> <|mask;x=0;y=0;data=H,W,!payload;c=...|>`
+  - Coordinates: Box coordinates `x2` and `y2` are inclusive; `w` and `h` represent source frame dimensions. Half-open intervals:
+    $$left = x_1,\quad top = y_1,\quad right = x_2 + 1,\quad bottom = y_2 + 1$$
+  - Mask dimensions: $H = bottom - top$, $W = right - left$ (box-cropped).
+  - Decoded using `decode_mask_to_raster(mask)` to an $H \times W$ row-major binary raster bytes.
+  - Coordinate mapping: Box-cropped mask coordinates $(cx, cy)$ are mapped back to normalized full-frame coordinates:
+    $$x_{norm} = \frac{left + cx}{W_{frame}},\quad y_{norm} = \frac{top + cy}{H_{frame}}$$
+    *(Note: Marked with comment `# Box-cropped mask mapped back to full frame. Assumption: verify with live data.`)*
+  - Key results by explicit frame marker and object ID (never stream index).
+  - Empty response (0 matches) is valid and yields an empty list `[]`.
+  - Cache key: `sha256(frame) + concept + model + mask_encoding`.
+
+---
+
+### B. MetaReasoner (`muse-spark-1.3`)
+- **SDK:** `OpenAI(api_key=os.environ["MODEL_API_KEY"], base_url="https://api.meta.ai/v1")`
+- **Model ID:** `muse-spark-1.3` (Standard mode only).
+- **Strict Contributor Model Rejection:** Any model ID containing `"-contributor"` (e.g. `muse-spark-1.3-contributor`) is strictly rejected via Pydantic validators and constructor checks to protect proprietary auditor and customer data from model training.
+- **Image Understanding + Structured Output:**
   ```python
-  Detection(
-      frame_id=idx,
-      timestamp_s=t,
-      prompt=prompt,
-      score=float(model_confidence),
-      bbox={"x": float, "y": float, "w": float, "h": float},  # Normalized 0.0 to 1.0
-      polygon=[[float, float], ...],                           # Normalized [x, y] coordinates
+  client.chat.completions.create(
+      model="muse-spark-1.3",
+      messages=[
+          {"role": "system", "content": "You are AuditLens Reasoning Agent (Muse Spark 1.3)..."},
+          {"role": "user", "content": user_parts},
+      ],
+      response_format={
+          "type": "json_schema",
+          "json_schema": {
+              "name": "verdict",
+              "schema": SPARK_VERDICT_JSON_SCHEMA,
+              "strict": True,
+          },
+      },
   )
   ```
-- **Caching & Accounting Hook:**
-  All calls automatically pass through `cache.py` (`key = sha256(frame_bytes) + "segmentation" + prompt`) and `costlog.py` using `UNIT_PRICE_SEGMENTATION`.
-- **Implementation Note:**
-  ```python
-  # TODO(meta): Implement against dev.meta.ai/docs SAM 3.1 endpoints.
-  # Normalize API bounding box output coordinates [ymin, xmin, ymax, xmax] -> {x, y, w, h} in 0..1.
-  ```
-
-### B. AgentProvider — Muse Spark (Tool Calling)
-- **Interface:** `run_audit(audit: Audit, rules: list[RuleModel], tools: ToolRegistry, emit: Callable[[dict], None]) -> list[Finding]`
-- **Input:** The active audit record, the rules to verify, the `ToolRegistry` exposing tool JSON Schemas (`tools.get_schemas()`), and the SSE event emitter.
-- **Tool Schemas Provided:**
-  - `list_rules()`
-  - `find_objects(prompt: str, frame_ids: list[int] | None, min_score: float)`
-  - `check_colocation(container_prompt: str, item_prompt: str, min_overlap: float)`
-  - `measure_clear_width(obstacle_prompts: list[str], reference: dict)`
-  - `get_voice_notes(rule_id: str | None, near_timestamp_s: float | None)`
-  - `record_finding(rule_id: str, status: str, confidence: float, evidence_ids: list[str], ...)`
-- **Implementation Note:**
-  ```python
-  # TODO(meta): Send rules and tool schemas to Muse Spark.
-  # Loop over model tool-call requests, executing via tools.execute(tool_name, **args),
-  # feeding tool results back to the model until record_finding is called for each rule.
-  ```
-
-### C. TranscriptionProvider — Muse Voice Transcribe
-- **Interface:** `transcribe(audio_path: str, language_hint: str | None = None) -> Transcript`
-- **Input:** Audio file path (WAV or WebM from the auditor voice memo).
-- **Output:** Standardized `Transcript` object:
-  ```python
-  Transcript(
-      text=full_transcript_str,
-      language="hi" | "en" | "es",
-      segments=[
-          TranscriptSegment(start_s=0.0, end_s=3.2, text="..."),
-          ...
-      ]
-  )
-  ```
-- **Implementation Note:**
-  ```python
-  # TODO(meta): Upload audio to Muse Voice Transcribe endpoint.
-  # Map words or segment timestamps into TranscriptSegment objects.
-  ```
+- **Evidence-First Grounding:**
+  - `user_parts` contains rule text, SAM visual evidence summary (boxes, scores), and keyframe images.
+  - Model verdict is parsed and validated against `schemas.py` (`validate_verdict`). Any schema parsing failure defaults to `status="unsure"`.
+  - Spark cannot invent evidence: `cited_frame_ids` are checked against passed keyframe IDs. Any invented frame IDs are filtered out; if no valid evidence remains for pass/fail, the verdict is downgraded to `status="unsure"`.
 
 ---
 
-## 3. Environment Variables Configuration
+### C. MetaTranscriber (`muse-voice-transcribe-1.0`)
+- **SDK:** `client.audio.transcriptions.create(model="muse-voice-transcribe-1.0", file=f, ...)`
+- **Payload Limits:** Audio files are verified locally with a 25 MB limit prior to transmission.
+- **Turn-Level Timestamps:**
+  - Turn-level timestamps only (`TranscriptTurn(start_s=..., end_s=..., text=..., speaker=...)`).
+  - No word-level timestamps.
 
-In `.env`:
+---
+
+## 3. Official Pricing Rates & BudgetGuard
+
+Rates per [dev.meta.ai/docs/pricing-rate-limits](https://dev.meta.ai/docs/pricing-rate-limits):
+
+| Capability | Model | Official Rate | AuditLens Constant |
+|---|---|---|---|
+| Image Segmentation | SAM 3.1 | \$2.50 / 1k images | `PRICE_SAM_PER_IMAGE_USD = 0.0025` |
+| Video Segmentation | SAM 3.1 | \$0.20 / 1k frames (min 50 frames) | `PRICE_SAM_VIDEO_PER_FRAME_USD = 0.0002` |
+| Reasoning (Standard) | Muse Spark 1.3 | \$1.25 / 1M input tokens | `PRICE_MUSE_SPARK_INPUT_PER_1K_USD = 0.00125` |
+| Reasoning (Standard) | Muse Spark 1.3 | \$4.25 / 1M output tokens | `PRICE_MUSE_SPARK_OUTPUT_PER_1K_USD = 0.00425` |
+| Voice Transcription | Muse Voice Transcribe 1.0 | \$0.18 / hour (\$0.003 / min) | `PRICE_MUSE_VOICE_PER_MIN_USD = 0.003` |
+
+### Hardened Protection
+- **Per-Audit Budget Limit:** \$1.00 (`MAX_BUDGET_PER_AUDIT_USD = 1.0`)
+- **Global Dev Budget Cap:** \$20.00 (`MAX_GLOBAL_BUDGET_USD = 20.0`)
+- **Team Rate Limit:** 3,000 RPM (`PROVIDER_RATE_LIMIT_RPM = 3000`)
+- **HTTP 400 (Bad Request):** Never retried; raises immediately.
+- **HTTP 429 (Rate Limit):** Extracts `Retry-After` header when provided, applies exponential backoff with random jitter.
+
+---
+
+## 4. Verification Workflow (`scripts/smoke_meta.py`)
+
+Run the live verification smoke script:
 ```bash
-# Switch execution provider mode
-PROVIDER_MODE=meta
+# If MODEL_API_KEY is not set: prints instructions and exits cleanly (0)
+python backend/scripts/smoke_meta.py
 
-# Meta Developer API credentials from dev.meta.ai/docs
-META_API_KEY=your_meta_developer_key_here
-META_BASE_URL=https://api.meta.ai/v1
-
-# Update with official per-unit billing rates once announced
-UNIT_PRICE_SEGMENTATION=0.002    # USD per frame image (SAM 3.1)
-UNIT_PRICE_AGENT_INPUT=0.003     # USD per 1K input tokens (Muse Spark)
-UNIT_PRICE_AGENT_OUTPUT=0.015    # USD per 1K output tokens (Muse Spark)
-UNIT_PRICE_TRANSCRIPTION=0.006   # USD per minute of audio (Muse Voice Transcribe)
+# When MODEL_API_KEY is available:
+export MODEL_API_KEY="your_actual_meta_key"
+python backend/scripts/smoke_meta.py --record
 ```
 
----
-
-## 4. Drop-in Verification Checklist
-
-Before deploying with real Meta model access, verify:
-- [ ] API Key verified with a curl request to `META_BASE_URL`.
-- [ ] Implement `MetaSegmentationProvider.find_objects` with SAM 3.1.
-- [ ] Implement `MetaAgentProvider.run_audit` with Muse Spark tool-calling.
-- [ ] Implement `MetaTranscriptionProvider.transcribe` with Muse Voice Transcribe.
-- [ ] Run benchmark evaluation suite: `python eval/run_eval.py --mode full`.
-- [ ] Verify SHA-256 caching logs hits on re-runs (`GET /api/audits/{id}/cost`).
-- [ ] Test with a real 30-second mobile phone walkthrough video.
+The script will:
+1. Call Muse Spark 1.3 with a test compliance rule and verify structured verdict JSON.
+2. Call SAM 3.1 Responses API with prompt `"fire extinguisher"` on a local test image, parse the response stream using `meta-sam-parser`, and output match count, bounding boxes, scores, and mask shapes.
+3. Save raw responses to `data/fixtures/` if `--record` is passed.
+4. Output the full verification checklist, upgrading status to **VERIFIED against live Meta API**.

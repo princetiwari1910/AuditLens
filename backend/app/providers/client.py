@@ -147,21 +147,43 @@ def estimate_transcription_cost(duration_minutes: float) -> float:
 
 
 def is_retryable_error(exc: Exception) -> bool:
-    """Determine if exception is a 429 (rate limit) or 5xx (server error)."""
+    """Determine if exception is a 429 (rate limit) or 5xx (server error). Never retry 400."""
     # Check status_code attribute
     status = getattr(exc, "status_code", None)
     if status is None and hasattr(exc, "response") and hasattr(exc.response, "status_code"):
         status = exc.response.status_code
 
     if status is not None:
+        if status == 400:
+            return False
         return status == 429 or (500 <= status <= 599)
 
     # Check error message for HTTP status codes
     msg = str(exc).lower()
+    if "400" in msg or "bad request" in msg:
+        return False
     if "429" in msg or "rate limit" in msg or "500" in msg or "502" in msg or "503" in msg or "504" in msg:
         return True
 
     return False
+
+
+def get_retry_after(exc: Exception) -> float | None:
+    """Extract Retry-After header value in seconds if present on exception."""
+    resp = getattr(exc, "response", None)
+    if resp is not None and hasattr(resp, "headers") and resp.headers:
+        ra = resp.headers.get("retry-after") or resp.headers.get("Retry-After")
+        if ra:
+            try:
+                return float(ra)
+            except (ValueError, TypeError):
+                pass
+    if hasattr(exc, "retry_after"):
+        try:
+            return float(getattr(exc, "retry_after"))
+        except (ValueError, TypeError):
+            pass
+    return None
 
 
 def execute_with_retry(
@@ -178,7 +200,7 @@ def execute_with_retry(
     Execute provider function with:
     1. Budget guard pre-check
     2. Concurrency semaphore acquisition (video vs image)
-    3. Exponential backoff and jitter retry on 429 and 5xx
+    3. Exponential backoff and jitter retry on 429 and 5xx (respecting Retry-After; never retrying 400)
     """
     settings = get_settings()
     retries = max_retries if max_retries is not None else settings.PROVIDER_MAX_RETRIES
@@ -198,9 +220,12 @@ def execute_with_retry(
             except Exception as exc:
                 last_exc = exc
                 if attempt < retries and is_retryable_error(exc):
-                    # Exponential backoff with jitter
+                    retry_after = get_retry_after(exc)
                     jitter = random.uniform(0.01, 0.05 * (2 ** attempt))
-                    delay = (base_delay * (2 ** attempt)) + jitter
+                    if retry_after is not None and retry_after > 0:
+                        delay = retry_after + jitter
+                    else:
+                        delay = (base_delay * (2 ** attempt)) + jitter
                     logger.warning(
                         "Provider call failed with retryable error (attempt %d/%d): %s. Retrying in %.3fs...",
                         attempt + 1,

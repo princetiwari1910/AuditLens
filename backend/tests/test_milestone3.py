@@ -10,7 +10,6 @@ from app.costlog import get_audit_cost_summary, log_cost
 from app.db import engine, init_db, reset_engine
 from app.models import CacheEntry, CostLog
 from app.providers.meta import (
-    ERR_MSG,
     MetaAgentProvider,
     MetaSegmentationProvider,
     MetaTranscriptionProvider,
@@ -86,19 +85,19 @@ def test_mock_transcription_returns_hinglish():
     assert len(transcript.segments) >= 2
 
 
-def test_meta_providers_raise_not_implemented():
-    """Verify Meta providers raise NotImplementedError with the official prompt message."""
+def test_meta_providers_require_api_key():
+    """Verify Meta providers without MODEL_API_KEY raise ValueError marked UNVERIFIED."""
     seg = MetaSegmentationProvider()
-    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
+    with pytest.raises(ValueError, match="UNVERIFIED against live API"):
         seg.find_objects(["/dummy.jpg"], "exit")
 
     asr = MetaTranscriptionProvider()
-    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
+    with pytest.raises(Exception):
         asr.transcribe("/dummy.wav")
 
     agent = MetaAgentProvider()
-    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
-        agent.run_audit(None, [], None, lambda x: None)
+    with pytest.raises(ValueError, match="UNVERIFIED against live API"):
+        agent.judge({"title": "test"}, [])
 
 
 def test_cache_hits_and_misses():

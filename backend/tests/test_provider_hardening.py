@@ -17,31 +17,31 @@ from app.providers.client import (
 
 
 def test_budget_guard_per_audit_cap():
-    """Verify that per-audit budget limit ($5.0) raises BudgetExceededError."""
+    """Verify that per-audit budget limit ($1.0 default) raises BudgetExceededError."""
     guard = BudgetGuard()
     audit_id = "test_audit_budget"
 
-    # Small calls within $5.0 cap should succeed
-    guard.check_and_charge(audit_id, 2.0)
-    guard.check_and_charge(audit_id, 2.5)
-    assert guard.get_audit_spent(audit_id) == 4.5
+    # Small calls within $1.0 cap should succeed
+    guard.check_and_charge(audit_id, 0.4)
+    guard.check_and_charge(audit_id, 0.5)
+    assert guard.get_audit_spent(audit_id) == 0.9
 
-    # Exceeding $5.0 cap should raise BudgetExceededError
-    with pytest.raises(BudgetExceededError, match="Per-audit budget cap of \\$5.00 exceeded"):
-        guard.check_and_charge(audit_id, 1.0)
+    # Exceeding $1.0 cap should raise BudgetExceededError
+    with pytest.raises(BudgetExceededError, match="Per-audit budget cap of \\$1.00 exceeded"):
+        guard.check_and_charge(audit_id, 0.2)
 
 
 def test_budget_guard_global_cap():
-    """Verify that global budget limit ($100.0) raises BudgetExceededError."""
+    """Verify that global budget limit ($20.0 default) raises BudgetExceededError."""
     guard = BudgetGuard()
 
-    # Charge across various audits up to $95
-    guard.check_and_charge("audit_a", 4.0)
-    guard.check_and_charge("audit_b", 4.0)
+    # Charge across various audits up to $18
+    guard.check_and_charge("audit_a", 0.9)
+    guard.check_and_charge("audit_b", 0.9)
 
-    # Big charge exceeding $100 total
-    with pytest.raises(BudgetExceededError, match="Global budget cap of \\$100.00 exceeded"):
-        guard.check_and_charge("audit_c", 95.0)
+    # Big charge exceeding $20 total
+    with pytest.raises(BudgetExceededError, match="Global budget cap of \\$20.00 exceeded"):
+        guard.check_and_charge("audit_c", 19.0)
 
 
 def test_retry_on_429_and_5xx_success():

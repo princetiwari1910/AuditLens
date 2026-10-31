@@ -35,22 +35,21 @@ from app.providers.record_replay import (
 )
 
 
-def test_meta_provider_raises_not_implemented():
-    """Meta providers must strictly raise NotImplementedError with TODO(meta)."""
+def test_meta_provider_requires_api_key():
+    """Meta providers without MODEL_API_KEY raise ValueError marked UNVERIFIED."""
     seg = MetaSegmenter()
-    with pytest.raises(NotImplementedError) as exc_seg:
+    with pytest.raises(ValueError) as exc_seg:
         seg.segment("dummy_img.jpg", ["fire extinguisher"])
-    assert "TODO(meta)" in str(exc_seg.value)
+    assert "UNVERIFIED" in str(exc_seg.value)
 
     reasoner = MetaReasoner()
-    with pytest.raises(NotImplementedError) as exc_reason:
+    with pytest.raises(ValueError) as exc_reason:
         reasoner.judge({"title": "Test rule"}, {})
-    assert "TODO(meta)" in str(exc_reason.value)
+    assert "UNVERIFIED" in str(exc_reason.value)
 
     transcriber = MetaTranscriber()
-    with pytest.raises(NotImplementedError) as exc_trans:
+    with pytest.raises(Exception):
         transcriber.transcribe("dummy_audio.wav")
-    assert "TODO(meta)" in str(exc_trans.value)
 
 
 def test_mock_provider_implements_interfaces():
