@@ -50,7 +50,7 @@ backend/.venv/bin/python eval/run_eval.py --mode both
 ## 🧪 Testing
 
 ```bash
-# Run all 61 backend pytest tests (rules, cache, cost, evidence-first, API, replay, eval metrics)
+# Run all backend pytest unit, smoke, replay, and calibration tests
 make test
 
 # Run frontend unit tests (letterbox coordinate projection, formatters, models used panel)
@@ -126,32 +126,74 @@ location /api/audits/ {
 
 ---
 
-## 🏆 What was built during the hackathon (Oct 26 - Nov 4)
+## 🏆 Hackathon Build History & Architecture (Started Oct 27, 2026)
 
-AuditLens was architected and built from scratch during the hackathon window as a complete end-to-end safety pre-audit system:
+AuditLens was architected and built from scratch starting on **October 27, 2026** during the hackathon window as a complete end-to-end safety pre-audit system:
 
 1. **Provider Discipline & Foundation Model Contracts** (`backend/app/providers/`):
    - Strict typed abstract base classes: `Segmenter` (`SAM 3.1`), `Reasoner` (`Muse Spark`), and `Transcriber` (`Muse Voice Transcribe`).
-   - Drop-in `Meta` provider stubs raising clear `NotImplementedError("TODO(meta)...")` pointing to `docs/META_INTEGRATION.md` for live API enablement without changing a single line of business logic.
+   - Drop-in `Meta` provider stubs raising clear `NotImplementedError("TODO(meta)...")` pointing to `docs/META_INTEGRATION.md` for live API enablement without changing business logic.
    - Built-in Record/Replay proxy: records live model responses to `data/fixtures/<hash>.json` and replays them deterministically with zero network calls and realistic timing.
+   - Provider client hardening: budget guard ($5 per audit, $100 global cap), exponential backoff and jitter retry on 429/5xx, concurrency semaphores (1 video, 4 images), and strict Pydantic JSON schema validation for verdicts.
    - Secure config: `MODEL_API_KEY` read strictly from the environment; never logged, exposed via health endpoints, or checked into git.
 2. **Deterministic Evidence-First Rule Engine** (`backend/app/rules/`):
    - 5 core rule evaluators: Presence, Absence, Count, Colocation, and Optical Measurement.
    - **Evidence First Contract:** All findings must originate from measured tool evidence with recorded uncertainty; ungrounded assertions strictly default to `unsure` ("Needs Review").
-   - Hero scenario templates for workplace safety, college lab safety, and hostel fire safety specifying required detectors and evidence types.
-3. **Voice Notes & Audio Grounding**:
+   - Default phone-ready template `campus_fire_exit_core.json` (4 rules that can be shot on a phone, no measurement required), alongside experimental templates.
+3. **Upload Normalization & Quality-Aware Keyframe Selection**:
+   - `ffprobe` inspection of uploaded `.mp4` and `.mov` videos.
+   - Automatic `ffmpeg` transcode to H.264 mp4 (yuv420p, +faststart, autorotate applied, long edge <= 960px).
+   - Quality-aware keyframe selection filtering blurry frames via Laplacian variance, removing near-duplicates, enforcing minimum gap, and capping at 24 keyframes.
+4. **Voice Notes & Audio Grounding**:
    - MediaRecorder voice note recording in browser and audio upload endpoint.
    - Synchronized transcription timestamp matching findings within ±5 seconds with audio playback.
-4. **Interactive Review & Verification UI** (`frontend/`):
+5. **Interactive Review & Verification UI** (`frontend/`):
    - Synchronized HTML5 video player with canvas bounding box overlays, letterbox coordinate transformation, and timestamp markers.
    - Before/after audit comparison view (`/compare`) tracking resolved vs new violations.
    - Transparent "Models Used" panel exposing model IDs, provider mode, cost, call count, and uncertainty disclaimers.
    - Exportable print & PDF report.
-5. **Evaluation, Calibration & Ground-Truth Tooling** (`eval/` & `/eval`):
+6. **Evaluation, Calibration & Ground-Truth Tooling** (`eval/` & `/eval`):
    - Keyframe ground-truth labeling CLI (`backend/scripts/label_keyframes.py`) with unified per-frame/per-rule schema (`data/labels/<video_id>.json`).
    - Benchmark evaluation harness (`eval/run_eval.py`) comparing Full Pipeline vs Direct Chat Vision Baseline.
    - Empirical Precision, Recall, F1, Confusion Matrices, and "Needs Review" Abstain Calibration curves.
    - Interactive `/eval` calibration dashboard displaying Reliability (confidence vs accuracy) and Abstain vs Accuracy tradeoff curves.
+   - Honest mock mode stamping: prominent "MOCK, NOT A RESULT" banner with comparison deltas hidden until real foundation models are connected.
+
+---
+
+## ⚠️ System Limitations
+
+AuditLens is designed for fast, assistive walkthrough pre-audits. To ensure reliable and safe operation:
+
+1. **Assistive Pre-Audit Only:** AuditLens highlights potential violations and points inspectors to specific video timestamps; it does not constitute a certified regulatory sign-off or replace licensed safety inspectors.
+2. **Field-of-View & Occlusion:** The system only assesses visible evidence captured in the walkthrough video. Items concealed behind closed doors, inside cabinets, or blocked by passing personnel cannot be analyzed.
+3. **Lighting & Motion Blur:** Low-light environments or rapid phone panning introduce motion blur. While the quality-aware frame selector filters blurry frames, severe blur will result in an `unsure` ("Needs Review") status.
+4. **Scale Calibration for Measurement:** Distance and clearance measurements require an optical scale reference (e.g., standard A4 paper placed on the floor) to calibrate pixel-to-meter ratios.
+5. **Audio-Visual Temporal Window:** Auditor voice notes are associated with visual findings within a ±5-second window of the recorded timestamp.
+
+---
+
+## 🔌 How to Connect Real Meta Providers
+
+AuditLens is prepared for seamless drop-in integration with Meta's developer APIs once credentials are provided:
+
+1. **Obtain API Credentials:**
+   Sign up at [dev.meta.ai](https://dev.meta.ai) and obtain your Meta Model API key.
+
+2. **Configure `.env`:**
+   Add your key to `.env` (gitignored and never logged):
+   ```bash
+   MODEL_API_KEY="your_meta_api_key_here"
+   PROVIDER_MODE="meta"
+   ```
+
+3. **Supported Models:**
+   - **Visual Grounding & Segmentation:** SAM 3.1 (`MODEL_ID_SEGMENTATION="SAM 3.1"`)
+   - **Reasoning & Tool Execution:** Muse Spark (`MODEL_ID_AGENT="Muse Spark"`)
+   - **Multilingual Speech-to-Text:** Muse Voice Transcribe (`MODEL_ID_TRANSCRIPTION="Muse Voice Transcribe"`)
+
+4. **Detailed Integration Guide:**
+   See [`docs/META_INTEGRATION.md`](file:///Users/princetiwari19/Documents/AuditLens/docs/META_INTEGRATION.md) for endpoint contracts, token budgets, request schemas, and migration steps from mock to production mode. Provider calls automatically inherit client hardening (request timeouts, exponential backoff with jitter on 429/5xx, semaphores, and budget guards).
 
 ---
 

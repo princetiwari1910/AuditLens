@@ -12,25 +12,37 @@ build/
 node_modules/
 frontend/dist/
 
-# Data & env
-data/
-.env
+# Evaluation runs
+eval/runs/
+
+# Data directories & databases
+data/audits/
+data/uploads/
+data/fixtures/
+data/*.db
+data/*.sqlite
+backend/data/
 *.sqlite
 *.db
 
-# IDE
+# Video files (except bundled sample walkthrough)
+*.mp4
+*.mov
+!data/sample_walkthrough.mp4
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
 
-# Local binaries
+# Local binaries & coverage
 bin/
-
-# Eval runs
-eval/runs/
-
-# Coverage
 htmlcov/
 .coverage
