@@ -24,6 +24,12 @@ from app.providers.base import (
     TranscriptSegment,
     TranscriptTurn,
 )
+from app.providers.client import (
+    estimate_reasoner_cost,
+    estimate_segmentation_cost,
+    estimate_transcription_cost,
+    execute_with_retry,
+)
 
 logger = logging.getLogger("auditlens.providers.record_replay")
 
@@ -59,7 +65,15 @@ class RecordReplaySegmenter:
 
     def __init__(self, inner: Any, mode: str = "replay") -> None:
         self.inner = inner
-        self.mode = mode.lower()  # "record" or "replay"
+        self.mode = mode.lower()  # "record", "replay", or "passthrough"
+
+    @property
+    def scenario_hash(self) -> str:
+        return getattr(self.inner, "scenario_hash", "record_replay")
+
+    @property
+    def version(self) -> str:
+        return getattr(self.inner, "version", "1.0.0")
 
     def _get_hash(self, frame_paths: list[str], prompt: str) -> str:
         hashes = [_hash_input(p) for p in frame_paths]
@@ -97,16 +111,27 @@ class RecordReplaySegmenter:
                 for d in data.get("detections", [])
             ]
 
-        # Record mode
-        result = self.inner.find_objects(frame_paths, prompt, timestamps_s)
-        serializable = {
-            "hash": fixture_hash,
-            "prompt": prompt,
-            "detections": [asdict(d) for d in result],
-        }
-        with open(fixture_file, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, indent=2)
-        logger.info("Recorded segmenter fixture to %s", fixture_file)
+        # Record or Passthrough mode: execute via hardened client with budget guard & retries
+        cost = estimate_segmentation_cost(len(frame_paths))
+        result = execute_with_retry(
+            self.inner.find_objects,
+            frame_paths,
+            prompt,
+            timestamps_s,
+            estimated_cost=cost,
+            is_video=False,
+        )
+
+        if self.mode == "record":
+            serializable = {
+                "hash": fixture_hash,
+                "prompt": prompt,
+                "detections": [asdict(d) for d in result],
+            }
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(serializable, f, indent=2)
+            logger.info("Recorded segmenter fixture to %s", fixture_file)
+
         return result
 
     def segment(
@@ -139,9 +164,11 @@ class RecordReplaySegmenter:
                 for d in data.get("detections", [])
             ]
 
-        if hasattr(self.inner, "segment"):
-            result = self.inner.segment(image, text_prompts)
-        else:
+        cost = estimate_segmentation_cost(1)
+
+        def _call_segment() -> list[SegmentDetection]:
+            if hasattr(self.inner, "segment"):
+                return self.inner.segment(image, text_prompts)
             # Fallback using find_objects
             dets = []
             for p in text_prompts:
@@ -157,15 +184,19 @@ class RecordReplaySegmenter:
                             timestamp_s=d.timestamp_s,
                         )
                     )
-            result = dets
+            return dets
 
-        serializable = {
-            "hash": fixture_hash,
-            "text_prompts": text_prompts,
-            "detections": [asdict(d) for d in result],
-        }
-        with open(fixture_file, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, indent=2)
+        result = execute_with_retry(_call_segment, estimated_cost=cost, is_video=False)
+
+        if self.mode == "record":
+            serializable = {
+                "hash": fixture_hash,
+                "text_prompts": text_prompts,
+                "detections": [asdict(d) for d in result],
+            }
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(serializable, f, indent=2)
+
         return result
 
 
@@ -218,21 +249,30 @@ class RecordReplayTranscriber:
                 turns=turns,
             )
 
-        # Record mode
-        result = self.inner.transcribe(audio_path, language_hint=language_hint)
-        # Handle turns if result has turns
-        turns_data = [asdict(t) for t in getattr(result, "turns", [])]
-        segments_data = [asdict(s) for s in getattr(result, "segments", [])]
-        serializable = {
-            "hash": fixture_hash,
-            "text": result.text,
-            "language": result.language,
-            "segments": segments_data,
-            "turns": turns_data,
-        }
-        with open(fixture_file, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, indent=2)
-        logger.info("Recorded transcriber fixture to %s", fixture_file)
+        # Record or Passthrough mode: execute via hardened client with budget guard & retries
+        cost = estimate_transcription_cost(1.0)
+        result = execute_with_retry(
+            self.inner.transcribe,
+            audio_path,
+            language_hint=language_hint,
+            estimated_cost=cost,
+            is_video=False,
+        )
+
+        if self.mode == "record":
+            turns_data = [asdict(t) for t in getattr(result, "turns", [])]
+            segments_data = [asdict(s) for s in getattr(result, "segments", [])]
+            serializable = {
+                "hash": fixture_hash,
+                "text": result.text,
+                "language": result.language,
+                "segments": segments_data,
+                "turns": turns_data,
+            }
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(serializable, f, indent=2)
+            logger.info("Recorded transcriber fixture to %s", fixture_file)
+
         return result
 
 
@@ -270,9 +310,19 @@ class RecordReplayReasoner:
             with open(fixture_file, "r", encoding="utf-8") as f:
                 return json.load(f)
 
-        # Record mode
-        result = self.inner.judge(rule, evidence)
-        with open(fixture_file, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2)
-        logger.info("Recorded reasoner fixture to %s", fixture_file)
+        # Record or Passthrough mode: execute via hardened client with budget guard & retries
+        cost = estimate_reasoner_cost()
+        result = execute_with_retry(
+            self.inner.judge,
+            rule,
+            evidence,
+            estimated_cost=cost,
+            is_video=False,
+        )
+
+        if self.mode == "record":
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(result, f, indent=2)
+            logger.info("Recorded reasoner fixture to %s", fixture_file)
+
         return result

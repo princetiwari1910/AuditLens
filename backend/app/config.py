@@ -70,6 +70,18 @@ class Settings(BaseSettings):
     UNIT_PRICE_AGENT_OUTPUT: float = 0.015   # per 1K output tokens (Muse Spark)
     UNIT_PRICE_TRANSCRIPTION: float = 0.006  # per minute of audio (Muse Voice Transcribe)
 
+    # Hardened Provider Client & Budget Guard constants (verify at dev.meta.ai pricing)
+    PRICE_SAM_PER_IMAGE_USD: float = 0.005  # verify at dev.meta.ai pricing
+    PRICE_MUSE_SPARK_INPUT_PER_1K_USD: float = 0.0015  # verify at dev.meta.ai pricing
+    PRICE_MUSE_SPARK_OUTPUT_PER_1K_USD: float = 0.002  # verify at dev.meta.ai pricing
+    PRICE_MUSE_VOICE_PER_MIN_USD: float = 0.006  # verify at dev.meta.ai pricing
+    MAX_BUDGET_PER_AUDIT_USD: float = 5.0  # verify at dev.meta.ai pricing (cap $5 per audit)
+    MAX_GLOBAL_BUDGET_USD: float = 100.0  # verify at dev.meta.ai pricing (cap $100 total)
+    PROVIDER_REQUEST_TIMEOUT_S: float = 15.0
+    PROVIDER_MAX_RETRIES: int = 3
+    VIDEO_CONCURRENCY_LIMIT: int = 1
+    IMAGE_CONCURRENCY_LIMIT: int = 4
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property

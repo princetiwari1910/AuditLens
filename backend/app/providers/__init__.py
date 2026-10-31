@@ -42,12 +42,14 @@ def get_segmentation_provider() -> SegmentationProvider:
     mode = settings.PROVIDER_MODE.lower()
 
     if mode == "meta":
-        return MetaSegmentationProvider()
-    elif mode in ("record", "replay"):
-        # Wrap underlying provider (meta in production or mock for test recording)
+        base = MetaSegmentationProvider()
+    elif mode == "mock":
+        base = MockSegmentationProvider()
+    else:
         base = MetaSegmentationProvider() if settings.MODEL_API_KEY else MockSegmentationProvider()
-        return RecordReplaySegmenter(base, mode=mode)
-    return MockSegmentationProvider()
+
+    wrap_mode = mode if mode in ("record", "replay") else "passthrough"
+    return RecordReplaySegmenter(base, mode=wrap_mode)
 
 
 def get_transcription_provider() -> TranscriptionProvider:
@@ -55,11 +57,14 @@ def get_transcription_provider() -> TranscriptionProvider:
     mode = settings.PROVIDER_MODE.lower()
 
     if mode == "meta":
-        return MetaTranscriptionProvider()
-    elif mode in ("record", "replay"):
+        base = MetaTranscriptionProvider()
+    elif mode == "mock":
+        base = MockTranscriptionProvider()
+    else:
         base = MetaTranscriptionProvider() if settings.MODEL_API_KEY else MockTranscriptionProvider()
-        return RecordReplayTranscriber(base, mode=mode)
-    return MockTranscriptionProvider()
+
+    wrap_mode = mode if mode in ("record", "replay") else "passthrough"
+    return RecordReplayTranscriber(base, mode=wrap_mode)
 
 
 def get_agent_provider() -> AgentProvider:
@@ -87,8 +92,11 @@ def get_reasoner() -> Reasoner:
     mode = settings.PROVIDER_MODE.lower()
 
     if mode == "meta":
-        return MetaReasoner()
-    elif mode in ("record", "replay"):
+        base = MetaReasoner()
+    elif mode == "mock":
+        base = MockReasoner()
+    else:
         base = MetaReasoner() if settings.MODEL_API_KEY else MockReasoner()
-        return RecordReplayReasoner(base, mode=mode)
-    return MockReasoner()
+
+    wrap_mode = mode if mode in ("record", "replay") else "passthrough"
+    return RecordReplayReasoner(base, mode=wrap_mode)
