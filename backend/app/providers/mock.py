@@ -21,6 +21,7 @@ from app.providers.base import (
     Reasoner,
     Transcriber,
 )
+from app.providers.schemas import validate_verdict
 
 SCENARIOS_DIR = Path(__file__).resolve().parent.parent / "scenarios"
 
@@ -241,20 +242,24 @@ class MockReasoner:
         if r_type == "absence":
             # If evidence has high-scoring obstacle -> fail
             has_obstacle = bool(evidence)
-            return {
+            raw = {
                 "verdict": "fail" if has_obstacle else "pass",
+                "status": "fail" if has_obstacle else "pass",
                 "reason": f"Mock evaluation for {r_title}: {'Obstacle detected' if has_obstacle else 'No obstacles found'}.",
-                "cited_frames": cited_frames[:3],
+                "cited_frame_ids": cited_frames[:3],
                 "confidence": 0.85 if has_obstacle else 0.90,
             }
         else:
             has_item = bool(evidence)
-            return {
+            raw = {
                 "verdict": "pass" if has_item else "fail",
+                "status": "pass" if has_item else "fail",
                 "reason": f"Mock evaluation for {r_title}: {'Required item detected' if has_item else 'Item missing'}.",
-                "cited_frames": cited_frames[:3],
+                "cited_frame_ids": cited_frames[:3],
                 "confidence": 0.88 if has_item else 0.40,
             }
+
+        return validate_verdict(raw).to_dict()
 
 
 class MockAgentProvider:

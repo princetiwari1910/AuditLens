@@ -30,6 +30,7 @@ from app.providers.client import (
     estimate_transcription_cost,
     execute_with_retry,
 )
+from app.providers.schemas import validate_verdict
 
 logger = logging.getLogger("auditlens.providers.record_replay")
 
@@ -308,21 +309,23 @@ class RecordReplayReasoner:
                     f"[Replay Mode] Reasoner fixture '{fixture_hash}.json' missing in {fixtures_dir}."
                 )
             with open(fixture_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+            return validate_verdict(data).to_dict()
 
         # Record or Passthrough mode: execute via hardened client with budget guard & retries
         cost = estimate_reasoner_cost()
-        result = execute_with_retry(
+        raw_result = execute_with_retry(
             self.inner.judge,
             rule,
             evidence,
             estimated_cost=cost,
             is_video=False,
         )
+        validated_result = validate_verdict(raw_result).to_dict()
 
         if self.mode == "record":
             with open(fixture_file, "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=2)
+                json.dump(validated_result, f, indent=2)
             logger.info("Recorded reasoner fixture to %s", fixture_file)
 
-        return result
+        return validated_result
