@@ -58,10 +58,20 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
-      {/* Mock Mode Alert Banner */}
+      {/* Provider Mode Alert Banner */}
       {health?.provider_mode === 'mock' && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-200">
           <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against deterministic scenarios.</span>
+        </div>
+      )}
+      {health?.provider_mode === 'replay' && (
+        <div className="bg-purple-500/10 border-b border-purple-500/20 px-4 py-2 text-center text-xs font-medium text-purple-800 dark:text-purple-200">
+          <span>📼 <strong>Replay Mode:</strong> Serving exclusively from recorded fixtures in data/fixtures/ with zero network calls.</span>
+        </div>
+      )}
+      {health?.provider_mode === 'record' && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 text-center text-xs font-medium text-emerald-800 dark:text-emerald-200">
+          <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for deterministic replay.</span>
         </div>
       )}
 

@@ -10,11 +10,16 @@ from typing import Any, Callable
 
 from app.providers.base import (
     Detection,
+    SegmentDetection,
     Transcript,
     TranscriptSegment,
+    TranscriptTurn,
     SegmentationProvider,
     TranscriptionProvider,
     AgentProvider,
+    Segmenter,
+    Reasoner,
+    Transcriber,
 )
 
 SCENARIOS_DIR = Path(__file__).resolve().parent.parent / "scenarios"
@@ -135,6 +140,31 @@ class MockSegmentationProvider:
 
         return detections
 
+    def segment(
+        self,
+        image: str | bytes | Path,
+        text_prompts: list[str],
+    ) -> list[SegmentDetection]:
+        """Implements Segmenter protocol using mock detection matching."""
+        results: list[SegmentDetection] = []
+        for p in text_prompts:
+            dets = self.find_objects([str(image)], p)
+            for d in dets:
+                results.append(
+                    SegmentDetection(
+                        label=d.prompt,
+                        box=d.bbox,
+                        score=d.score,
+                        mask=d.polygon,
+                        frame_id=d.frame_id,
+                        timestamp_s=d.timestamp_s,
+                    )
+                )
+        return results
+
+
+MockSegmenter = MockSegmentationProvider
+
 
 class MockTranscriptionProvider:
     """
@@ -162,11 +192,69 @@ class MockTranscriptionProvider:
                 text="expiry date valid hai aur exit doorway ka rasta clear hai.",
             ),
         ]
+        turns = [
+            TranscriptTurn(
+                start_s=0.0,
+                end_s=3.2,
+                text="Main entrance ke paas fire extinguisher check kar liya hai,",
+                speaker="Auditor",
+            ),
+            TranscriptTurn(
+                start_s=3.3,
+                end_s=6.8,
+                text="expiry date valid hai aur exit doorway ka rasta clear hai.",
+                speaker="Auditor",
+            ),
+        ]
         return Transcript(
             text=text,
             language="hi-en",
             segments=segments,
+            turns=turns,
         )
+
+
+MockTranscriber = MockTranscriptionProvider
+
+
+class MockReasoner:
+    """Mock Reasoner evaluating safety rules against provided evidence."""
+
+    def judge(
+        self,
+        rule: dict[str, Any] | Any,
+        evidence: dict[str, Any] | list[Any],
+    ) -> dict[str, Any]:
+        rule_dict = rule if isinstance(rule, dict) else (rule.model_dump() if hasattr(rule, "model_dump") else {})
+        r_type = rule_dict.get("type", "presence")
+        r_title = rule_dict.get("title", "")
+
+        # Deterministic verdict based on evidence contents
+        cited_frames: list[int] = []
+        if isinstance(evidence, list):
+            for item in evidence:
+                if isinstance(item, dict) and "frame_id" in item:
+                    cited_frames.append(int(item["frame_id"]))
+                elif hasattr(item, "frame_id"):
+                    cited_frames.append(int(item.frame_id))
+
+        if r_type == "absence":
+            # If evidence has high-scoring obstacle -> fail
+            has_obstacle = bool(evidence)
+            return {
+                "verdict": "fail" if has_obstacle else "pass",
+                "reason": f"Mock evaluation for {r_title}: {'Obstacle detected' if has_obstacle else 'No obstacles found'}.",
+                "cited_frames": cited_frames[:3],
+                "confidence": 0.85 if has_obstacle else 0.90,
+            }
+        else:
+            has_item = bool(evidence)
+            return {
+                "verdict": "pass" if has_item else "fail",
+                "reason": f"Mock evaluation for {r_title}: {'Required item detected' if has_item else 'Item missing'}.",
+                "cited_frames": cited_frames[:3],
+                "confidence": 0.88 if has_item else 0.40,
+            }
 
 
 class MockAgentProvider:

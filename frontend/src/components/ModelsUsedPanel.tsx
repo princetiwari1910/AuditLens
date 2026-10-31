@@ -90,6 +90,14 @@ export default function ModelsUsedPanel({
             <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20">
               Mock Mode: Simulated Detections
             </span>
+          ) : providerMode === 'replay' ? (
+            <span className="rounded-md bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-400 border border-purple-500/20">
+              Replay Mode: Stored Fixtures
+            </span>
+          ) : providerMode === 'record' ? (
+            <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+              Record Mode: Capturing Fixtures
+            </span>
           ) : (
             <span className="rounded-md bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-400 border border-blue-500/20">
               Live Meta Models

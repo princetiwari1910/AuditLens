@@ -17,7 +17,7 @@ DEFAULT_DATA_DIR: Path = (PROJECT_ROOT / "data").resolve()
 class Settings(BaseSettings):
     """Central configuration – every value has a safe default for local dev."""
 
-    # Provider mode: "mock" or "meta"
+    # Provider mode: "mock", "meta", "record", or "replay"
     PROVIDER_MODE: str = "mock"
 
     # File storage root (defaults to <PROJECT_ROOT>/data)
@@ -57,7 +57,9 @@ class Settings(BaseSettings):
     # Demo Replay fallback flag (DEMO_REPLAY=1 replays recorded audit fixtures)
     DEMO_REPLAY: bool = False
 
-    # TODO(meta): configure once credentials and access are provisioned
+    # API key for target foundation models (SAM 3.1, Muse Spark, Muse Voice)
+    # Read from environment only; NEVER logged or returned in API responses
+    MODEL_API_KEY: str = ""
     META_API_KEY: str = ""
     META_BASE_URL: str = ""
 

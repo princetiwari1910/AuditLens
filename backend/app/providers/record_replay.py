@@ -1,0 +1,278 @@
+"""Record/Replay wrapper for AuditLens AI providers.
+
+Supports offline deterministic testing and reliable demonstrations:
+- 'record' mode: executes the underlying provider call, saves serialized output
+  to `data/fixtures/<hash>.json`.
+- 'replay' mode: loads cached responses from `data/fixtures/<hash>.json` with zero network calls.
+  Raises FileNotFoundError if the fixture is missing.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+import hashlib
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+from app.config import get_settings
+from app.providers.base import (
+    Detection,
+    SegmentDetection,
+    Transcript,
+    TranscriptSegment,
+    TranscriptTurn,
+)
+
+logger = logging.getLogger("auditlens.providers.record_replay")
+
+
+def _hash_input(data: Any) -> str:
+    """Compute deterministic SHA256 hash for provider input."""
+    if isinstance(data, (bytes, bytearray)):
+        content = bytes(data)
+    elif isinstance(data, (str, Path)):
+        p = Path(data)
+        if p.exists() and p.is_file():
+            content = p.read_bytes()
+        else:
+            content = str(data).encode("utf-8")
+    else:
+        content = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(content).hexdigest()[:24]
+
+
+def get_fixtures_dir() -> Path:
+    settings = get_settings()
+    fixtures_dir = settings.DATA_DIR / "fixtures"
+    fixtures_dir.mkdir(parents=True, exist_ok=True)
+    return fixtures_dir
+
+
+# ── Record/Replay Segmenter Wrapper ───────────────────────────────────────────
+
+class RecordReplaySegmenter:
+    """
+    Wraps a Segmenter/SegmentationProvider in record or replay mode.
+    """
+
+    def __init__(self, inner: Any, mode: str = "replay") -> None:
+        self.inner = inner
+        self.mode = mode.lower()  # "record" or "replay"
+
+    def _get_hash(self, frame_paths: list[str], prompt: str) -> str:
+        hashes = [_hash_input(p) for p in frame_paths]
+        prompt_hash = hashlib.sha256(prompt.strip().lower().encode("utf-8")).hexdigest()[:12]
+        combined = f"seg:{prompt_hash}:{':'.join(hashes)}"
+        return hashlib.sha256(combined.encode("utf-8")).hexdigest()[:24]
+
+    def find_objects(
+        self,
+        frame_paths: list[str],
+        prompt: str,
+        timestamps_s: list[float] | None = None,
+    ) -> list[Detection]:
+        fixture_hash = self._get_hash(frame_paths, prompt)
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                raise FileNotFoundError(
+                    f"[Replay Mode] Fixture '{fixture_hash}.json' missing in {fixtures_dir}. "
+                    f"Zero network calls allowed in replay mode. Record the scenario first."
+                )
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return [
+                Detection(
+                    frame_id=d["frame_id"],
+                    timestamp_s=d["timestamp_s"],
+                    prompt=d["prompt"],
+                    score=d["score"],
+                    bbox=d["bbox"],
+                    polygon=d.get("polygon"),
+                )
+                for d in data.get("detections", [])
+            ]
+
+        # Record mode
+        result = self.inner.find_objects(frame_paths, prompt, timestamps_s)
+        serializable = {
+            "hash": fixture_hash,
+            "prompt": prompt,
+            "detections": [asdict(d) for d in result],
+        }
+        with open(fixture_file, "w", encoding="utf-8") as f:
+            json.dump(serializable, f, indent=2)
+        logger.info("Recorded segmenter fixture to %s", fixture_file)
+        return result
+
+    def segment(
+        self,
+        image: str | bytes | Path,
+        text_prompts: list[str],
+    ) -> list[SegmentDetection]:
+        img_hash = _hash_input(image)
+        prompts_hash = hashlib.sha256(":".join(sorted(text_prompts)).encode("utf-8")).hexdigest()[:12]
+        fixture_hash = f"segment_{img_hash[:12]}_{prompts_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                raise FileNotFoundError(
+                    f"[Replay Mode] Fixture '{fixture_hash}.json' missing in {fixtures_dir}."
+                )
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return [
+                SegmentDetection(
+                    label=d["label"],
+                    box=d["box"],
+                    score=d["score"],
+                    mask=d.get("mask"),
+                    frame_id=d.get("frame_id", 0),
+                    timestamp_s=d.get("timestamp_s", 0.0),
+                )
+                for d in data.get("detections", [])
+            ]
+
+        if hasattr(self.inner, "segment"):
+            result = self.inner.segment(image, text_prompts)
+        else:
+            # Fallback using find_objects
+            dets = []
+            for p in text_prompts:
+                sub = self.inner.find_objects([str(image)], p)
+                for d in sub:
+                    dets.append(
+                        SegmentDetection(
+                            label=d.prompt,
+                            box=d.bbox,
+                            score=d.score,
+                            mask=d.polygon,
+                            frame_id=d.frame_id,
+                            timestamp_s=d.timestamp_s,
+                        )
+                    )
+            result = dets
+
+        serializable = {
+            "hash": fixture_hash,
+            "text_prompts": text_prompts,
+            "detections": [asdict(d) for d in result],
+        }
+        with open(fixture_file, "w", encoding="utf-8") as f:
+            json.dump(serializable, f, indent=2)
+        return result
+
+
+# ── Record/Replay Transcriber Wrapper ─────────────────────────────────────────
+
+class RecordReplayTranscriber:
+    """
+    Wraps a Transcriber/TranscriptionProvider in record or replay mode.
+    """
+
+    def __init__(self, inner: Any, mode: str = "replay") -> None:
+        self.inner = inner
+        self.mode = mode.lower()
+
+    def transcribe(
+        self,
+        audio_path: str,
+        language_hint: str | None = None,
+    ) -> Transcript:
+        audio_hash = _hash_input(audio_path)
+        fixture_hash = f"trans_{audio_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                raise FileNotFoundError(
+                    f"[Replay Mode] Transcript fixture '{fixture_hash}.json' missing in {fixtures_dir}. "
+                    f"Zero network calls allowed in replay mode."
+                )
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            segments = [
+                TranscriptSegment(start_s=s["start_s"], end_s=s["end_s"], text=s["text"])
+                for s in data.get("segments", [])
+            ]
+            turns = [
+                TranscriptTurn(
+                    start_s=t["start_s"],
+                    end_s=t["end_s"],
+                    text=t["text"],
+                    speaker=t.get("speaker"),
+                )
+                for t in data.get("turns", [])
+            ]
+            return Transcript(
+                text=data.get("text", ""),
+                language=data.get("language", "en"),
+                segments=segments,
+                turns=turns,
+            )
+
+        # Record mode
+        result = self.inner.transcribe(audio_path, language_hint=language_hint)
+        # Handle turns if result has turns
+        turns_data = [asdict(t) for t in getattr(result, "turns", [])]
+        segments_data = [asdict(s) for s in getattr(result, "segments", [])]
+        serializable = {
+            "hash": fixture_hash,
+            "text": result.text,
+            "language": result.language,
+            "segments": segments_data,
+            "turns": turns_data,
+        }
+        with open(fixture_file, "w", encoding="utf-8") as f:
+            json.dump(serializable, f, indent=2)
+        logger.info("Recorded transcriber fixture to %s", fixture_file)
+        return result
+
+
+# ── Record/Replay Reasoner Wrapper ────────────────────────────────────────────
+
+class RecordReplayReasoner:
+    """
+    Wraps a Reasoner in record or replay mode.
+    """
+
+    def __init__(self, inner: Any, mode: str = "replay") -> None:
+        self.inner = inner
+        self.mode = mode.lower()
+
+    def judge(
+        self,
+        rule: dict[str, Any] | Any,
+        evidence: dict[str, Any] | list[Any],
+    ) -> dict[str, Any]:
+        rule_dict = rule if isinstance(rule, dict) else (rule.model_dump() if hasattr(rule, "model_dump") else asdict(rule))
+        evidence_dict = evidence if isinstance(evidence, (dict, list)) else str(evidence)
+        combined_hash = hashlib.sha256(
+            json.dumps({"rule": rule_dict, "evidence": evidence_dict}, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()[:24]
+
+        fixture_hash = f"reason_{combined_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                raise FileNotFoundError(
+                    f"[Replay Mode] Reasoner fixture '{fixture_hash}.json' missing in {fixtures_dir}."
+                )
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        # Record mode
+        result = self.inner.judge(rule, evidence)
+        with open(fixture_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+        logger.info("Recorded reasoner fixture to %s", fixture_file)
+        return result
