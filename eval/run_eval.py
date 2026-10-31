@@ -533,47 +533,66 @@ def generate_markdown_report(
     return "\n".join(lines)
 
 
-def load_benchmark_clips(labels_path: Path) -> list[dict[str, Any]]:
+def load_benchmark_clip_from_json(path: Path) -> dict[str, Any]:
+    """Load a single benchmark clip strictly from the data/labels/<video_id>.json schema."""
+    with open(path, "r", encoding="utf-8") as fp:
+        item = json.load(fp)
+
+    if not isinstance(item, dict):
+        raise ValueError(f"Label file {path} must be a JSON object conforming to data/labels/<video_id>.json")
+
+    video_id = item.get("video_id") or path.stem
+    video_path = item.get("video_path") or f"data/{video_id}.mp4"
+    template_id = item.get("template_id", "fire_exit_safety")
+    rules = item.get("rules", {})
+    frames = item.get("frames", [])
+
+    # If rules not pre-aggregated, derive ground truth from per-frame labels
+    if not rules and frames:
+        aggregated: dict[str, str] = {}
+        for f in frames:
+            for r_id, val in f.get("labels", {}).items():
+                if val == "fail":
+                    aggregated[r_id] = "fail"
+                elif r_id not in aggregated:
+                    aggregated[r_id] = val
+        rules = aggregated
+
+    return {
+        "clip_file": video_path,
+        "video_id": video_id,
+        "template": template_id,
+        "ground_truth": rules,
+        "frames": frames,
+        "notes": f"Ground truth from {path.name}",
+    }
+
+
+def load_benchmark_clips(target_path: Path) -> list[dict[str, Any]]:
     """
-    Load benchmark clips from either:
-    1. A single labels file (eval/labels.json)
-    2. A directory of labels files (data/labels/*.json)
+    Load benchmark clips strictly from data/labels/<video_id>.json format:
+    per-frame, per-rule (pass/fail/unsure).
     """
+    target = ROOT / target_path if not Path(target_path).is_absolute() else Path(target_path)
     clips_list = []
 
-    # Check data/labels/ directory first
-    labels_dir = ROOT / "data" / "labels"
-    if labels_dir.exists() and list(labels_dir.glob("*.json")):
-        for f in sorted(labels_dir.glob("*.json")):
-            try:
-                with open(f, "r", encoding="utf-8") as fp:
-                    item = json.load(fp)
-                if isinstance(item, dict) and ("video_path" in item or "video_id" in item):
-                    clips_list.append({
-                        "clip_file": item.get("video_path") or f"data/{item.get('video_id')}.mp4",
-                        "template": item.get("template_id", "fire_exit_safety"),
-                        "ground_truth": item.get("rules", {}),
-                        "notes": f"Ground truth from {f.name}",
-                    })
-            except Exception:
-                pass
+    if target.is_file():
+        clips_list.append(load_benchmark_clip_from_json(target))
+    elif target.is_dir():
+        for f in sorted(target.glob("*.json")):
+            clips_list.append(load_benchmark_clip_from_json(f))
+    else:
+        # Fallback to default data/labels/ directory
+        default_dir = ROOT / "data" / "labels"
+        if default_dir.is_dir():
+            for f in sorted(default_dir.glob("*.json")):
+                clips_list.append(load_benchmark_clip_from_json(f))
 
-    if clips_list:
-        return clips_list
-
-    if labels_path.exists():
-        with open(labels_path, "r", encoding="utf-8") as fp:
-            raw_data = json.load(fp)
-        if isinstance(raw_data, list):
-            return raw_data
-        elif isinstance(raw_data, dict):
-            return raw_data.get("benchmarks") or raw_data.get("clips") or [raw_data]
-
-    return []
+    return clips_list
 
 
 def run_evaluation(
-    labels_file: str = "eval/labels.json",
+    labels_file: str = "data/labels/sample_walkthrough.json",
     mode: str = "both",
     allow_mock: bool = False,
     output_dir: Path | str | None = None,
@@ -777,15 +796,17 @@ def run_evaluation(
 
 def main():
     parser = argparse.ArgumentParser(description="AuditLens Evaluation Benchmark Harness")
-    parser.add_argument("--labels", default="eval/labels.json", help="Path to labels.json file")
+    parser.add_argument("--labels", default="data/labels/sample_walkthrough.json", help="Path to data/labels/<video_id>.json file or directory")
     parser.add_argument("--mode", choices=["both", "pipeline", "baseline"], default="both", help="Evaluation mode")
     parser.add_argument("--allow-mock", action="store_true", help="Allow running evaluation in mock mode (simulated)")
+    parser.add_argument("--output-dir", default=None, help="Directory to save evaluation results")
     args = parser.parse_args()
 
     run_evaluation(
         labels_file=args.labels,
         mode=args.mode,
         allow_mock=args.allow_mock,
+        output_dir=args.output_dir,
     )
 
 

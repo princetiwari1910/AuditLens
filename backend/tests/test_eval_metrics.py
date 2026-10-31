@@ -17,6 +17,7 @@ from eval.run_eval import (
     compute_reliability_curve,
     compute_rule_metrics,
     generate_markdown_report,
+    load_benchmark_clips,
     run_evaluation,
     summarize_evaluation,
 )
@@ -147,7 +148,7 @@ def test_provider_discipline_refuses_mock_without_flag(monkeypatch):
     monkeypatch.setenv("PROVIDER_MODE", "mock")
 
     with pytest.raises(SystemExit) as exc:
-        run_evaluation(labels_file="eval/labels.json", allow_mock=False)
+        run_evaluation(labels_file="data/labels/sample_walkthrough.json", allow_mock=False)
 
     assert exc.value.code == 1
 
@@ -164,7 +165,7 @@ def test_provider_discipline_stamps_simulated_in_mock_mode(tmp_path, monkeypatch
     monkeypatch.setenv("EVAL_OUTPUT_DIR", str(eval_out.resolve()))
 
     results_path = run_evaluation(
-        labels_file="eval/labels.json",
+        labels_file="data/labels/sample_walkthrough.json",
         mode="pipeline",
         allow_mock=True,
         output_dir=eval_out,
@@ -249,4 +250,45 @@ def test_eval_latest_api_endpoint(monkeypatch, tmp_path):
     assert "pipeline_summary" in data
     assert "reliability_curve" in data["pipeline_summary"]
     assert "accuracy_vs_abstain" in data["pipeline_summary"]
+
+
+def test_load_benchmark_clips_uses_only_data_labels_format(tmp_path):
+    """Verify benchmark loader reads only data/labels/<video_id>.json per-frame/per-rule format."""
+    # 1. Valid data/labels format
+    valid_file = tmp_path / "valid_clip.json"
+    valid_file.write_text(json.dumps({
+        "video_id": "valid_clip",
+        "template_id": "fire_exit_safety",
+        "video_path": "data/valid_clip.mp4",
+        "duration_s": 15.0,
+        "fps": 1.0,
+        "rules": {
+            "extinguisher_visible": "pass",
+            "exit_sign_visible": "fail"
+        },
+        "frames": [
+            {
+                "frame_idx": 0,
+                "timestamp_s": 0.0,
+                "labels": {
+                    "extinguisher_visible": "pass",
+                    "exit_sign_visible": "fail"
+                }
+            }
+        ]
+    }), encoding="utf-8")
+
+    clips = load_benchmark_clips(valid_file)
+    assert len(clips) == 1
+    assert clips[0]["video_id"] == "valid_clip"
+    assert clips[0]["ground_truth"]["extinguisher_visible"] == "pass"
+    assert clips[0]["ground_truth"]["exit_sign_visible"] == "fail"
+    assert len(clips[0]["frames"]) == 1
+
+    # 2. Rejects old/invalid list format
+    invalid_file = tmp_path / "old_labels.json"
+    invalid_file.write_text(json.dumps([{"clip_file": "old.mp4"}]), encoding="utf-8")
+    with pytest.raises(ValueError, match="JSON object conforming to data/labels"):
+        load_benchmark_clips(invalid_file)
+
 

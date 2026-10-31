@@ -148,7 +148,7 @@ AuditLens was architected and built from scratch during the hackathon window as 
    - Transparent "Models Used" panel exposing model IDs, provider mode, cost, call count, and uncertainty disclaimers.
    - Exportable print & PDF report.
 5. **Evaluation, Calibration & Ground-Truth Tooling** (`eval/` & `/eval`):
-   - Keyframe ground-truth labeling CLI (`eval/label_cli.py` & `backend/scripts/label_keyframes.py`).
+   - Keyframe ground-truth labeling CLI (`backend/scripts/label_keyframes.py`) with unified per-frame/per-rule schema (`data/labels/<video_id>.json`).
    - Benchmark evaluation harness (`eval/run_eval.py`) comparing Full Pipeline vs Direct Chat Vision Baseline.
    - Empirical Precision, Recall, F1, Confusion Matrices, and "Needs Review" Abstain Calibration curves.
    - Interactive `/eval` calibration dashboard displaying Reliability (confidence vs accuracy) and Abstain vs Accuracy tradeoff curves.
