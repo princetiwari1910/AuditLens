@@ -10,7 +10,7 @@ from fastapi import UploadFile
 
 from app.config import get_settings
 
-ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".webm", ".mkv"}
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov"}
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".ogg", ".webm"}
 

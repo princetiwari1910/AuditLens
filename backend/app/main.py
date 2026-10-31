@@ -50,6 +50,7 @@ from app.storage import (
     validate_file_extension,
 )
 from app.template_loader import get_template, list_templates
+from app.video_norm import inspect_and_normalize_video
 
 
 logger = logging.getLogger("auditlens.main")
@@ -284,8 +285,11 @@ async def create_audit(
         # Save video if provided
         if video and video.filename:
             suffix = validate_file_extension(video.filename, ALLOWED_VIDEO_EXTENSIONS)
-            dest_video = audit_dir / f"walkthrough{suffix}"
-            await save_upload_file(video, dest_video, allowed_extensions=ALLOWED_VIDEO_EXTENSIONS)
+            raw_upload_path = audit_dir / f"raw_upload{suffix}"
+            await save_upload_file(video, raw_upload_path, allowed_extensions=ALLOWED_VIDEO_EXTENSIONS)
+
+            dest_video = audit_dir / "walkthrough.mp4"
+            inspect_and_normalize_video(raw_upload_path, dest_video)
             saved_video_path = dest_video
             audit.video_path = str(dest_video)
 
