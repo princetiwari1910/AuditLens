@@ -10,6 +10,7 @@ import {
   History,
   FileCheck,
   Loader2,
+  BarChart3,
 } from 'lucide-react';
 import {
   getAudits,
@@ -93,6 +94,14 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/eval"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)]"
+            >
+              <BarChart3 className="h-4 w-4 text-blue-500" />
+              <span className="hidden sm:inline">Eval & Calibration</span>
+            </Link>
+
             {health && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 dark:bg-blue-950/60 dark:text-blue-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />

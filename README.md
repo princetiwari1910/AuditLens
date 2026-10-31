@@ -50,7 +50,7 @@ backend/.venv/bin/python eval/run_eval.py --mode both
 ## 🧪 Testing
 
 ```bash
-# Run all 44 backend pytest tests (rules, cache, cost, evidence-first, API, replay)
+# Run all 61 backend pytest tests (rules, cache, cost, evidence-first, API, replay, eval metrics)
 make test
 
 # Run frontend unit tests (letterbox coordinate projection, formatters, models used panel)
@@ -126,19 +126,107 @@ location /api/audits/ {
 
 ---
 
-## 🧠 Architecture & Foundation Model Targets
+## 🏆 What was built during the hackathon (Oct 26 - Nov 4)
 
-AuditLens isolates all AI reasoning behind strict interfaces so switching between mock and real execution requires zero refactoring:
+AuditLens was architected and built from scratch during the hackathon window as a complete end-to-end safety pre-audit system:
 
-| Capability | Interface | Current Mock | Target Foundation Model |
-|---|---|---|---|
-| **Visual Grounding & Segmentation** | `SegmentationProvider` | `scenarios/demo_room.json` | **SAM 3.1** |
-| **Agent Reasoning & Tool Calling** | `AgentProvider` | Deterministic `ToolRegistry` Planner | **Muse Spark** |
-| **Audio Speech-to-Text** | `TranscriptionProvider` | Canned Hinglish voice memos | **Muse Voice Transcribe** |
-
-See [docs/META_INTEGRATION.md](docs/META_INTEGRATION.md) for the drop-in integration checklist.
+1. **Provider Discipline & Foundation Model Contracts** (`backend/app/providers/`):
+   - Strict typed abstract base classes: `Segmenter` (`SAM 3.1`), `Reasoner` (`Muse Spark`), and `Transcriber` (`Muse Voice Transcribe`).
+   - Drop-in `Meta` provider stubs raising clear `NotImplementedError("TODO(meta)...")` pointing to `docs/META_INTEGRATION.md` for live API enablement without changing a single line of business logic.
+   - Built-in Record/Replay proxy: records live model responses to `data/fixtures/<hash>.json` and replays them deterministically with zero network calls and realistic timing.
+   - Secure config: `MODEL_API_KEY` read strictly from the environment; never logged, exposed via health endpoints, or checked into git.
+2. **Deterministic Evidence-First Rule Engine** (`backend/app/rules/`):
+   - 5 core rule evaluators: Presence, Absence, Count, Colocation, and Optical Measurement.
+   - **Evidence First Contract:** All findings must originate from measured tool evidence with recorded uncertainty; ungrounded assertions strictly default to `unsure` ("Needs Review").
+   - Hero scenario templates for workplace safety, college lab safety, and hostel fire safety specifying required detectors and evidence types.
+3. **Voice Notes & Audio Grounding**:
+   - MediaRecorder voice note recording in browser and audio upload endpoint.
+   - Synchronized transcription timestamp matching findings within ±5 seconds with audio playback.
+4. **Interactive Review & Verification UI** (`frontend/`):
+   - Synchronized HTML5 video player with canvas bounding box overlays, letterbox coordinate transformation, and timestamp markers.
+   - Before/after audit comparison view (`/compare`) tracking resolved vs new violations.
+   - Transparent "Models Used" panel exposing model IDs, provider mode, cost, call count, and uncertainty disclaimers.
+   - Exportable print & PDF report.
+5. **Evaluation, Calibration & Ground-Truth Tooling** (`eval/` & `/eval`):
+   - Keyframe ground-truth labeling CLI (`eval/label_cli.py` & `backend/scripts/label_keyframes.py`).
+   - Benchmark evaluation harness (`eval/run_eval.py`) comparing Full Pipeline vs Direct Chat Vision Baseline.
+   - Empirical Precision, Recall, F1, Confusion Matrices, and "Needs Review" Abstain Calibration curves.
+   - Interactive `/eval` calibration dashboard displaying Reliability (confidence vs accuracy) and Abstain vs Accuracy tradeoff curves.
 
 ---
+
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Input ["1. Multimodal Capture"]
+        Video["Phone Walkthrough Video (.mp4)"]
+        Audio["Inspector Voice Memos (.wav/.webm)"]
+    end
+
+    subgraph Sampling ["2. Extraction & Caching"]
+        Frames["Keyframe Extraction (OpenCV / ffmpeg)"]
+        Cache["Scenario & Prompt Hash Cache (SQLite)"]
+    end
+
+    subgraph Providers ["3. Foundation Model Layer (Provider Contract)"]
+        SAM["SAM 3.1 Segmenter\n(Masks, Boxes & Clear Width)"]
+        Spark["Muse Spark Reasoner\n(Tool Calling & Evidence Assembly)"]
+        Voice["Muse Voice Transcriber\n(Hinglish & Multilingual ASR)"]
+    end
+
+    subgraph CoreEngine ["4. Evidence-First Rule Engine"]
+        Rules["Rule Evaluators\n• Presence & Absence\n• Count & Colocation\n• Optical Measurement"]
+        Evidence["Evidence First Guard\n(No Evidence -> 'unsure' / Needs Review)"]
+    end
+
+    subgraph Output ["5. Human-in-the-Loop Delivery"]
+        SSE["Live SSE Timeline (/api/audits/{id}/events)"]
+        Report["Interactive Report & PDF (/audits/{id})"]
+        EvalDash["Calibration & Benchmark Dashboard (/eval)"]
+    end
+
+    Video --> Frames
+    Audio --> Voice
+    Frames --> Cache
+    Cache --> SAM
+    SAM --> Rules
+    Voice --> Rules
+    Spark --> Rules
+    Rules --> Evidence
+    Evidence --> SSE
+    SSE --> Report
+    Evidence --> EvalDash
+```
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                      AUDITLENS ARCHITECTURE                                       |
++---------------------------------------------------------------------------------------------------+
+|  [Phone Video / Voice Memos] ---> [Keyframe Sampling (1 fps)] + [Scenario Cache (SQLite)]         |
+|                                                     |                                             |
+|                                                     v                                             |
+|  [FOUNDATION MODEL CONTRACTS]                                                                     |
+|    - SAM 3.1: Segmenter (prompts -> bounding boxes, masks, optical width)                         |
+|    - Muse Spark: Reasoner (rule + visual evidence -> structured verdict)                          |
+|    - Muse Voice: Transcriber (voice notes -> timestamped transcript turns)                        |
+|                                                     |                                             |
+|                                                     v                                             |
+|  [EVIDENCE-FIRST RULE ENGINE]                                                                     |
+|    - Five Rule Evaluators (Presence, Absence, Count, Colocation, Measurement)                     |
+|    - Evidence Guard: Findings require tool measurements; missing evidence -> "unsure"            |
+|                                                     |                                             |
+|                                                     v                                             |
+|  [DELIVERY & CALIBRATION]                                                                         |
+|    - Real-time Server-Sent Events (SSE) Agent Timeline                                            |
+|    - Interactive Video Player with Responsive Letterbox Overlays & PDF Export                     |
+|    - Evaluation Harness: Precision/Recall/F1 + Reliability & Abstain Calibration (/eval)          |
++---------------------------------------------------------------------------------------------------+
+```
+
+---
+
+
 
 ## 📄 Makefile Commands
 
@@ -146,7 +234,7 @@ See [docs/META_INTEGRATION.md](docs/META_INTEGRATION.md) for the drop-in integra
 |---|---|
 | `make setup` | Create virtualenv, install pip & npm packages, setup `.env` |
 | `make dev` | Start backend (:8000) and frontend (:5173) concurrently |
-| `make test` | Run all 44 backend pytest unit, smoke, and replay tests |
+| `make test` | Run all 61 backend pytest unit, smoke, replay, and calibration tests |
 | `make lint` | Run TypeScript typecheck (`tsc --noEmit`) |
 | `make sample-video` | Generate the 25-second synthetic walkthrough video |
 | `make record-demo` | Capture completed audit events & findings to fixtures |

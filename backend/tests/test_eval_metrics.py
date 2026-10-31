@@ -13,6 +13,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from eval.run_eval import (
+    compute_accuracy_vs_abstain_curve,
+    compute_reliability_curve,
     compute_rule_metrics,
     generate_markdown_report,
     run_evaluation,
@@ -199,3 +201,46 @@ def test_generate_markdown_report_formatting():
     assert "| **Overall Accuracy** |" in report
     assert "| `clip_01.mp4` | `r1` | `pass` | `pass` | `pass` | ✅ | ✅ |" in report
     assert "| `clip_01.mp4` | `r2` | `fail` | `fail` | `pass` | ✅ | ❌ |" in report
+
+
+def test_calibration_and_reliability_curves():
+    """Verify reliability curve and accuracy vs abstain calibration computation."""
+    items = [
+        {"confidence": 0.95, "is_correct": True},
+        {"confidence": 0.92, "is_correct": True},
+        {"confidence": 0.82, "is_correct": True},
+        {"confidence": 0.78, "is_correct": False},
+        {"confidence": 0.62, "is_correct": False},
+    ]
+
+    rel_curve = compute_reliability_curve(items)
+    assert len(rel_curve) == 5
+    for b in rel_curve:
+        assert "bin" in b
+        assert "count" in b
+        assert "accuracy" in b
+        assert "confidence" in b
+
+    abstain_curve = compute_accuracy_vs_abstain_curve(items)
+    assert len(abstain_curve) > 0
+    # At high threshold (0.90), low confidence items are abstained, improving accuracy
+    high_t = next(c for c in abstain_curve if c["threshold"] == 0.90)
+    assert high_t["abstain_rate"] > 0.0
+    assert high_t["accuracy"] == 1.0  # only 0.95 and 0.92 passed through, both correct
+
+
+def test_eval_latest_api_endpoint(monkeypatch, tmp_path):
+    """Verify GET /api/eval/latest returns latest benchmark summary."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    res = client.get("/api/eval/latest")
+    assert res.status_code == 200
+    data = res.json()
+    assert "timestamp" in data
+    assert "provider_mode" in data
+    assert "pipeline_summary" in data
+    assert "reliability_curve" in data["pipeline_summary"]
+    assert "accuracy_vs_abstain" in data["pipeline_summary"]
+

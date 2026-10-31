@@ -28,6 +28,9 @@ data/
 # Local binaries
 bin/
 
+# Eval runs
+eval/runs/
+
 # Coverage
 htmlcov/
 .coverage

@@ -625,3 +625,32 @@ async def get_audit_cost(
     if not audit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
     return get_audit_cost_summary(session, audit_id)
+
+
+# ── Evaluation Results & Needs Review Calibration ─────────────────────────────
+
+@app.get("/api/eval/latest")
+async def get_latest_eval():
+    """
+    Return the latest benchmark evaluation results, confusion matrices,
+    reliability calibration curve, and failure cases.
+    """
+    from app.config import PROJECT_ROOT
+    latest_path = PROJECT_ROOT / "eval" / "latest_eval.json"
+    if not latest_path.exists():
+        try:
+            from eval.run_eval import run_evaluation
+            run_evaluation(allow_mock=True)
+        except Exception as exc:
+            logger.warning("Could not auto-generate evaluation: %s", exc)
+
+    if latest_path.exists():
+        with open(latest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+
+    return {
+        "status": "empty",
+        "message": "No evaluation run recorded yet. Execute 'make eval' to generate benchmark.",
+    }
+

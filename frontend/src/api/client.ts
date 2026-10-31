@@ -160,6 +160,47 @@ export function getAuditCost(id: string): Promise<CostSummary> {
   return request<CostSummary>(`/audits/${id}/cost`);
 }
 
+export interface EvalLatestResponse {
+  timestamp: string;
+  provider_mode: string;
+  allow_mock: boolean;
+  simulated: boolean;
+  benchmark_details: any[];
+  pipeline_summary: {
+    mode: string;
+    total_clips: number;
+    total_evaluations: number;
+    correct_count: number;
+    unsure_count: number;
+    overall_accuracy: number;
+    unsure_rate: number;
+    macro_precision: number;
+    macro_recall: number;
+    macro_f1: number;
+    average_latency_s: number;
+    average_cost_usd: number;
+    rule_metrics: Record<string, any>;
+    reliability_curve: Array<{ bin: string; count: number; confidence: number; accuracy: number }>;
+    accuracy_vs_abstain: Array<{ threshold: number; abstain_rate: number; accuracy: number; decided_count: number }>;
+    failure_cases: Array<{
+      clip_file: string;
+      rule_id: string;
+      ground_truth: string;
+      prediction: string;
+      confidence: number;
+      frame_idx: number;
+      timestamp_s: number;
+      frame_link: string;
+      rationale: string;
+    }>;
+  };
+  baseline_summary?: any;
+}
+
+export function getLatestEval(): Promise<EvalLatestResponse> {
+  return request<EvalLatestResponse>('/eval/latest');
+}
+
 export default {
   getHealth,
   getTemplates,
@@ -172,4 +213,5 @@ export default {
   uploadVoiceNote,
   compareAudits,
   getAuditCost,
+  getLatestEval,
 };

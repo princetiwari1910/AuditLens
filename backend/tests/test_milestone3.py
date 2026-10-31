@@ -1,5 +1,6 @@
 """Tests for Milestone 3: providers (mock and meta), caching, and cost logging."""
 
+import re
 import pytest
 from sqlmodel import Session, select
 
@@ -88,15 +89,15 @@ def test_mock_transcription_returns_hinglish():
 def test_meta_providers_raise_not_implemented():
     """Verify Meta providers raise NotImplementedError with the official prompt message."""
     seg = MetaSegmentationProvider()
-    with pytest.raises(NotImplementedError, match=ERR_MSG):
+    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
         seg.find_objects(["/dummy.jpg"], "exit")
 
     asr = MetaTranscriptionProvider()
-    with pytest.raises(NotImplementedError, match=ERR_MSG):
+    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
         asr.transcribe("/dummy.wav")
 
     agent = MetaAgentProvider()
-    with pytest.raises(NotImplementedError, match=ERR_MSG):
+    with pytest.raises(NotImplementedError, match=re.escape(ERR_MSG)):
         agent.run_audit(None, [], None, lambda x: None)
 
 

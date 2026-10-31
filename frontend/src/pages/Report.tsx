@@ -14,6 +14,7 @@ import {
   PlayCircle,
   AlertCircle,
   RefreshCw,
+  BarChart3,
 } from 'lucide-react';
 import {
   getAudit,
@@ -240,6 +241,14 @@ export default function Report() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/eval"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+              <span>Eval Benchmark</span>
+            </Link>
+
             <Link
               to={`/compare?before=${id}`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"

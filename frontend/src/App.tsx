@@ -5,6 +5,7 @@ import Capture from './pages/Capture';
 import Processing from './pages/Processing';
 import Report from './pages/Report';
 import Compare from './pages/Compare';
+import EvalDashboard from './pages/EvalDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/audits/:id/processing" element={<Processing />} />
           <Route path="/audits/:id" element={<Report />} />
           <Route path="/compare" element={<Compare />} />
+          <Route path="/eval" element={<EvalDashboard />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
