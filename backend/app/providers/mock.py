@@ -177,14 +177,14 @@ class MockTranscriptionProvider:
         language_hint: str | None = None,
     ) -> Transcript:
         text = (
-            "Main entrance ke paas fire extinguisher check kar liya hai, "
+            "[STUB / MOCK] Main entrance ke paas fire extinguisher check kar liya hai, "
             "expiry date valid hai aur exit doorway ka rasta clear hai."
         )
         segments = [
             TranscriptSegment(
                 start_s=0.0,
                 end_s=3.2,
-                text="Main entrance ke paas fire extinguisher check kar liya hai,",
+                text="[STUB / MOCK] Main entrance ke paas fire extinguisher check kar liya hai,",
             ),
             TranscriptSegment(
                 start_s=3.3,
@@ -196,7 +196,7 @@ class MockTranscriptionProvider:
             TranscriptTurn(
                 start_s=0.0,
                 end_s=3.2,
-                text="Main entrance ke paas fire extinguisher check kar liya hai,",
+                text="[STUB / MOCK] Main entrance ke paas fire extinguisher check kar liya hai,",
                 speaker="Auditor",
             ),
             TranscriptTurn(

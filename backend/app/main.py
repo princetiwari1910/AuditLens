@@ -34,6 +34,7 @@ from app.db import get_session, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
 from app.models import Audit, AuditStatus, Finding, Frame, VoiceNote
+from app.providers import get_transcription_provider
 from app.storage import (
     ALLOWED_AUDIO_EXTENSIONS,
     ALLOWED_IMAGE_EXTENSIONS,
@@ -454,20 +455,49 @@ async def upload_voice_note(
 
         await save_upload_file(audio, dest_audio, allowed_extensions=ALLOWED_AUDIO_EXTENSIONS)
 
+        # Transcribe audio using Transcriber interface (returns clearly labeled stub in mock mode)
+        transcript_text = None
+        language = None
+        try:
+            transcriber = get_transcription_provider()
+            trans = transcriber.transcribe(str(dest_audio))
+            transcript_text = trans.text
+            language = trans.language
+        except Exception as exc:
+            logger.warning("Voice note transcription failed: %s", exc)
+
         vn = VoiceNote(
             audit_id=audit_id,
             timestamp_s=timestamp_s,
             audio_path=str(dest_audio),
+            transcript=transcript_text,
+            language=language,
         )
         session.add(vn)
         session.commit()
         session.refresh(vn)
+
+        # If findings exist, attach transcript to findings near this timestamp (within 5 seconds)
+        findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
+        for f in findings:
+            if abs(f.timestamp_s - timestamp_s) <= 5.0:
+                sources = json.loads(f.sources_json) if f.sources_json else []
+                if "voice_note" not in sources:
+                    sources.append("voice_note")
+                    f.sources_json = json.dumps(sources)
+                if transcript_text and f"[Auditor Note:" not in f.rationale:
+                    f.rationale = f.rationale + f" [Auditor Note: \"{transcript_text}\"]"
+                session.add(f)
+        if findings:
+            session.commit()
 
         return {
             "id": vn.id,
             "audit_id": audit_id,
             "timestamp_s": vn.timestamp_s,
             "audio_path": vn.audio_path,
+            "transcript": vn.transcript,
+            "language": vn.language,
         }
     except StorageValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
