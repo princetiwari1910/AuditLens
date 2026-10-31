@@ -1,0 +1,74 @@
+{
+  "id": "college_lab_safety",
+  "name": "College Lab Fire & Chemical Safety",
+  "description": "Comprehensive safety audit for academic chemistry, biology, and engineering labs covering extinguishers, eyewash stations, exit paths, and chemical storage.",
+  "disclaimer": "AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Verify against institutional EHS guidelines and local regulations.",
+  "rules": [
+    {
+      "id": "extinguisher_visible",
+      "title": "Fire extinguisher is mounted and clearly visible",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
+      "sam_prompts": ["fire extinguisher", "extinguisher"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Mount a certified Class ABC or CO2 extinguisher on the wall within 10 meters of chemical workstations."
+    },
+    {
+      "id": "exit_sign_visible",
+      "title": "Emergency exit sign is illuminated and clearly visible",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Illuminated green/red exit signage detected above all egress doorways",
+      "sam_prompts": ["emergency exit sign", "exit sign", "green running man sign"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Install or restore emergency illumination on all lab exit path signs."
+    },
+    {
+      "id": "exit_path_not_blocked",
+      "title": "Walkways and fume hood perimeters are free of blocking obstacles",
+      "type": "absence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Absence of boxes, carts, chairs, or chemical containers along the primary walkway",
+      "sam_prompts": ["box", "cart", "trash bin", "chair", "chemical jug", "pallet"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Immediately clear all lab carts, temporary boxes, and waste containers from main evacuation aisles."
+    },
+    {
+      "id": "exit_path_clear_width",
+      "title": "Lab egress aisle maintains minimum clear width of 1.0 meter",
+      "type": "measurement",
+      "severity": "high",
+      "detector": "SAM 3.1 + Optical Calibrator",
+      "evidence_needed": "Optical measurement >= 1.0m calibrated via A4 visual scale",
+      "sam_prompts": ["box", "chair", "stool", "equipment"],
+      "params": {
+        "min_width_m": 1.0,
+        "reference": "a4"
+      },
+      "fix_text": "Reposition mobile benches and lab stools so at least 1.0m of clear walking width remains."
+    },
+    {
+      "id": "eyewash_station_clear",
+      "title": "Emergency eyewash station is unobstructed and visible",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Eyewash station detected with zero obstacles within 1.0m approach",
+      "sam_prompts": ["eyewash station", "safety shower", "emergency wash"],
+      "params": {
+        "min_score": 0.55
+      },
+      "fix_text": "Clear any glassware, chemical bottles, or drying racks stored within 1 meter of the eyewash station."
+    }
+  ]
+}

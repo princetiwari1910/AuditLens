@@ -56,6 +56,8 @@ class RuleModel(BaseModel):
     sam_prompts: list[str] = PydanticField(default_factory=list)
     params: dict[str, Any] = PydanticField(default_factory=dict)
     fix_text: str = ""
+    detector: str = "SAM 3.1"
+    evidence_needed: str = "Bounding box detection and confidence score"
 
 
 class TemplateModel(BaseModel):

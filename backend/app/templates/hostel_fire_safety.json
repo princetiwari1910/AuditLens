@@ -1,0 +1,75 @@
+{
+  "id": "hostel_fire_safety",
+  "name": "Hostel & Dormitory Fire Safety",
+  "description": "Routine safety audit for student hostels and residential dormitories checking corridor clearance, fire extinguishers, emergency stairwells, and exit doors.",
+  "disclaimer": "AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Verify against institutional dormitory regulations and local fire codes.",
+  "rules": [
+    {
+      "id": "extinguisher_visible",
+      "title": "Corridor fire extinguisher is accessible and unblocked",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
+      "sam_prompts": ["fire extinguisher", "extinguisher"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Verify fire extinguisher pressure gauge and clear all laundry bags or drying racks from its front clearance area."
+    },
+    {
+      "id": "exit_sign_visible",
+      "title": "Stairwell fire exit sign is clearly visible",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Overhead illuminated directional exit sign leading toward stairwell",
+      "sam_prompts": ["emergency exit sign", "exit sign", "fire exit sign"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Replace damaged or unlit stairwell exit signs and verify emergency battery backup functionality."
+    },
+    {
+      "id": "exit_path_not_blocked",
+      "title": "Hostel hallway is free of blocking shoe racks, luggage, and bikes",
+      "type": "absence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Absence of shoe racks, trunks, luggage, mattresses, or bikes in the corridor",
+      "sam_prompts": ["shoe rack", "shoes", "luggage", "box", "bicycle", "mattress", "trash bin"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Remove all shoe racks, personal storage, and bicycles obstructing the dormitory corridor."
+    },
+    {
+      "id": "exit_path_clear_width",
+      "title": "Corridor maintains minimum clear egress width of 1.2 meters",
+      "type": "measurement",
+      "severity": "high",
+      "detector": "SAM 3.1 + Optical Calibrator",
+      "evidence_needed": "Optical measurement >= 1.2m calibrated via A4 visual scale",
+      "sam_prompts": ["shoe rack", "box", "bag", "luggage"],
+      "params": {
+        "min_width_m": 1.2,
+        "reference": "a4"
+      },
+      "fix_text": "Ensure corridor width remains unobstructed to a minimum of 1.2 meters along the full length of the hall."
+    },
+    {
+      "id": "two_exits_visible",
+      "title": "At least two independent stairwell egress routes are available",
+      "type": "count",
+      "severity": "medium",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Minimum distinct count of 2 stairwell or external exit doors",
+      "sam_prompts": ["fire exit door", "exit door", "stairwell door"],
+      "params": {
+        "min_count": 2,
+        "min_score": 0.55
+      },
+      "fix_text": "Ensure both ends of the dormitory wing have accessible, unblocked stairwell access."
+    }
+  ]
+}

@@ -20,6 +20,8 @@ export interface Rule {
   sam_prompts: string[];
   params: Record<string, unknown>;
   fix_text: string;
+  detector?: string;
+  evidence_needed?: string;
 }
 
 export interface Finding {

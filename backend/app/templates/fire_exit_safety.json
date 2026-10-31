@@ -9,6 +9,8 @@
       "title": "Fire extinguisher is mounted and clearly visible",
       "type": "presence",
       "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
       "sam_prompts": ["fire extinguisher", "extinguisher"],
       "params": {
         "min_score": 0.6
@@ -20,6 +22,8 @@
       "title": "Emergency exit sign is illuminated and clearly visible",
       "type": "presence",
       "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Overhead illuminated exit signage detection above doorway",
       "sam_prompts": ["emergency exit sign", "exit sign", "green running man sign"],
       "params": {
         "min_score": 0.6
@@ -31,6 +35,8 @@
       "title": "At least two independent emergency exit pathways are visible",
       "type": "count",
       "severity": "medium",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Minimum distinct count of 2 exits de-duplicated across time and position",
       "sam_prompts": ["exit door", "emergency exit", "fire door"],
       "params": {
         "min_count": 2,
@@ -43,6 +49,8 @@
       "title": "Emergency exit corridors and doors are free of blocking obstacles",
       "type": "absence",
       "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Absence of blocking obstacle detections within designated exit zone",
       "sam_prompts": ["box", "pallet", "trash bin", "furniture", "ladder"],
       "params": {
         "threshold": 0.6
@@ -54,6 +62,8 @@
       "title": "Emergency exit path maintains minimum clear width of 1.0 meter",
       "type": "measurement",
       "severity": "high",
+      "detector": "SAM 3.1 + Optical Calibrator",
+      "evidence_needed": "Optical clearance measurement >= 1.0m relative to calibrated visual scale",
       "sam_prompts": ["box", "chair", "cable", "obstruction"],
       "params": {
         "min_width_m": 1.0,
