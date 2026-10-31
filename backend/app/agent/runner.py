@@ -131,6 +131,7 @@ class AgentRunner:
         frames: list[dict[str, Any]],
         emit: Callable[[dict[str, Any]], None],
         session: Session | None = None,
+        frames_considered: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Execute deterministic audit plan:
@@ -142,8 +143,9 @@ class AgentRunner:
         6. Emits audit_completed (or error) with final summary
         """
         t_start = time.time()
+        considered_count = frames_considered if frames_considered is not None else len(frames)
         emit(_make_event("audit_started", audit_id, {"rule_count": len(rules), "frame_count": len(frames)}))
-        emit(_make_event("frames_sampled", audit_id, {"frame_count": len(frames)}))
+        emit(_make_event("frames_sampled", audit_id, {"frame_count": len(frames), "considered": considered_count, "analyzed": len(frames)}))
 
         # Query existing voice notes from database
         voice_notes_data: list[dict[str, Any]] = []
@@ -395,6 +397,8 @@ class AgentRunner:
 
             # Compute summary score and counts
             summary = compute_summary_score(findings)
+            summary["frames_analyzed"] = len(frames)
+            summary["frames_considered"] = considered_count
 
             # Update audit in database
             if session is not None:

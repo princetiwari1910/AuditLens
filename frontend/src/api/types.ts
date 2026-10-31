@@ -44,6 +44,8 @@ export interface AuditSummary {
   fail: number;
   unsure: number;
   score: number;
+  frames_analyzed?: number;
+  frames_considered?: number;
 }
 
 export interface Audit {

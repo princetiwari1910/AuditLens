@@ -177,6 +177,7 @@ def run_audit_job_sync(audit_id: str) -> None:
             try:
                 # 1. Sample Frames
                 frames: list[Frame] = []
+                frames_considered: int | None = None
                 if audit.video_path and Path(audit.video_path).exists():
                     logger.info("run_audit_job_sync: sampling frames from video %s", audit.video_path)
                     frames = sample_frames_from_video(
@@ -185,6 +186,7 @@ def run_audit_job_sync(audit_id: str) -> None:
                         fps=float(settings.FRAME_FPS),
                         session=session,
                     )
+                    frames_considered = getattr(frames, "frames_considered", len(frames))
                 else:
                     # Check for uploaded photos under audit dir
                     audit_dir = settings.DATA_DIR / "audits" / audit_id
@@ -240,6 +242,7 @@ def run_audit_job_sync(audit_id: str) -> None:
                     frames=frames_dicts,
                     emit=event_manager.emit,
                     session=session,
+                    frames_considered=frames_considered,
                 )
                 logger.info("run_audit_job_sync: audit %s completed successfully", audit_id)
 

@@ -47,6 +47,13 @@ export default function SummaryCard({
                 {providerMode}
               </span>
             )}
+            {summary && (summary.frames_analyzed !== undefined || summary.frames_considered !== undefined) && (
+              <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-mono font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                {summary.frames_considered
+                  ? `${summary.frames_analyzed ?? 0} of ${summary.frames_considered} frames analyzed`
+                  : `${summary.frames_analyzed ?? 0} frames analyzed`}
+              </span>
+            )}
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--color-text)]">
