@@ -34,7 +34,12 @@ export default function Home() {
 
   useEffect(() => {
     getHealth().then(setHealth).catch(console.error);
-    getTemplates().then(setTemplates).catch(console.error);
+    getTemplates()
+      .then((tmpls) => {
+        const sorted = [...tmpls].sort((a, b) => (a.id === 'campus_fire_exit_core' ? -1 : b.id === 'campus_fire_exit_core' ? 1 : 0));
+        setTemplates(sorted);
+      })
+      .catch(console.error);
     getAudits().then(setRecentAudits).catch(console.error);
   }, []);
 

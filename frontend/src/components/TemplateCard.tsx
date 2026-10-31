@@ -9,10 +9,11 @@ interface TemplateCardProps {
 
 export default function TemplateCard({ template }: TemplateCardProps) {
   const isFire = template.id.includes('fire');
+  const isDefault = template.id === 'campus_fire_exit_core';
   const Icon = isFire ? ShieldCheck : HardHat;
 
   return (
-    <div className="flex flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-200 hover:border-[var(--color-accent)] hover:shadow-md">
+    <div className={`flex flex-col justify-between rounded-xl border ${isDefault ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' : 'border-[var(--color-border)]'} bg-[var(--color-surface)] p-6 shadow-sm transition-all duration-200 hover:border-[var(--color-accent)] hover:shadow-md`}>
       <div>
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex items-center gap-3">
@@ -20,9 +21,20 @@ export default function TemplateCard({ template }: TemplateCardProps) {
               <Icon className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-[var(--color-text)] text-base">
-                {template.name}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-[var(--color-text)] text-base">
+                  {template.name}
+                </h3>
+                {isDefault ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    Default (Phone)
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                    Experimental
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-[var(--color-text-secondary)]">
                 {template.rules.length} verification rules
               </span>

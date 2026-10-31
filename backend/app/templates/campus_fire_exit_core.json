@@ -1,0 +1,60 @@
+{
+  "id": "campus_fire_exit_core",
+  "name": "Campus Fire Exit Core (Phone Walkthrough)",
+  "description": "Core 4-rule phone walkthrough audit for campus corridors and labs. Verifies visible extinguishers, illuminated exit signage, unobstructed exit paths, and clear extinguisher access without requiring optical scale measurements.",
+  "disclaimer": "AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Verify against institutional safety standards and local fire codes.",
+  "rules": [
+    {
+      "id": "extinguisher_visible",
+      "title": "Fire extinguisher is mounted and clearly visible",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
+      "sam_prompts": ["fire extinguisher", "extinguisher"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Mount a certified fire extinguisher on the wall in a prominent, unobstructed location."
+    },
+    {
+      "id": "exit_sign_visible",
+      "title": "Emergency exit sign is clearly visible above doorways",
+      "type": "presence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Illuminated green/red exit signage detected above egress doorways",
+      "sam_prompts": ["emergency exit sign", "exit sign", "green running man sign"],
+      "params": {
+        "min_score": 0.6
+      },
+      "fix_text": "Ensure all emergency exit signage is clearly visible and unobstructed."
+    },
+    {
+      "id": "exit_path_not_blocked",
+      "title": "Exit corridor and doorway are free of blocking obstacles",
+      "type": "absence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Absence of boxes, carts, furniture, or debris directly obstructing egress",
+      "sam_prompts": ["box", "cart", "chair", "trash can", "furniture", "obstacle", "pallet"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Immediately relocate all obstacles, boxes, and furniture blocking the exit doorway or path."
+    },
+    {
+      "id": "extinguisher_accessible",
+      "title": "Area in front of fire extinguisher is clear and accessible",
+      "type": "absence",
+      "severity": "high",
+      "detector": "SAM 3.1 (Segmenter)",
+      "evidence_needed": "Absence of obstructing storage or items directly in front of the extinguisher",
+      "sam_prompts": ["box", "cart", "chair", "trash can", "furniture", "luggage", "pallet"],
+      "params": {
+        "threshold": 0.6
+      },
+      "fix_text": "Maintain a clear access radius of at least 1 meter around the fire extinguisher."
+    }
+  ]
+}

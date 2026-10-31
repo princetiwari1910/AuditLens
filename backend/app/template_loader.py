@@ -37,5 +37,6 @@ def get_template(template_id: str) -> TemplateModel | None:
 
 
 def list_templates() -> list[TemplateModel]:
-    """Return all available templates."""
-    return list(load_all_templates().values())
+    """Return all available templates with campus_fire_exit_core as default first."""
+    all_tmpls = list(load_all_templates().values())
+    return sorted(all_tmpls, key=lambda t: 0 if t.id == "campus_fire_exit_core" else 1)
