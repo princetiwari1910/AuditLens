@@ -159,13 +159,19 @@ def test_provider_discipline_stamps_simulated_in_mock_mode(tmp_path, monkeypatch
     data_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("DATA_DIR", str(data_dir.resolve()))
 
+    eval_out = tmp_path / "eval"
+    eval_out.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("EVAL_OUTPUT_DIR", str(eval_out.resolve()))
+
     results_path = run_evaluation(
         labels_file="eval/labels.json",
         mode="pipeline",
         allow_mock=True,
+        output_dir=eval_out,
     )
 
     assert results_path.exists()
+    assert results_path.parent == eval_out
     content = results_path.read_text(encoding="utf-8")
     assert "SIMULATED, NOT A RESULT" in content
     assert "provider mode:** mock" in content.lower()

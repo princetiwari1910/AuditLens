@@ -140,9 +140,10 @@ def test_demo_recording_script_and_replay_flow(tmp_path, monkeypatch):
     get_settings.cache_clear()
     init_db()
 
-    # 1. Record demo
-    fixture_path = record_demo(template_id="fire_exit_safety")
+    # 1. Record demo (save_bundled=False guarantees tracked repo fixtures are not modified)
+    fixture_path = record_demo(template_id="fire_exit_safety", save_bundled=False)
     assert fixture_path.exists()
+    assert str(tmp_path) in str(fixture_path.resolve())
     assert fixture_path.stat().st_size > 0
 
     with open(fixture_path, "r", encoding="utf-8") as fp:
@@ -189,8 +190,9 @@ def test_demo_replay_env_flag_activates_replay(tmp_path, monkeypatch):
     get_settings.cache_clear()
     init_db()
 
-    # Ensure fixture exists
-    record_demo(template_id="fire_exit_safety")
+    # Ensure fixture exists in isolated tmp_path
+    fixture_path = record_demo(template_id="fire_exit_safety", save_bundled=False)
+    assert str(tmp_path) in str(fixture_path.resolve())
 
     with TestClient(app) as client:
         # Launch demo audit with DEMO_REPLAY=1

@@ -635,19 +635,35 @@ async def get_latest_eval():
     Return the latest benchmark evaluation results, confusion matrices,
     reliability calibration curve, and failure cases.
     """
-    from app.config import PROJECT_ROOT
-    latest_path = PROJECT_ROOT / "eval" / "latest_eval.json"
-    if not latest_path.exists():
-        try:
-            from eval.run_eval import run_evaluation
-            run_evaluation(allow_mock=True)
-        except Exception as exc:
-            logger.warning("Could not auto-generate evaluation: %s", exc)
+    import os
+    from app.config import PROJECT_ROOT, get_settings
 
-    if latest_path.exists():
-        with open(latest_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data
+    settings = get_settings()
+
+    # Search candidates: EVAL_OUTPUT_DIR -> settings.DATA_DIR -> PROJECT_ROOT / "eval"
+    candidates = []
+    eval_out_env = os.environ.get("EVAL_OUTPUT_DIR")
+    if eval_out_env:
+        candidates.append(Path(eval_out_env) / "latest_eval.json")
+    candidates.append(settings.DATA_DIR / "latest_eval.json")
+    candidates.append(PROJECT_ROOT / "eval" / "latest_eval.json")
+
+    for p in candidates:
+        if p.exists():
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+    # If none exist, auto-generate into isolated non-tracked directory (never tracked repo)
+    try:
+        from eval.run_eval import run_evaluation
+        target_dir = Path(eval_out_env) if eval_out_env else settings.DATA_DIR
+        run_evaluation(allow_mock=True, output_dir=target_dir)
+        gen_path = target_dir / "latest_eval.json"
+        if gen_path.exists():
+            with open(gen_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as exc:
+        logger.warning("Could not auto-generate evaluation: %s", exc)
 
     return {
         "status": "empty",

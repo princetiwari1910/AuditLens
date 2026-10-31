@@ -576,6 +576,7 @@ def run_evaluation(
     labels_file: str = "eval/labels.json",
     mode: str = "both",
     allow_mock: bool = False,
+    output_dir: Path | str | None = None,
 ) -> Path:
     """Execute evaluation benchmark according to configuration and CLI arguments."""
     settings = get_settings()
@@ -596,8 +597,16 @@ def run_evaluation(
     if not clips_list:
         raise ValueError(f"No benchmark clips defined in {labels_path} or data/labels/")
 
+    # Resolve output directory: explicit param > EVAL_OUTPUT_DIR env > ROOT / "eval"
+    if output_dir is not None:
+        out_base = Path(output_dir)
+    elif os.environ.get("EVAL_OUTPUT_DIR"):
+        out_base = Path(os.environ["EVAL_OUTPUT_DIR"])
+    else:
+        out_base = ROOT / "eval"
+
     timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    runs_dir = ROOT / "eval" / "runs" / timestamp_str
+    runs_dir = out_base / "runs" / timestamp_str
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     print("\n" + "=" * 80)
@@ -606,7 +615,7 @@ def run_evaluation(
     if provider_mode == "mock":
         print("  ⚠️  STAMP: SIMULATED, NOT A RESULT (--allow-mock active)")
     print(f"  Loaded {len(clips_list)} benchmark clip(s)")
-    print(f"  Run Directory: eval/runs/{timestamp_str}/")
+    print(f"  Run Directory: {runs_dir}")
     print("=" * 80 + "\n")
 
     init_db()
@@ -732,22 +741,22 @@ def run_evaluation(
     with open(raw_path, "w", encoding="utf-8") as fp:
         json.dump(raw_outputs_payload, fp, indent=2)
 
-    # Also save as latest_eval.json for the API / UI
-    latest_eval_path = ROOT / "eval" / "latest_eval.json"
+    # Save latest_eval.json for the API / UI
+    latest_eval_path = out_base / "latest_eval.json"
     with open(latest_eval_path, "w", encoding="utf-8") as fp:
         json.dump(raw_outputs_payload, fp, indent=2)
 
-    # Generate and write markdown table to eval/results.md
+    # Generate and write markdown table
     results_md_content = generate_markdown_report(
         provider_mode=provider_mode,
         timestamp=timestamp_str,
-        runs_rel_path=f"eval/runs/{timestamp_str}",
+        runs_rel_path=f"runs/{timestamp_str}",
         pipeline_summary=pipe_summary,
         baseline_summary=base_summary,
         benchmark_details=benchmark_details,
     )
 
-    results_md_path = ROOT / "eval" / "results.md"
+    results_md_path = out_base / "results.md"
     with open(results_md_path, "w", encoding="utf-8") as fp:
         fp.write(results_md_content)
 

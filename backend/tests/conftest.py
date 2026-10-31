@@ -7,8 +7,12 @@ from app.config import get_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_sse_and_engine():
-    """Reset SSE AppStatus and SQLModel engine before and after every test."""
+def reset_sse_and_engine(tmp_path, monkeypatch):
+    """Reset SSE AppStatus, SQLModel engine, and isolate EVAL_OUTPUT_DIR."""
+    eval_tmp = tmp_path / "eval_sandbox"
+    eval_tmp.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("EVAL_OUTPUT_DIR", str(eval_tmp.resolve()))
+
     AppStatus.should_exit_event = None
     reset_engine()
     get_settings.cache_clear()

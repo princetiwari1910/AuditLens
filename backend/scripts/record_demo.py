@@ -33,7 +33,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("record_demo")
 
 
-def record_demo(template_id: str = "fire_exit_safety") -> Path:
+def record_demo(
+    template_id: str = "fire_exit_safety",
+    output_path: Path | None = None,
+    save_bundled: bool = False,
+) -> Path:
     """Execute a full audit run, capturing all timeline events, findings, and costs to a JSON fixture."""
     settings = get_settings()
     settings.ensure_dirs()
@@ -146,24 +150,31 @@ def record_demo(template_id: str = "fire_exit_safety") -> Path:
         "cost_summary": cost_summary,
     }
 
-    # Save to data/fixtures/demo_recording.json and app/fixtures/demo_recording.json
-    data_fixtures_dir = settings.DATA_DIR / "fixtures"
-    data_fixtures_dir.mkdir(parents=True, exist_ok=True)
-    out_fixture_path = data_fixtures_dir / "demo_recording.json"
+    # Save to data/fixtures/demo_recording.json (or specified output_path)
+    if output_path is not None:
+        out_fixture_path = Path(output_path)
+        out_fixture_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        data_fixtures_dir = settings.DATA_DIR / "fixtures"
+        data_fixtures_dir.mkdir(parents=True, exist_ok=True)
+        out_fixture_path = data_fixtures_dir / "demo_recording.json"
+
     with open(out_fixture_path, "w", encoding="utf-8") as fp:
         json.dump(fixture_payload, fp, indent=2)
 
-    app_fixtures_dir = BACKEND_DIR / "app" / "fixtures"
-    app_fixtures_dir.mkdir(parents=True, exist_ok=True)
-    bundled_fixture_path = app_fixtures_dir / "demo_recording.json"
-    with open(bundled_fixture_path, "w", encoding="utf-8") as fp:
-        json.dump(fixture_payload, fp, indent=2)
+    if save_bundled:
+        app_fixtures_dir = BACKEND_DIR / "app" / "fixtures"
+        app_fixtures_dir.mkdir(parents=True, exist_ok=True)
+        bundled_fixture_path = app_fixtures_dir / "demo_recording.json"
+        with open(bundled_fixture_path, "w", encoding="utf-8") as fp:
+            json.dump(fixture_payload, fp, indent=2)
+        logger.info("Saved bundled fixture to %s", bundled_fixture_path)
 
-    logger.info("Successfully recorded demo fixtures to %s and %s (%d events, %d findings)",
-                out_fixture_path, bundled_fixture_path, len(recorded_events), len(findings_data))
+    logger.info("Successfully recorded demo fixture to %s (%d events, %d findings)",
+                out_fixture_path, len(recorded_events), len(findings_data))
     return out_fixture_path
 
 
 if __name__ == "__main__":
-    out = record_demo()
+    out = record_demo(save_bundled=True)
     print(f"Recorded fixture saved: {out}")
