@@ -25,6 +25,7 @@ export default function App() {
           <Route path="/audits/:id/processing" element={<Processing />} />
           <Route path="/audits/:id" element={<Report />} />
           <Route path="/audits/:id/trace" element={<TracePage />} />
+          <Route path="/share/:token" element={<Report isShared={true} />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/eval" element={<EvalDashboard />} />
           <Route path="/sites" element={<SitesPage />} />

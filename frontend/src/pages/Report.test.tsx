@@ -99,4 +99,73 @@ describe('Report not-found state', () => {
 
     globalThis.fetch = originalFetch;
   });
+
+  it('renders read-only shared report without review, override, or share controls', async () => {
+    const originalFetch = globalThis.fetch;
+    const mockSharedAudit = {
+      id: 'audit_shared_123',
+      status: 'completed',
+      template_id: 'campus_fire_exit_core',
+      created_at: '2026-11-01T12:00:00Z',
+      provider_mode: 'mock',
+      summary: { score: 95, pass: 4, fail: 0, unsure: 0 },
+      findings: [
+        {
+          id: 'f_test_01',
+          rule_id: 'extinguisher_visible',
+          status: 'pass',
+          confidence: 0.95,
+          timestamp_s: 1.0,
+          frame_idx: 0,
+          rationale: 'Extinguisher present and clear',
+          fix_text: '',
+          severity: 'high',
+          sources: ['segmentation'],
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/share/valid_token_xyz')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(mockSharedAudit),
+        } as any;
+      }
+      return { ok: true, text: async () => JSON.stringify({}) } as any;
+    });
+
+    const { getSharedAudit } = await import('../api/client');
+    const data = await getSharedAudit('valid_token_xyz');
+    expect(data.id).toBe('audit_shared_123');
+
+    globalThis.fetch = originalFetch;
+  });
+
+  it('rejects /share/<audit-id> and returns 404', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/api/share/audit_12345')) {
+        return {
+          ok: false,
+          status: 404,
+          text: async () => JSON.stringify({ detail: 'Invalid or expired share token' }),
+        } as any;
+      }
+      return { ok: false, status: 404, text: async () => 'Not found' } as any;
+    });
+
+    const { getSharedAudit } = await import('../api/client');
+    await expect(getSharedAudit('audit_12345')).rejects.toThrow(ApiError);
+
+    try {
+      await getSharedAudit('audit_12345');
+    } catch (err: any) {
+      expect(err.status).toBe(404);
+      expect(err.message).toBe('Invalid or expired share token');
+    }
+
+    globalThis.fetch = originalFetch;
+  });
 });

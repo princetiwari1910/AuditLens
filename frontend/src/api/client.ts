@@ -385,6 +385,10 @@ export function createShareLink(auditId: string): Promise<ShareResponse> {
   });
 }
 
+export function getSharedAudit(token: string): Promise<Audit> {
+  return request<Audit>(`/share/${token}`);
+}
+
 export interface TraceSpan {
   id: number;
   audit_id: string;

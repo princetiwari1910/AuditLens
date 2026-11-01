@@ -1216,7 +1216,7 @@ async def create_share_link(
 
     return {
         "token": raw_token,
-        "share_url": f"/audits/{audit_id}?token={raw_token}",
+        "share_url": f"/share/{raw_token}",
         "created_at": st.created_at.isoformat(),
     }
 

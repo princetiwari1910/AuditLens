@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import {
   getAudit,
+  getSharedAudit,
   getAuditCost,
   getHealth,
   getAuditLog,
@@ -119,9 +120,17 @@ export function AuditNotFoundView({
   );
 }
 
-export default function Report() {
-  const { id } = useParams<{ id: string }>();
+export interface ReportProps {
+  isShared?: boolean;
+}
+
+export default function Report({ isShared = false }: ReportProps = {}) {
+  const { id, token } = useParams<{ id?: string; token?: string }>();
   const navigate = useNavigate();
+
+  const isReadOnly = isShared || Boolean(token);
+  const activeIdentifier = token || id;
+  const isTokenRequest = Boolean(token);
 
   const [audit, setAudit] = useState<Audit | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -148,26 +157,30 @@ export default function Report() {
     }
   }, []);
 
-  const loadAuditData = useCallback(async (auditId: string) => {
+  const loadAuditData = useCallback(async (identifier: string, isToken: boolean = false) => {
     try {
-      const auditData = await getAudit(auditId);
+      const auditData = isToken ? await getSharedAudit(identifier) : await getAudit(identifier);
       setAudit(auditData);
       setIsNotFound(false);
       setLoadError(null);
 
-      // Fetch health and audit log in background
+      // Fetch health in background
       getHealth().then(setHealth).catch(console.error);
-      getAuditLog(auditId).then(setAuditLogs).catch(console.error);
 
-      // Only fetch cost if audit exists and is completed or failed
-      if (auditData.status === 'completed' || auditData.status === 'failed') {
-        getAuditCost(auditId).then(setCostSummary).catch(console.error);
-      } else if (auditData.status === 'processing') {
-        // If still processing, poll every 2 seconds
-        stopPolling();
-        pollTimerRef.current = setTimeout(() => {
-          loadAuditData(auditId);
-        }, 2000);
+      if (!isToken) {
+        getAuditLog(identifier).then(setAuditLogs).catch(console.error);
+        if (auditData.status === 'completed' || auditData.status === 'failed') {
+          getAuditCost(identifier).then(setCostSummary).catch(console.error);
+        } else if (auditData.status === 'processing') {
+          stopPolling();
+          pollTimerRef.current = setTimeout(() => {
+            loadAuditData(identifier, isToken);
+          }, 2000);
+        }
+      } else {
+        if (auditData.status === 'completed' || auditData.status === 'failed') {
+          getAuditCost(auditData.id).then(setCostSummary).catch(console.error);
+        }
       }
     } catch (err: any) {
       stopPolling();
@@ -183,16 +196,20 @@ export default function Report() {
   }, [stopPolling]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!activeIdentifier) {
+      setIsNotFound(true);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setIsNotFound(false);
     setLoadError(null);
-    loadAuditData(id);
+    loadAuditData(activeIdentifier, isTokenRequest);
 
     return () => {
       stopPolling();
     };
-  }, [id, loadAuditData, stopPolling]);
+  }, [activeIdentifier, isTokenRequest, loadAuditData, stopPolling]);
 
   const [demoError, setDemoError] = useState<string | null>(null);
 
@@ -212,7 +229,7 @@ export default function Report() {
   if (isNotFound) {
     return (
       <AuditNotFoundView
-        id={id}
+        id={activeIdentifier}
         onLoadDemo={handleLoadDemo}
         isStartingDemo={isStartingDemo}
         demoError={demoError}
@@ -242,9 +259,9 @@ export default function Report() {
             </Link>
             <button
               onClick={() => {
-                if (id) {
+                if (activeIdentifier) {
                   setIsLoading(true);
-                  loadAuditData(id);
+                  loadAuditData(activeIdentifier, isTokenRequest);
                 }
               }}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer"
@@ -370,25 +387,38 @@ export default function Report() {
           </Link>
 
           <div className="flex items-center gap-2.5">
-            <Link
-              to={`/audits/${id}/trace`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
-            >
-              <Activity className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="hidden sm:inline">Trace</span>
-            </Link>
-
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
-            >
-              <Share2 className="h-3.5 w-3.5 text-blue-500" />
-              <span>{shareCopied ? 'Copied!' : 'Share'}</span>
-            </button>
-            {shareError && (
-              <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-1 rounded border border-rose-200 dark:border-rose-800">
-                {shareError}
+            {isReadOnly && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-mono font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+                <Shield className="h-3.5 w-3.5" />
+                Read-Only Share
               </span>
+            )}
+
+            {!isReadOnly && (
+              <Link
+                to={`/audits/${id}/trace`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+              >
+                <Activity className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="hidden sm:inline">Trace</span>
+              </Link>
+            )}
+
+            {!isReadOnly && (
+              <>
+                <button
+                  onClick={handleShare}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-blue-500" />
+                  <span>{shareCopied ? 'Copied!' : 'Share'}</span>
+                </button>
+                {shareError && (
+                  <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-1 rounded border border-rose-200 dark:border-rose-800">
+                    {shareError}
+                  </span>
+                )}
+              </>
             )}
 
             <Link
@@ -399,13 +429,15 @@ export default function Report() {
               <span className="hidden sm:inline">Eval Benchmark</span>
             </Link>
 
-            <Link
-              to={`/compare?before=${id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
-            >
-              <Layers className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-              <span className="hidden sm:inline">Compare</span>
-            </Link>
+            {!isReadOnly && (
+              <Link
+                to={`/compare?before=${id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+              >
+                <Layers className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                <span className="hidden sm:inline">Compare</span>
+              </Link>
+            )}
 
             <button
               onClick={() => window.print()}
@@ -627,13 +659,13 @@ export default function Report() {
                     finding={f}
                     isSelected={f.id === selectedFindingId}
                     onSelect={() => handleSelectFinding(f.id)}
-                    onToggleReview={() =>
+                    onToggleReview={isReadOnly ? undefined : () =>
                       setReviewingFindingId(reviewingFindingId === f.id ? null : f.id)
                     }
-                    isReviewOpen={reviewingFindingId === f.id}
+                    isReviewOpen={!isReadOnly && reviewingFindingId === f.id}
                   />
 
-                  {reviewingFindingId === f.id && (
+                  {!isReadOnly && reviewingFindingId === f.id && (
                     <div className="pl-4 border-l-2 border-[var(--color-accent)] animate-in fade-in duration-200">
                       <ReviewQueuePanel
                         auditId={audit.id}

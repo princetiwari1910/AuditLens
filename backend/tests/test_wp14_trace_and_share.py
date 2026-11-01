@@ -49,7 +49,7 @@ def test_create_and_resolve_share_link(clean_db: Path):
 
     raw_token = data["token"]
     assert len(raw_token) >= 20
-    assert data["share_url"] == f"/audits/{audit.id}?token={raw_token}"
+    assert data["share_url"] == f"/share/{raw_token}"
 
     # Verify database stores SHA-256 hash only, NEVER plaintext token
     th = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
@@ -72,6 +72,10 @@ def test_create_and_resolve_share_link(clean_db: Path):
     # 5. Invalid token returns 404
     resp_invalid = client.get("/api/share/bogus_token_value")
     assert resp_invalid.status_code == 404
+
+    # 6. Passing an audit ID directly to /api/share/<id> must NOT work and returns 404
+    resp_by_audit_id = client.get(f"/api/share/{audit.id}")
+    assert resp_by_audit_id.status_code == 404
 
 
 def test_audit_trace_endpoint(clean_db: Path):
