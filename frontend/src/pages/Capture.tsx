@@ -15,7 +15,7 @@ import {
   Loader2,
   Info,
 } from 'lucide-react';
-import { createAudit, getTemplate, uploadVoiceNote } from '../api/client';
+import { createAudit, getTemplate, uploadVoiceNote, compileTemplate } from '../api/client';
 import type { Template } from '../api/types';
 import Disclaimer from '../components/Disclaimer';
 import { formatTimestamp } from '../utils/formatters';
@@ -37,6 +37,12 @@ export default function Capture() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Natural Language Checklist Compiler state (WP12)
+  const [customText, setCustomText] = useState(customRuleQuery || '');
+  const [compiledTemplate, setCompiledTemplate] = useState<Template | null>(null);
+  const [compileErrors, setCompileErrors] = useState<string[]>([]);
+  const [isCompiling, setIsCompiling] = useState(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -176,6 +182,27 @@ export default function Capture() {
     setRecordSeconds(0);
   }
 
+  async function handleCompile() {
+    if (!customText.trim()) return;
+    setIsCompiling(true);
+    setCompileErrors([]);
+    try {
+      const res = await compileTemplate(customText.trim());
+      setCompiledTemplate(res.template);
+      setCompileErrors([]);
+    } catch (err: any) {
+      if (err?.data?.detail?.errors) {
+        setCompileErrors(err.data.detail.errors);
+      } else if (err?.message) {
+        setCompileErrors([err.message]);
+      } else {
+        setCompileErrors(['Failed to compile checklist: Invalid format']);
+      }
+    } finally {
+      setIsCompiling(false);
+    }
+  }
+
   // ── Submit Audit ────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!file) return;
@@ -185,7 +212,9 @@ export default function Capture() {
       const fd = new FormData();
       fd.append('video', file);
 
-      if (templateId === 'custom' || customRuleQuery) {
+      if (compiledTemplate) {
+        fd.append('custom_rules', JSON.stringify(compiledTemplate.rules));
+      } else if (templateId === 'custom' || customRuleQuery) {
         fd.append('custom_rules', JSON.stringify([customRuleQuery || 'Ensure emergency exit is clear']));
       } else if (templateId) {
         fd.append('template_id', templateId);
@@ -251,6 +280,94 @@ export default function Capture() {
               : template?.description || 'Upload inspection footage for AI compliance analysis.'}
           </p>
         </div>
+
+        {/* Natural Language Checklist Compiler (WP12) */}
+        {templateId === 'custom' && (
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-500" />
+                <h3 className="text-sm font-bold text-[var(--color-text)]">
+                  Natural Language Checklist Compiler
+                </h3>
+              </div>
+              <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                Experimental · Human-Reviewed
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Type or paste your checklist in plain English. SAM 3.1 prompts must be plain noun phrases (no conjunctions, negation, or spatial words).
+            </p>
+
+            <div className="space-y-2">
+              <textarea
+                rows={3}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder="e.g.&#10;- Verify fire extinguisher is mounted on wall&#10;- Ensure exit signs are illuminated&#10;- Check hallway is clear of storage boxes"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+              />
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCompile}
+                  disabled={isCompiling || !customText.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isCompiling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  <span>Compile Rules & Validate Concepts</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Inline Concept Validation Errors */}
+            {compileErrors.length > 0 && (
+              <div className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3.5 text-xs text-rose-800 dark:text-rose-300 space-y-1.5">
+                <div className="font-bold flex items-center gap-1.5 text-rose-900 dark:text-rose-200">
+                  <AlertCircle className="h-4 w-4 text-rose-600" />
+                  <span>Concept Validation Failed:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-[11px] font-mono">
+                  {compileErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Compiled Template Preview */}
+            {compiledTemplate && (
+              <div className="rounded-xl border border-emerald-300 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3.5 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>Compiled {compiledTemplate.rules.length} Rule(s) · Validated for SAM 3.1</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-semibold">
+                    Ready for Walkthrough
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {compiledTemplate.rules.map((r) => (
+                    <div key={r.id} className="p-2 rounded-lg bg-[var(--color-surface)] border border-emerald-200 dark:border-emerald-800 text-[11px] flex items-center justify-between">
+                      <span className="font-medium text-[var(--color-text)]">{r.title}</span>
+                      <div className="flex items-center gap-1 font-mono text-[10px]">
+                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-300">
+                          {r.type}
+                        </span>
+                        <span className="rounded bg-indigo-100 dark:bg-indigo-950 px-1.5 py-0.5 text-indigo-700 dark:text-indigo-300">
+                          prompts: {r.sam_prompts.join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Drag and Drop Uploader */}
         <div className="space-y-4">

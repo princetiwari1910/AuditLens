@@ -659,6 +659,43 @@ class MetaAgentProvider:
             estimated_cost=estimate_reasoner_cost(0.5, 0.2),
         )
 
+    def compile_template(
+        self,
+        text: str,
+    ) -> dict[str, Any]:
+        """
+        Compile natural language checklist text into structured template JSON using Muse Spark.
+        TODO(meta): Connect to live Muse Spark when API key is provided.
+        UNVERIFIED against live API.
+        """
+        client = self._get_client()
+
+        def _call_spark_compile() -> dict[str, Any]:
+            resp = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are AuditLens Checklist Compiler (Muse Spark). "
+                            "Convert natural language safety requirements into structured template JSON. "
+                            "Every SAM prompt must be a single plain noun phrase (no conjunctions, negation, or spatial words)."
+                        ),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                response_format={"type": "json_object"},
+            )
+            raw = ""
+            if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
+                raw = resp.choices[0].message.content
+            return json.loads(raw) if raw else {}
+
+        return execute_with_retry(
+            _call_spark_compile,
+            estimated_cost=estimate_reasoner_cost(1.0, 0.5),
+        )
+
     def run_audit(
         self,
         audit: Any,

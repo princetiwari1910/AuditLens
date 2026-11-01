@@ -424,3 +424,37 @@ class RecordReplayReasoner:
 
         return validated_result
 
+    def compile_template(
+        self,
+        text: str,
+    ) -> dict[str, Any]:
+        """Compile natural language text to template JSON with record/replay support."""
+        text_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()[:24]
+        fixture_hash = f"tmpl_{text_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                if hasattr(self.inner, "compile_template"):
+                    return self.inner.compile_template(text)
+                return {}
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        cost = estimate_reasoner_cost(1.0, 0.5)
+        raw_result = execute_with_retry(
+            self.inner.compile_template,
+            text,
+            estimated_cost=cost,
+            is_video=False,
+        )
+
+        if self.mode == "record":
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(raw_result, f, indent=2)
+            logger.info("Recorded template compiler fixture to %s", fixture_file)
+
+        return raw_result
+
+

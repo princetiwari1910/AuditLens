@@ -369,6 +369,89 @@ class MockReasoner:
         allowed_ids = [f.get("id") for f in findings if f.get("id")]
         return validate_fix_actions(actions, allowed_finding_ids=allowed_ids)
 
+    def compile_template(
+        self,
+        text: str,
+    ) -> dict[str, Any]:
+        """Compile natural language safety checklist text into draft template JSON."""
+        import re
+        import uuid
+
+        lines = [line.strip().lstrip("-*123456789. ") for line in text.splitlines() if line.strip()]
+        if not lines:
+            lines = [text.strip()] if text.strip() else ["Check general safety"]
+
+        rules: list[dict[str, Any]] = []
+        for idx, line in enumerate(lines):
+            line_lower = line.lower()
+            rule_id = f"rule_{idx + 1}"
+            r_type = "presence"
+            prompts: list[str] = []
+
+            # Check if user intentionally provided a raw prompt with commas, conjunctions, or spatial words
+            if "prompt:" in line_lower:
+                raw_p = line.split("prompt:", 1)[1].strip()
+                prompts = [raw_p]
+            elif "concept:" in line_lower:
+                raw_p = line.split("concept:", 1)[1].strip()
+                prompts = [raw_p]
+            elif '"' in line:
+                quotes = re.findall(r'"([^"]*)"', line)
+                if quotes:
+                    prompts = quotes
+            elif "'" in line:
+                quotes = re.findall(r"'([^']*)'", line)
+                if quotes:
+                    prompts = quotes
+
+            if not prompts:
+                if "extinguisher" in line_lower:
+                    rule_id = f"custom_extinguisher_{idx + 1}"
+                    prompts = ["fire extinguisher"]
+                    r_type = "presence"
+                elif "sign" in line_lower:
+                    rule_id = f"custom_exit_sign_{idx + 1}"
+                    prompts = ["exit sign"]
+                    r_type = "presence"
+                elif any(k in line_lower for k in ["clear", "block", "obstacle", "pallet", "box"]):
+                    rule_id = f"custom_unblocked_{idx + 1}"
+                    prompts = ["box"]
+                    r_type = "absence"
+                elif "helmet" in line_lower or "ppe" in line_lower:
+                    rule_id = f"custom_ppe_{idx + 1}"
+                    prompts = ["safety helmet"]
+                    r_type = "presence"
+                else:
+                    clean_title = re.sub(
+                        r"^(check|ensure|verify|inspect|make sure|look for)\s+",
+                        "",
+                        line,
+                        flags=re.IGNORECASE,
+                    ).strip()
+                    rule_id = f"custom_item_{idx + 1}"
+                    prompts = [clean_title if clean_title else "safety equipment"]
+
+            rules.append({
+                "id": rule_id,
+                "title": line[:60],
+                "type": r_type,
+                "severity": "high" if any(w in line_lower for w in ["fire", "hazard", "danger", "critical"]) else "medium",
+                "sam_prompts": prompts,
+                "detector": "sam",
+                "fix_text": f"Remediate {line[:60]} requirement.",
+            })
+
+        slug = f"custom_compiled_{uuid.uuid4().hex[:6]}"
+        return {
+            "id": slug,
+            "name": "Custom Compiled Checklist (Experimental)",
+            "description": "Compiled from natural language instructions. Human-reviewed.",
+            "status": "experimental",
+            "human_reviewed": True,
+            "rules": rules,
+        }
+
+
 
 
 class MockAgentProvider:

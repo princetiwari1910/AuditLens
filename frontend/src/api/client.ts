@@ -103,6 +103,20 @@ export function getTemplates(): Promise<Template[]> {
   return request<Template[]>('/templates');
 }
 
+export interface CompileTemplateResponse {
+  template: Template;
+  valid: boolean;
+  errors: string[];
+}
+
+export function compileTemplate(text: string): Promise<CompileTemplateResponse> {
+  return request<CompileTemplateResponse>('/templates/compile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+}
+
 export function getTemplate(id: string): Promise<Template> {
   return request<Template>(`/templates/${id}`);
 }

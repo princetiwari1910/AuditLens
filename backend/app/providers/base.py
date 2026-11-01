@@ -112,6 +112,13 @@ class Reasoner(Protocol):
         """Generate prioritized fix actions from audit findings."""
         ...
 
+    def compile_template(
+        self,
+        text: str,
+    ) -> dict[str, Any]:
+        """Compile plain-English checklist text into structured draft template JSON."""
+        ...
+
 
 @runtime_checkable
 class Transcriber(Protocol):

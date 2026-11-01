@@ -123,6 +123,62 @@ async def get_template_detail(template_id: str) -> dict[str, Any]:
     return tmpl.model_dump()
 
 
+class TemplateCompileRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/templates/compile")
+async def compile_template_endpoint(
+    req: TemplateCompileRequest,
+) -> dict[str, Any]:
+    """
+    Compile natural language checklist text into structured draft template JSON (WP12).
+    Validates all concept prompts against SAM 3.1 rules (no conjunctions, negation, spatial words).
+    Rejects violations with inline errors.
+    """
+    if not req.text or not req.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checklist text cannot be empty.",
+        )
+
+    from app.concept_validation import validate_concept
+    from app.providers.mock import MockReasoner
+
+    reasoner = MockReasoner()
+    draft = reasoner.compile_template(req.text)
+
+    # Validate each rule's concepts
+    errors: list[str] = []
+    for rule in draft.get("rules", []):
+        r_id = rule.get("id", "rule")
+        for prompt in rule.get("sam_prompts", []):
+            try:
+                validate_concept(prompt, rule_id=r_id)
+            except ValueError as ve:
+                errors.append(str(ve))
+
+    # Mark custom checklist as experimental and human-reviewed
+    draft["status"] = "experimental"
+    draft["human_reviewed"] = True
+
+    if errors:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Concept validation failed: SAM 3.1 prompts must be plain noun phrases only.",
+                "errors": errors,
+                "draft_template": draft,
+            },
+        )
+
+    return {
+        "template": draft,
+        "valid": True,
+        "errors": [],
+    }
+
+
 # ── Audits CRUD & Background Execution ────────────────────────────────────────
 
 @app.get("/api/sample-video")
