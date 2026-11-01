@@ -161,7 +161,7 @@ export default function FindingCard({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsModalOpen(true);
+                  onSelect?.();
                 }}
                 className="group relative flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 hover:border-[var(--color-accent)] transition-colors"
               >
@@ -173,7 +173,7 @@ export default function FindingCard({
                 />
                 <span className="text-xs text-[var(--color-text-secondary)] font-medium group-hover:text-[var(--color-accent)] pr-1 flex items-center gap-1">
                   <Maximize2 className="h-3 w-3" />
-                  View Overlay
+                  View Evidence
                 </span>
               </button>
             </div>

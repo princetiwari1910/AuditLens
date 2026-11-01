@@ -32,6 +32,7 @@ import FindingCard from '../components/FindingCard';
 import Disclaimer from '../components/Disclaimer';
 import ModelsUsedPanel from '../components/ModelsUsedPanel';
 import PrivacyBadge from '../components/PrivacyBadge';
+import EvidenceViewerModal from '../components/EvidenceViewerModal';
 
 export interface AuditNotFoundViewProps {
   id?: string;
@@ -89,6 +90,7 @@ export default function Report() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pass' | 'fail' | 'unsure'>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [isCostOpen, setIsCostOpen] = useState(false);
@@ -223,6 +225,27 @@ export default function Report() {
     if (severityFilter !== 'all' && f.severity !== severityFilter) return false;
     return true;
   });
+
+  const selectedFinding = audit.findings.find((f) => f.id === selectedFindingId) || null;
+
+  const handleSelectFinding = (findingId: string) => {
+    setSelectedFindingId(findingId);
+    setIsEvidenceModalOpen(true);
+  };
+
+  const handleNavigateNext = () => {
+    if (!selectedFindingId || filteredFindings.length === 0) return;
+    const currentIndex = filteredFindings.findIndex((f) => f.id === selectedFindingId);
+    const nextIndex = (currentIndex + 1) % filteredFindings.length;
+    setSelectedFindingId(filteredFindings[nextIndex].id);
+  };
+
+  const handleNavigatePrev = () => {
+    if (!selectedFindingId || filteredFindings.length === 0) return;
+    const currentIndex = filteredFindings.findIndex((f) => f.id === selectedFindingId);
+    const prevIndex = (currentIndex - 1 + filteredFindings.length) % filteredFindings.length;
+    setSelectedFindingId(filteredFindings[prevIndex].id);
+  };
 
   const videoUrl = audit.video_url
     ? (audit.video_url.startsWith('http') ? audit.video_url : `${API_BASE_URL}${audit.video_url}`)
@@ -420,12 +443,28 @@ export default function Report() {
                   key={f.id}
                   finding={f}
                   isSelected={f.id === selectedFindingId}
-                  onSelect={() => setSelectedFindingId(f.id)}
+                  onSelect={() => handleSelectFinding(f.id)}
                 />
               ))
             )}
           </div>
         </section>
+
+        {/* Evidence Viewer Interactive Modal (WP8) */}
+        <EvidenceViewerModal
+          finding={selectedFinding}
+          isOpen={isEvidenceModalOpen}
+          onClose={() => setIsEvidenceModalOpen(false)}
+          onNavigateNext={handleNavigateNext}
+          onNavigatePrev={handleNavigatePrev}
+          onSeekVideo={(ts) => {
+            const videoElem = document.querySelector('video') as HTMLVideoElement | null;
+            if (videoElem) {
+              videoElem.currentTime = ts;
+              videoElem.play().catch(() => {});
+            }
+          }}
+        />
 
         {/* Collapsible Provider Cost & Calls Panel */}
         {costSummary && (

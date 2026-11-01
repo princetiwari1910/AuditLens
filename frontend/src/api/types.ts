@@ -24,10 +24,34 @@ export interface Rule {
   evidence_needed?: string;
 }
 
+export interface EscalationStep {
+  step: number;
+  action: string;
+  outcome: string;
+  frame_id?: number;
+  latency_ms?: number;
+  cost_usd?: number;
+  model?: string;
+}
+
+export interface EvidenceLedgerItem {
+  id: string;
+  frame_id: number;
+  ts: number;
+  source: string;
+  concept: string;
+  box?: { x: number; y: number; w: number; h: number };
+  mask_ref?: number[][];
+  score: number;
+  strength: 'mask_backed' | 'model_attested' | 'voice_note';
+}
+
 export interface Finding {
   id: string;
   rule_id: string;
   status: FindingStatus;
+  ai_verdict?: string;
+  final_verdict?: string;
   confidence: number;
   timestamp_s: number;
   frame_idx: number;
@@ -37,6 +61,13 @@ export interface Finding {
   severity: string;
   measurement?: Record<string, unknown>;
   sources: string[];
+  evidence_ledger?: EvidenceLedgerItem[];
+  strongest_evidence?: EvidenceLedgerItem | null;
+  decision_policy?: string;
+  detector?: string;
+  support_count?: number;
+  stability?: number;
+  escalation_steps?: EscalationStep[];
 }
 
 export interface AuditSummary {
