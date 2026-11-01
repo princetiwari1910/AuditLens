@@ -201,6 +201,43 @@ export function getLatestEval(): Promise<EvalLatestResponse> {
   return request<EvalLatestResponse>('/eval/latest');
 }
 
+export interface AuditLogEntry {
+  id: string;
+  audit_id: string;
+  finding_id: string;
+  actor_label: string;
+  action: string;
+  before: string;
+  after: string;
+  note: string;
+  ts: string;
+}
+
+export interface ReviewFindingResponse {
+  finding_id: string;
+  ai_verdict: string;
+  final_verdict: string;
+  status: string;
+  audit_log: AuditLogEntry;
+  summary: any;
+}
+
+export function reviewFinding(
+  auditId: string,
+  findingId: string,
+  payload: { action: string; actor_label?: string; note: string }
+): Promise<ReviewFindingResponse> {
+  return request<ReviewFindingResponse>(`/audits/${auditId}/findings/${findingId}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAuditLog(auditId: string): Promise<AuditLogEntry[]> {
+  return request<AuditLogEntry[]>(`/audits/${auditId}/audit_log`);
+}
+
 export default {
   getHealth,
   getTemplates,
@@ -214,4 +251,6 @@ export default {
   compareAudits,
   getAuditCost,
   getLatestEval,
+  reviewFinding,
+  getAuditLog,
 };

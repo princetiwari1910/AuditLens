@@ -11,6 +11,7 @@ import {
   Mic,
   Camera,
   Cpu,
+  UserCheck,
 } from 'lucide-react';
 import type { Finding } from '../api/types';
 import { API_BASE_URL } from '../api/config';
@@ -20,12 +21,16 @@ interface FindingCardProps {
   finding: Finding;
   isSelected?: boolean;
   onSelect?: () => void;
+  onToggleReview?: () => void;
+  isReviewOpen?: boolean;
 }
 
 export default function FindingCard({
   finding,
   isSelected = false,
   onSelect,
+  onToggleReview,
+  isReviewOpen = false,
 }: FindingCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const statusMeta = getStatusMeta(finding.status);
@@ -73,6 +78,11 @@ export default function FindingCard({
                 {renderStatusIcon()}
                 {statusMeta.label}
               </span>
+              {finding.final_verdict && finding.ai_verdict && finding.final_verdict !== finding.ai_verdict && (
+                <span className="rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border border-purple-300 dark:border-purple-800">
+                  Overridden
+                </span>
+              )}
               <span className="font-semibold text-sm text-[var(--color-text)]">
                 {finding.rule_id}
               </span>
@@ -156,7 +166,7 @@ export default function FindingCard({
 
           {/* Evidence Image Thumbnail and Evidence Source Badges */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-[var(--color-border)]">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={(e) => {
@@ -176,6 +186,24 @@ export default function FindingCard({
                   View Evidence
                 </span>
               </button>
+
+              {onToggleReview && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleReview();
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                    isReviewOpen
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                      : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:border-[var(--color-accent)]'
+                  }`}
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-amber-500" />
+                  <span>{isReviewOpen ? 'Close Review' : 'Human Review'}</span>
+                </button>
+              )}
             </div>
 
             {/* Source Badges */}

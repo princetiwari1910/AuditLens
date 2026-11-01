@@ -20,9 +20,11 @@ import {
   getAudit,
   getAuditCost,
   getHealth,
+  getAuditLog,
   createDemoAudit,
   type CostSummary,
   type HealthResponse,
+  type AuditLogEntry,
 } from '../api/client';
 import { API_BASE_URL } from '../api/config';
 import type { Audit } from '../api/types';
@@ -33,6 +35,7 @@ import Disclaimer from '../components/Disclaimer';
 import ModelsUsedPanel from '../components/ModelsUsedPanel';
 import PrivacyBadge from '../components/PrivacyBadge';
 import EvidenceViewerModal from '../components/EvidenceViewerModal';
+import ReviewQueuePanel from '../components/ReviewQueuePanel';
 
 export interface AuditNotFoundViewProps {
   id?: string;
@@ -91,13 +94,15 @@ export default function Report() {
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pass' | 'fail' | 'unsure'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pass' | 'fail' | 'unsure' | 'needs_review'>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [isCostOpen, setIsCostOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isNotFound, setIsNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStartingDemo, setIsStartingDemo] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [reviewingFindingId, setReviewingFindingId] = useState<string | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,8 +120,9 @@ export default function Report() {
       setIsNotFound(false);
       setLoadError(null);
 
-      // Fetch health in background
+      // Fetch health and audit log in background
       getHealth().then(setHealth).catch(console.error);
+      getAuditLog(auditId).then(setAuditLogs).catch(console.error);
 
       // Only fetch cost if audit exists and is completed or failed
       if (auditData.status === 'completed' || auditData.status === 'failed') {
@@ -220,11 +226,47 @@ export default function Report() {
   }
 
   // Filter findings based on active tabs
+  const needsReviewCount = audit.findings.filter(
+    (f) => f.status === 'unsure' || f.ai_verdict === 'unsure' || f.final_verdict === 'unsure'
+  ).length;
+
   const filteredFindings = audit.findings.filter((f) => {
-    if (statusFilter !== 'all' && f.status !== statusFilter) return false;
+    if (statusFilter === 'needs_review') {
+      const needs = f.status === 'unsure' || f.ai_verdict === 'unsure' || f.final_verdict === 'unsure';
+      if (!needs) return false;
+    } else if (statusFilter !== 'all' && f.status !== statusFilter) {
+      return false;
+    }
     if (severityFilter !== 'all' && f.severity !== severityFilter) return false;
     return true;
   });
+
+  const handleReviewSuccess = (
+    findingId: string,
+    res: any,
+    newSummary: any,
+    newLogEntry: AuditLogEntry
+  ) => {
+    setAudit((prev) => {
+      if (!prev) return prev;
+      const updatedFindings = prev.findings.map((f) =>
+        f.id === findingId
+          ? {
+              ...f,
+              status: res.status,
+              ai_verdict: res.ai_verdict,
+              final_verdict: res.final_verdict,
+            }
+          : f
+      );
+      return {
+        ...prev,
+        findings: updatedFindings,
+        summary: newSummary || prev.summary,
+      };
+    });
+    setAuditLogs((prev) => [newLogEntry, ...prev]);
+  };
 
   const selectedFinding = audit.findings.find((f) => f.id === selectedFindingId) || null;
 
@@ -397,17 +439,32 @@ export default function Report() {
                 <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1">
                   <Filter className="h-3 w-3" /> Status:
                 </span>
-                {(['all', 'pass', 'fail', 'unsure'] as const).map((st) => (
+                {(['all', 'pass', 'fail', 'unsure', 'needs_review'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setStatusFilter(st)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 ${
                       statusFilter === st
                         ? 'bg-[var(--color-accent)] text-white'
                         : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] border border-[var(--color-border)]'
                     }`}
                   >
-                    {st === 'all' ? 'All' : st === 'pass' ? 'Pass' : st === 'fail' ? 'Fail' : 'Review'}
+                    <span>
+                      {st === 'all'
+                        ? 'All'
+                        : st === 'pass'
+                        ? 'Pass'
+                        : st === 'fail'
+                        ? 'Fail'
+                        : st === 'unsure'
+                        ? 'Unsure'
+                        : 'Needs Review'}
+                    </span>
+                    {st === 'needs_review' && needsReviewCount > 0 && (
+                      <span className="rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                        {needsReviewCount}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -439,12 +496,30 @@ export default function Report() {
               </div>
             ) : (
               filteredFindings.map((f) => (
-                <FindingCard
-                  key={f.id}
-                  finding={f}
-                  isSelected={f.id === selectedFindingId}
-                  onSelect={() => handleSelectFinding(f.id)}
-                />
+                <div key={f.id} className="space-y-3">
+                  <FindingCard
+                    finding={f}
+                    isSelected={f.id === selectedFindingId}
+                    onSelect={() => handleSelectFinding(f.id)}
+                    onToggleReview={() =>
+                      setReviewingFindingId(reviewingFindingId === f.id ? null : f.id)
+                    }
+                    isReviewOpen={reviewingFindingId === f.id}
+                  />
+
+                  {reviewingFindingId === f.id && (
+                    <div className="pl-4 border-l-2 border-[var(--color-accent)] animate-in fade-in duration-200">
+                      <ReviewQueuePanel
+                        auditId={audit.id}
+                        finding={f}
+                        auditLogs={auditLogs}
+                        onReviewSuccess={(res, summary, logEntry) => {
+                          handleReviewSuccess(f.id, res, summary, logEntry);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
