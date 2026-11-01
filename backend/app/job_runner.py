@@ -175,7 +175,10 @@ def run_audit_job_sync(audit_id: str) -> None:
             session.commit()
 
             try:
-                # 1. Sample Frames
+                # 1. Instantiate Segmenter for frame sampling & privacy redaction (WP4)
+                seg_provider = get_segmentation_provider()
+
+                # 2. Sample Frames
                 frames: list[Frame] = []
                 frames_considered: int | None = None
                 if audit.video_path and Path(audit.video_path).exists():
@@ -185,6 +188,7 @@ def run_audit_job_sync(audit_id: str) -> None:
                         audit_id=audit_id,
                         fps=float(settings.FRAME_FPS),
                         session=session,
+                        segmenter=seg_provider if settings.PRIVACY_MODE else None,
                     )
                     frames_considered = getattr(frames, "frames_considered", len(frames))
                 else:
@@ -193,7 +197,12 @@ def run_audit_job_sync(audit_id: str) -> None:
                     images = sorted(list(audit_dir.glob("*.jpg")) + list(audit_dir.glob("*.png")))
                     if images:
                         logger.info("run_audit_job_sync: sampling frames from %d photos", len(images))
-                        frames = sample_frames_from_images(images, audit_id=audit_id, session=session)
+                        frames = sample_frames_from_images(
+                            images,
+                            audit_id=audit_id,
+                            session=session,
+                            segmenter=seg_provider if settings.PRIVACY_MODE else None,
+                        )
 
                 if not frames:
                     raise ValueError("No video or image frames available to process for this audit.")
@@ -211,7 +220,7 @@ def run_audit_job_sync(audit_id: str) -> None:
                     for f in frames
                 ]
 
-                # 2. Prepare Rules
+                # 3. Prepare Rules
                 rules: list[RuleModel] = []
                 if audit.custom_rules_json:
                     custom_texts = json.loads(audit.custom_rules_json)
@@ -227,8 +236,7 @@ def run_audit_job_sync(audit_id: str) -> None:
 
                 logger.info("run_audit_job_sync: prepared %d rules for audit %s", len(rules), audit_id)
 
-                # 3. Instantiate Runner and Providers
-                seg_provider = get_segmentation_provider()
+                # 4. Instantiate Runner and Providers
                 asr_provider = get_transcription_provider()
                 runner = AgentRunner(
                     segmentation_provider=seg_provider,

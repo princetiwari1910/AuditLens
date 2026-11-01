@@ -31,6 +31,7 @@ import VideoWithMarkers from '../components/VideoWithMarkers';
 import FindingCard from '../components/FindingCard';
 import Disclaimer from '../components/Disclaimer';
 import ModelsUsedPanel from '../components/ModelsUsedPanel';
+import PrivacyBadge from '../components/PrivacyBadge';
 
 export interface AuditNotFoundViewProps {
   id?: string;
@@ -286,7 +287,7 @@ export default function Report() {
               {audit.is_replay ? ' (RECORDED RUN)' : ''}
             </span>
             <span className="font-mono text-[9px] text-slate-600 block">
-              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio)
+              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio) • People blurred (best effort)
             </span>
           </div>
         </div>
@@ -309,9 +310,12 @@ export default function Report() {
               ({audit.model_segmentation || 'SAM 3.1'} • {audit.model_agent || 'Muse Spark'} • {audit.model_transcription || 'Muse Voice Transcribe'})
             </span>
           </div>
-          <span className="text-[11px] text-[var(--color-text-secondary)]">
-            Audit ID: {audit.id.slice(0, 14)}
-          </span>
+          <div className="flex items-center gap-3">
+            <PrivacyBadge />
+            <span className="text-[11px] text-[var(--color-text-secondary)]">
+              Audit ID: {audit.id.slice(0, 14)}
+            </span>
+          </div>
         </div>
 
         {/* Models Used & Provider Evidence Panel (Shown on screen and in print view) */}

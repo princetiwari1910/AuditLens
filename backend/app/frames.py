@@ -61,6 +61,7 @@ def sample_frames_from_video(
     min_sharpness: float = 10.0,
     duplicate_threshold: float = 0.1,
     return_stats: bool = False,
+    segmenter: Any = None,
 ) -> Any:
     """
     Quality-aware keyframe selection from video:
@@ -155,6 +156,11 @@ def sample_frames_from_video(
                     current_frame_pos += 1
                     continue
 
+                # Privacy redaction (WP4): blur person masks in memory; unblurred originals are never persisted
+                if segmenter is not None and getattr(settings, "PRIVACY_MODE", True):
+                    from app.agent.privacy import redact_frame_image
+                    mat, _ = redact_frame_image(mat, segmenter=segmenter)
+
                 # Frame passed all quality filters -> encode and save
                 frame_filename = f"frame_{saved_idx:04d}.jpg"
                 frame_out_path = frames_dir / frame_filename
@@ -193,6 +199,9 @@ def sample_frames_from_video(
     # Fallback if all frames were filtered out: save the highest-quality candidate
     if not frames and best_candidate is not None:
         mat_fallback, ts_fallback, _ = best_candidate
+        if segmenter is not None and getattr(settings, "PRIVACY_MODE", True):
+            from app.agent.privacy import redact_frame_image
+            mat_fallback, _ = redact_frame_image(mat_fallback, segmenter=segmenter)
         frame_filename = "frame_0000.jpg"
         frame_out_path = frames_dir / frame_filename
         success, buffer = cv2.imencode(".jpg", mat_fallback, [cv2.IMWRITE_JPEG_QUALITY, 90])
@@ -239,6 +248,7 @@ def sample_frames_from_images(
     image_paths: list[str | Path],
     audit_id: str,
     session: Session | None = None,
+    segmenter: Any = None,
 ) -> list[Frame]:
     """
     Process uploaded standalone image files as audit frames.
@@ -251,13 +261,21 @@ def sample_frames_from_images(
         if not os.path.exists(path_str):
             continue
 
-        with open(path_str, "rb") as f:
-            data = f.read()
-
-        sha = compute_sha256(data)
-        dest_filename = f"frame_{idx:04d}{Path(path_str).suffix.lower()}"
+        settings = get_settings()
+        dest_filename = f"frame_{idx:04d}.jpg"
         dest_path = frames_dir / dest_filename
 
+        mat = cv2.imread(path_str)
+        if mat is not None and segmenter is not None and getattr(settings, "PRIVACY_MODE", True):
+            from app.agent.privacy import redact_frame_image
+            mat, _ = redact_frame_image(mat, segmenter=segmenter)
+            success, buffer = cv2.imencode(".jpg", mat, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            data = buffer.tobytes() if success else Path(path_str).read_bytes()
+        else:
+            with open(path_str, "rb") as f:
+                data = f.read()
+
+        sha = compute_sha256(data)
         with open(dest_path, "wb") as f:
             f.write(data)
 
