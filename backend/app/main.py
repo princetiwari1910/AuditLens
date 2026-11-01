@@ -844,4 +844,38 @@ async def get_audit_trace_endpoint(
     return get_audit_trace(session, audit_id, summary=summary)
 
 
+# ── Tamper-Evident Evidence Bundle (WP7) ──────────────────────────────────────
+
+@app.get("/api/audits/{audit_id}/bundle")
+async def get_audit_evidence_bundle_endpoint(
+    audit_id: str,
+    session: Session = Depends(get_session),
+):
+    """Generate and download a cryptographically verifiable ZIP evidence bundle."""
+    settings = get_settings()
+    if not getattr(settings, "ENABLE_EVIDENCE_BUNDLE", True):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Evidence bundle export is currently disabled.",
+        )
+
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    from app.agent.bundle import create_evidence_bundle_zip
+    try:
+        bundle_bytes = create_evidence_bundle_zip(session, audit_id)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create bundle: {exc}")
+
+    filename = f"auditlens_{audit_id}_bundle.zip"
+    return Response(
+        content=bundle_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+
 
