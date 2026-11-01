@@ -294,6 +294,82 @@ class MockReasoner:
             allowed_frame_ids=frame_ids,
         )
 
+    def plan_fixes(
+        self,
+        findings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Generate deterministic prioritized fix actions grounded in findings."""
+        from app.providers.schemas import validate_fix_actions
+
+        # Target non-pass findings or findings requiring action
+        eligible = [
+            f for f in findings
+            if f.get("status") in ("fail", "unsure") or f.get("final_verdict") in ("fail", "unsure")
+        ]
+
+        # Prioritize: fail before unsure; high before medium before low
+        sev_rank = {"high": 0, "medium": 1, "low": 2}
+
+        def _sort_key(f: dict[str, Any]) -> tuple[int, int]:
+            st = f.get("final_verdict") or f.get("status") or "unsure"
+            status_order = 0 if st == "fail" else 1
+            severity_order = sev_rank.get(f.get("severity", "medium").lower(), 1)
+            return (status_order, severity_order)
+
+        sorted_findings = sorted(eligible, key=_sort_key)
+        actions: list[dict[str, Any]] = []
+
+        for f in sorted_findings:
+            f_id = f.get("id", "")
+            rule_id = f.get("rule_id", "")
+            severity = f.get("severity", "medium").lower()
+            fix_text = f.get("fix_text", "").strip()
+
+            if not fix_text:
+                if "path" in rule_id or "exit" in rule_id and "block" in rule_id:
+                    fix_text = "Clear all boxes and obstructions immediately to restore egress path width."
+                elif "extinguisher" in rule_id:
+                    fix_text = "Mount inspected and certified extinguisher in designated unobstructed location."
+                elif "sign" in rule_id:
+                    fix_text = "Install high-visibility illuminated exit sign above emergency door."
+                else:
+                    fix_text = f"Address {rule_id} deficiency and perform follow-up safety verification."
+
+            fix_lower = fix_text.lower()
+            if any(k in fix_lower for k in ["clear", "box", "remove", "trash", "aisle"]):
+                effort = "S"
+                due_days = 2
+            elif any(k in fix_lower for k in ["extinguisher", "sign", "mount", "tag", "inspect"]):
+                effort = "M"
+                due_days = 7
+            elif any(k in fix_lower for k in ["door", "width", "structural", "construct", "ramp"]):
+                effort = "L"
+                due_days = 30
+            else:
+                if severity == "high":
+                    effort = "M"
+                    due_days = 3
+                elif severity == "medium":
+                    effort = "M"
+                    due_days = 7
+                else:
+                    effort = "S"
+                    due_days = 14
+
+            actions.append({
+                "finding_id": f_id,
+                "rule_id": rule_id,
+                "severity": severity,
+                "effort": effort,
+                "suggested_fix": fix_text,
+                "suggested_due_days": due_days,
+                "label": "AI-suggested (MOCK)",
+            })
+
+        allowed_ids = [f.get("id") for f in findings if f.get("id")]
+        return validate_fix_actions(actions, allowed_finding_ids=allowed_ids)
+
+
 
 class MockAgentProvider:
     """

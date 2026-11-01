@@ -382,3 +382,45 @@ class RecordReplayReasoner:
             logger.info("Recorded presence fixture to %s", fixture_file)
 
         return validated_result
+
+    def plan_fixes(
+        self,
+        findings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Generate prioritized fix actions with record/replay support."""
+        from app.providers.schemas import validate_fix_actions
+
+        finding_ids = [f.get("id", "") for f in findings]
+        combined_hash = hashlib.sha256(
+            json.dumps({"finding_ids": finding_ids}, sort_keys=True).encode("utf-8")
+        ).hexdigest()[:24]
+
+        fixture_hash = f"fixplan_{combined_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                if hasattr(self.inner, "plan_fixes"):
+                    return self.inner.plan_fixes(findings)
+                return []
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return validate_fix_actions(data, allowed_finding_ids=finding_ids)
+
+        cost = estimate_reasoner_cost(0.5, 0.2)
+        raw_result = execute_with_retry(
+            self.inner.plan_fixes,
+            findings,
+            estimated_cost=cost,
+            is_video=False,
+        )
+        validated_result = validate_fix_actions(raw_result, allowed_finding_ids=finding_ids)
+
+        if self.mode == "record":
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(validated_result, f, indent=2)
+            logger.info("Recorded fix plan fixture to %s", fixture_file)
+
+        return validated_result
+

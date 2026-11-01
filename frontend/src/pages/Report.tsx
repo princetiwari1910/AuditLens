@@ -36,6 +36,7 @@ import ModelsUsedPanel from '../components/ModelsUsedPanel';
 import PrivacyBadge from '../components/PrivacyBadge';
 import EvidenceViewerModal from '../components/EvidenceViewerModal';
 import ReviewQueuePanel from '../components/ReviewQueuePanel';
+import FixPlanSection from '../components/FixPlanSection';
 
 export interface AuditNotFoundViewProps {
   id?: string;
@@ -420,6 +421,12 @@ export default function Report() {
             onSelectFinding={(fId) => setSelectedFindingId(fId)}
           />
         </section>
+
+        {/* Prioritized Corrective Action Plan (WP10) */}
+        <FixPlanSection
+          auditId={audit.id}
+          onSelectFinding={handleSelectFinding}
+        />
 
         {/* Checklist Findings Section */}
         <section className="space-y-4">

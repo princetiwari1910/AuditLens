@@ -238,6 +238,20 @@ export function getAuditLog(auditId: string): Promise<AuditLogEntry[]> {
   return request<AuditLogEntry[]>(`/audits/${auditId}/audit_log`);
 }
 
+export interface FixAction {
+  finding_id: string;
+  rule_id: string;
+  severity: 'high' | 'medium' | 'low';
+  effort: 'S' | 'M' | 'L';
+  suggested_fix: string;
+  suggested_due_days: number;
+  label: string;
+}
+
+export function getFixPlan(auditId: string): Promise<FixAction[]> {
+  return request<FixAction[]>(`/audits/${auditId}/fix_plan`);
+}
+
 export default {
   getHealth,
   getTemplates,

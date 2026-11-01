@@ -138,6 +138,7 @@ class Audit(SQLModel, table=True):
     model_agent: str = Field(default="Muse Spark")
     model_transcription: str = Field(default="Muse Voice Transcribe")
     is_replay: bool = Field(default=False)
+    fix_plan_json: str | None = Field(default=None)
 
 
 class Frame(SQLModel, table=True):

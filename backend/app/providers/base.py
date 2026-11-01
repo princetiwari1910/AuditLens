@@ -105,6 +105,13 @@ class Reasoner(Protocol):
         """Verify presence of a concept across frames; return {present: bool, cited_frame_ids: list[int], rationale: str}."""
         ...
 
+    def plan_fixes(
+        self,
+        findings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Generate prioritized fix actions from audit findings."""
+        ...
+
 
 @runtime_checkable
 class Transcriber(Protocol):

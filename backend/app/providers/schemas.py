@@ -293,3 +293,86 @@ def validate_presence_verdict(
         "cited_frame_ids": valid_cited,
         "rationale": pv.rationale,
     }
+
+
+# ── Fix Action Planning Schema & Validation ───────────────────────────────────
+
+class FixEffort(str, Enum):
+    S = "S"
+    M = "M"
+    L = "L"
+
+
+class FixAction(BaseModel):
+    finding_id: str
+    rule_id: str = ""
+    severity: str = "medium"  # "high" | "medium" | "low"
+    effort: FixEffort = FixEffort.M
+    suggested_fix: str
+    suggested_due_days: int = Field(ge=1, default=7)
+    label: str = "AI-suggested (MOCK)"
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def clean_severity(cls, v: Any) -> str:
+        s = str(v).lower().strip() if v else "medium"
+        return s if s in ("high", "medium", "low") else "medium"
+
+    @field_validator("effort", mode="before")
+    @classmethod
+    def clean_effort(cls, v: Any) -> FixEffort:
+        if isinstance(v, FixEffort):
+            return v
+        s = str(v).upper().strip() if v else "M"
+        return FixEffort(s) if s in ("S", "M", "L") else FixEffort.M
+
+    @field_validator("suggested_due_days", mode="before")
+    @classmethod
+    def clean_due_days(cls, v: Any) -> int:
+        try:
+            val = int(v)
+            return max(1, val)
+        except (ValueError, TypeError):
+            return 7
+
+
+def validate_fix_actions(
+    raw_actions: Any,
+    allowed_finding_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Validate a list of fix actions against FixAction schema and known findings."""
+    data = raw_actions
+    if isinstance(raw_actions, str):
+        try:
+            data = json.loads(raw_actions)
+        except Exception:
+            return []
+
+    if not isinstance(data, list):
+        return []
+
+    allowed_set = set(allowed_finding_ids) if allowed_finding_ids is not None else None
+    results: list[dict[str, Any]] = []
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        try:
+            action = FixAction.model_validate(item)
+            if allowed_set is not None and action.finding_id not in allowed_set:
+                continue
+            results.append({
+                "finding_id": action.finding_id,
+                "rule_id": action.rule_id,
+                "severity": action.severity,
+                "effort": action.effort.value,
+                "suggested_fix": action.suggested_fix,
+                "suggested_due_days": action.suggested_due_days,
+                "label": action.label,
+            })
+        except Exception as exc:
+            logger.warning("FixAction validation error: %s", exc)
+            continue
+
+    return results
+

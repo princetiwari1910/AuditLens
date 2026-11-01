@@ -608,6 +608,57 @@ class MetaAgentProvider:
             estimated_cost=estimate_reasoner_cost(0.5, 0.1),
         )
 
+    def plan_fixes(
+        self,
+        findings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        Generate prioritized fix actions from audit findings using Muse Spark.
+        TODO(meta): Connect to live Muse Spark when API key is provided.
+        UNVERIFIED against live API.
+        """
+        from app.providers.schemas import validate_fix_actions
+
+        client = self._get_client()
+        finding_ids = [f.get("id", "") for f in findings if f.get("id")]
+
+        def _call_spark_plan() -> list[dict[str, Any]]:
+            # Prompt Spark to generate prioritized remediation actions
+            summary = [
+                {
+                    "finding_id": f.get("id"),
+                    "rule_id": f.get("rule_id"),
+                    "status": f.get("status"),
+                    "severity": f.get("severity"),
+                    "rationale": f.get("rationale"),
+                }
+                for f in findings
+                if f.get("status") in ("fail", "unsure")
+            ]
+            resp = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are AuditLens Safety Action Planner (Muse Spark). "
+                            "Given the safety findings, generate prioritized corrective actions "
+                            "with effort (S/M/L) and realistic due days."
+                        ),
+                    },
+                    {"role": "user", "content": json.dumps(summary)},
+                ],
+            )
+            raw = ""
+            if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
+                raw = resp.choices[0].message.content
+            return validate_fix_actions(raw, allowed_finding_ids=finding_ids)
+
+        return execute_with_retry(
+            _call_spark_plan,
+            estimated_cost=estimate_reasoner_cost(0.5, 0.2),
+        )
+
     def run_audit(
         self,
         audit: Any,

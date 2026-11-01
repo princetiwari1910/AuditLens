@@ -623,12 +623,26 @@ class AgentRunner:
             summary["frames_analyzed"] = len(frames)
             summary["frames_considered"] = considered_count
 
+            # Generate prioritized fix plan grounded in findings (WP10)
+            fix_plan: list[dict[str, Any]] = []
+            try:
+                plan_reasoner = self.reasoner
+                if plan_reasoner is None:
+                    from app.providers.mock import MockReasoner
+                    plan_reasoner = MockReasoner()
+                if hasattr(plan_reasoner, "plan_fixes"):
+                    fix_plan = plan_reasoner.plan_fixes(findings)
+            except Exception as e:
+                logger.warning("Could not generate fix plan: %s", e)
+                fix_plan = []
+
             # Update audit in database
             if session is not None:
                 audit = session.get(Audit, audit_id)
                 if audit:
                     audit.status = AuditStatus.COMPLETED.value
                     audit.summary_json = json.dumps(summary)
+                    audit.fix_plan_json = json.dumps(fix_plan)
                     audit.duration_s = round(time.time() - t_start, 2)
                     session.add(audit)
                     session.commit()

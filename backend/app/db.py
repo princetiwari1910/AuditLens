@@ -55,6 +55,7 @@ def init_db(engine_instance=None) -> None:
                 ("model_agent", "VARCHAR DEFAULT 'Muse Spark'"),
                 ("model_transcription", "VARCHAR DEFAULT 'Muse Voice Transcribe'"),
                 ("is_replay", "BOOLEAN DEFAULT 0"),
+                ("fix_plan_json", "TEXT DEFAULT NULL"),
             ]:
                 if col_name not in audit_cols:
                     conn.exec_driver_sql(f"ALTER TABLE audit ADD COLUMN {col_name} {col_type}")

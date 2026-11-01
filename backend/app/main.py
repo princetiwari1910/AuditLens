@@ -776,6 +776,14 @@ async def review_finding(
         except Exception:
             pass
     audit.summary_json = json.dumps(new_summary)
+    # Regenerate fix plan with updated verdicts (WP10)
+    try:
+        from app.providers.mock import MockReasoner
+        refreshed_plan = MockReasoner().plan_fixes(findings_dicts)
+        audit.fix_plan_json = json.dumps(refreshed_plan)
+    except Exception:
+        pass
+
     session.add(audit)
     session.commit()
     session.refresh(finding)
@@ -875,6 +883,48 @@ async def get_audit_evidence_bundle_endpoint(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Fix Plan Generation (WP10) ────────────────────────────────────────────────
+
+@app.get("/api/audits/{audit_id}/fix_plan")
+async def get_audit_fix_plan(
+    audit_id: str,
+    session: Session = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Retrieve prioritized corrective action fix plan grounded in audit findings."""
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    if audit.fix_plan_json:
+        try:
+            return json.loads(audit.fix_plan_json)
+        except Exception:
+            pass
+
+    # Generate on-demand if not precomputed
+    findings_db = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
+    findings_dicts = [
+        {
+            "id": f.id,
+            "rule_id": f.rule_id,
+            "status": getattr(f, "final_verdict", f.status) or f.status,
+            "severity": f.severity,
+            "rationale": f.rationale,
+            "fix_text": f.fix_text,
+        }
+        for f in findings_db
+    ]
+
+    from app.providers.mock import MockReasoner
+    reasoner = MockReasoner()
+    fix_plan = reasoner.plan_fixes(findings_dicts)
+    audit.fix_plan_json = json.dumps(fix_plan)
+    session.add(audit)
+    session.commit()
+    return fix_plan
+
 
 
 
