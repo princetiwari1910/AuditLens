@@ -114,6 +114,16 @@ def test_trace_endpoint_404_for_missing_audit(client_with_spans):
     assert resp.status_code == 404
 
 
+def test_get_audit_trace_reads_stored_summary_frame_counts(client_with_spans):
+    """get_audit_trace with summary=None automatically reads frames_analyzed and frames_considered from audit.summary_json."""
+    _, audit_id = client_with_spans
+    with Session(engine()) as session:
+        trace_data = get_audit_trace(session, audit_id, summary=None)
+        assert trace_data["totals"]["frames_considered"] == 100
+        assert trace_data["totals"]["frames_analyzed"] == 12
+        assert trace_data["totals"]["calls_saved_by_keyframes"] == 88
+
+
 def test_demo_audit_creates_trace_spans(tmp_path, monkeypatch):
     """Launching demo audit creates and populates trace spans."""
     data_dir = tmp_path / "data"

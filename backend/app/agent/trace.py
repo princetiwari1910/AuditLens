@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 from sqlmodel import Session, select
 
 from app.config import get_settings
-from app.models import AuditSpan
+from app.models import Audit, AuditSpan
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,20 @@ def get_audit_trace(session: Session, audit_id: str, summary: dict[str, Any] | N
     total_latency = sum(s.latency_ms for s in spans)
     cache_hits = sum(1 for s in spans if s.cache_hit)
 
-    frames_considered = summary.get("frames_considered", 0) if summary else 0
+    if summary is None:
+        audit = session.get(Audit, audit_id)
+        if audit and audit.summary_json:
+            try:
+                summary = json.loads(audit.summary_json)
+            except Exception:
+                summary = {}
+        else:
+            summary = {}
+
     frames_analyzed = summary.get("frames_analyzed", 0) if summary else 0
+    frames_considered = summary.get("frames_considered", 0) if summary else 0
+    if frames_considered == 0 and frames_analyzed > 0:
+        frames_considered = frames_analyzed
     calls_saved_by_keyframes = max(0, frames_considered - frames_analyzed)
 
     return {

@@ -537,7 +537,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             </span>
           </div>
           {(() => {
-            const framesCount = audit.summary?.frames_analyzed || (audit.summary as any)?.frames_considered || 12;
+            const framesCount = audit.summary?.frames_analyzed ?? 12;
             const framesUnit = framesCount === 1 ? 'visual keyframe' : 'visual keyframes';
             const passCount = audit.summary?.pass || 0;
             const failCount = audit.summary?.fail || 0;

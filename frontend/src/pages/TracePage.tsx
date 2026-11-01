@@ -13,13 +13,18 @@ import {
 } from 'lucide-react';
 import { getAuditTrace, type AuditTraceResponse } from '../api/client';
 
-export default function TracePage() {
+export interface TracePageProps {
+  initialTrace?: AuditTraceResponse | null;
+}
+
+export default function TracePage({ initialTrace = null }: TracePageProps = {}) {
   const { id } = useParams<{ id: string }>();
-  const [trace, setTrace] = useState<AuditTraceResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [trace, setTrace] = useState<AuditTraceResponse | null>(initialTrace);
+  const [isLoading, setIsLoading] = useState(!initialTrace);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialTrace) return;
     if (!id) return;
     setIsLoading(true);
     setError(null);
@@ -154,10 +159,14 @@ export default function TracePage() {
               Keyframes
             </span>
             <div className="text-xl font-bold text-[var(--color-text)] font-mono">
-              {totals.frames_analyzed} / {totals.frames_considered}
+              {totals.frames_considered
+                ? `${totals.frames_analyzed} of ${totals.frames_considered}`
+                : `${totals.frames_analyzed} frames`}
             </div>
-            <p className="text-[10px] text-[var(--color-text-secondary)]">
-              {totals.frames_saved_by_selection} blurry frames filtered
+            <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">
+              {totals.frames_considered
+                ? `${totals.frames_analyzed} of ${totals.frames_considered} frames analyzed`
+                : `${totals.frames_analyzed} frames analyzed`}
             </p>
           </div>
         </div>
