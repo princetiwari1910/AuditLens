@@ -98,10 +98,9 @@ def main() -> int:
         print("  3. Run this script again:")
         print("     python backend/scripts/smoke_meta.py")
         print()
-        print("UNVERIFIED against live API (all unit tests run with fixtures).")
-        print("Exiting cleanly (code 0) without calling the live Meta API.")
+        print("NOT VERIFIED: no key")
         print("========================================================================")
-        return 0
+        return 1
 
     print("MODEL_API_KEY detected. Connecting to https://api.meta.ai/v1...")
     fixtures_dir = settings.DATA_DIR / "fixtures"
@@ -139,7 +138,13 @@ def main() -> int:
 
     # 3. Test SAM 3.1 (Segmenter)
     print("\n--- 2. Testing SAM 3.1 (Responses API Streaming & Masks) ---")
-    img_path = Path(args.image) if args.image else ensure_test_image(settings.DATA_DIR)
+    if args.image:
+        img_path = Path(args.image)
+        if not img_path.exists():
+            print(f"Error: Specified image file does not exist: {img_path}")
+            return 1
+    else:
+        img_path = ensure_test_image(settings.DATA_DIR)
     print(f"Using image: {img_path}")
     sam = MetaSegmentationProvider()
     t0 = time.perf_counter()

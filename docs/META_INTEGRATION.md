@@ -2,7 +2,7 @@
 
 > **STATUS:** **UNVERIFIED against live API**
 > All providers (`MetaSegmenter`, `MetaReasoner`, `MetaTranscriber`) are implemented against official documentation specifications from [dev.meta.ai/docs](https://dev.meta.ai/docs) and verified offline with doc fixtures and unit tests.
-> Status remains **UNVERIFIED** until `scripts/smoke_meta.py` passes with a valid live `MODEL_API_KEY`.
+> Status remains **UNVERIFIED** until `backend/scripts/smoke_meta.py` passes with a valid live `MODEL_API_KEY`.
 > Default mode remains `PROVIDER_MODE=mock`.
 
 ---
@@ -133,16 +133,20 @@ Rates per [dev.meta.ai/docs/pricing-rate-limits](https://dev.meta.ai/docs/pricin
 
 ---
 
-## 4. Verification Workflow (`scripts/smoke_meta.py`)
+## 4. Verification Workflow (`backend/scripts/smoke_meta.py`)
 
 Run the live verification smoke script:
 ```bash
-# If MODEL_API_KEY is not set: prints instructions and exits cleanly (0)
+# If MODEL_API_KEY is not set: prints instructions and exits non-zero (1) with "NOT VERIFIED: no key"
 python backend/scripts/smoke_meta.py
+
+# Pass a custom photo using --image:
+python backend/scripts/smoke_meta.py --image /path/to/photo.jpg
 
 # When MODEL_API_KEY is available:
 export MODEL_API_KEY="your_actual_meta_key"
 python backend/scripts/smoke_meta.py --record
+python backend/scripts/smoke_meta.py --image /path/to/photo.jpg --record
 ```
 
 The script will:
