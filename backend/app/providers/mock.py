@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 from typing import Any, Callable
 
+from app.config import get_settings
 from app.providers.base import (
     Detection,
     SegmentDetection,
@@ -282,12 +283,26 @@ class MockReasoner:
         known_positive = ["fire extinguisher", "extinguisher", "exit sign", "emergency exit", "safety helmet", "first aid", "person"]
         is_present = any(kp in clean_concept for kp in known_positive) and bool(frame_ids)
 
+        settings = get_settings()
+        cascade_enabled = getattr(settings, "ENABLE_ESCALATION_CASCADE", False)
+        esc_model = getattr(settings, "ESCALATION_MODEL", None)
+        if cascade_enabled and esc_model:
+            if "-contributor" in esc_model.lower():
+                raise ValueError(
+                    f"Model ID '{esc_model}' rejected: '-contributor' models train on user content. "
+                    "Only Standard mode models are permitted."
+                )
+            if not is_present and "escalate" in clean_concept:
+                is_present = True
+
         cited = frame_ids[:2] if is_present else []
         rationale = (
             f"[MOCK] Visual inspection verified '{clean_concept}' in cited frames."
             if is_present
             else f"[MOCK] Visual inspection did not identify '{clean_concept}' in the provided frames."
         )
+        if cascade_enabled and esc_model and "escalate" in clean_concept:
+            rationale += f" [MOCK: Escalated to {esc_model}]"
 
         return validate_presence_verdict(
             {"present": is_present, "cited_frame_ids": cited, "rationale": rationale},

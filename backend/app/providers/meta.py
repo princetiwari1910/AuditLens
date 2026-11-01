@@ -408,14 +408,23 @@ class MetaAgentProvider:
     """
 
     def __init__(
-        self, client: Any | None = None, model_id: str = "muse-spark-1.3"
+        self,
+        client: Any | None = None,
+        model_id: str = "muse-spark-1.3",
+        escalation_model: str | None = None,
     ) -> None:
         if "-contributor" in model_id.lower():
             raise ValueError(
                 f"Model ID '{model_id}' rejected: '-contributor' models train on user content. "
                 "Only Standard mode models are permitted."
             )
+        if escalation_model and "-contributor" in escalation_model.lower():
+            raise ValueError(
+                f"Escalation Model ID '{escalation_model}' rejected: '-contributor' models train on user content. "
+                "Only Standard mode models are permitted."
+            )
         self.model_id = model_id
+        self.escalation_model = escalation_model
         self._client = client
 
     def _get_client(self) -> OpenAI:
@@ -480,9 +489,9 @@ class MetaAgentProvider:
 
         client = self._get_client()
 
-        def _call_spark() -> dict[str, Any]:
+        def _call_spark(target_model: str) -> dict[str, Any]:
             resp = client.chat.completions.create(
-                model=self.model_id,
+                model=target_model,
                 messages=[
                     {
                         "role": "system",
@@ -535,10 +544,35 @@ class MetaAgentProvider:
 
             return verdict.to_dict()
 
-        return execute_with_retry(
-            _call_spark,
+        result = execute_with_retry(
+            lambda: _call_spark(self.model_id),
             estimated_cost=estimate_reasoner_cost(1.0, 0.25),
         )
+
+        # WP16: Meta Escalation Cascade (if unsure, retry once with escalation model)
+        settings = get_settings()
+        esc_model = self.escalation_model or getattr(settings, "ESCALATION_MODEL", None)
+        cascade_enabled = getattr(settings, "ENABLE_ESCALATION_CASCADE", False)
+
+        if cascade_enabled and esc_model and result.get("status") in (VerdictStatus.UNSURE.value, "unsure"):
+            if "-contributor" in esc_model.lower():
+                raise ValueError(
+                    f"Model ID '{esc_model}' rejected: '-contributor' models train on user content. "
+                    "Only Standard mode models are permitted."
+                )
+            try:
+                logger.info("Spark returned unsure. Escalating once to %s", esc_model)
+                esc_result = execute_with_retry(
+                    lambda: _call_spark(esc_model),
+                    estimated_cost=estimate_reasoner_cost(1.5, 0.35),
+                )
+                if esc_result and esc_result.get("status") not in (VerdictStatus.UNSURE.value, "unsure"):
+                    esc_result["reason"] = f"{esc_result.get('reason', '')} [Escalated from {self.model_id} to {esc_model}]"
+                    return esc_result
+            except Exception as exc:
+                logger.warning("Escalation cascade to %s failed: %s. Falling back to Spark verdict.", esc_model, exc)
+
+        return result
 
     def verify_presence(
         self,
@@ -575,9 +609,9 @@ class MetaAgentProvider:
             except Exception as e:
                 logger.warning("Could not encode frame %s: %s", fpath, e)
 
-        def _call_spark_presence() -> dict[str, Any]:
+        def _call_spark_presence(target_model: str) -> dict[str, Any]:
             resp = client.chat.completions.create(
-                model=self.model_id,
+                model=target_model,
                 messages=[
                     {
                         "role": "system",
@@ -603,10 +637,35 @@ class MetaAgentProvider:
                 raw = resp.choices[0].message.content
             return validate_presence_verdict(raw, allowed_frame_ids=valid_frame_ids)
 
-        return execute_with_retry(
-            _call_spark_presence,
+        result = execute_with_retry(
+            lambda: _call_spark_presence(self.model_id),
             estimated_cost=estimate_reasoner_cost(0.5, 0.1),
         )
+
+        # WP16: Meta Escalation Cascade for presence verification
+        settings = get_settings()
+        esc_model = self.escalation_model or getattr(settings, "ESCALATION_MODEL", None)
+        cascade_enabled = getattr(settings, "ENABLE_ESCALATION_CASCADE", False)
+
+        if cascade_enabled and esc_model and not result.get("present"):
+            if "-contributor" in esc_model.lower():
+                raise ValueError(
+                    f"Model ID '{esc_model}' rejected: '-contributor' models train on user content. "
+                    "Only Standard mode models are permitted."
+                )
+            try:
+                logger.info("Spark presence check negative/unsure. Escalating once to %s", esc_model)
+                esc_result = execute_with_retry(
+                    lambda: _call_spark_presence(esc_model),
+                    estimated_cost=estimate_reasoner_cost(0.75, 0.15),
+                )
+                if esc_result and esc_result.get("present"):
+                    esc_result["rationale"] = f"{esc_result.get('rationale', '')} [Escalated from {self.model_id} to {esc_model}]"
+                    return esc_result
+            except Exception as exc:
+                logger.warning("Escalation cascade to %s failed: %s. Falling back to Spark presence result.", esc_model, exc)
+
+        return result
 
     def plan_fixes(
         self,

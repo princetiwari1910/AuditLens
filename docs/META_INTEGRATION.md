@@ -112,7 +112,18 @@ If any older guide disagrees with the official developer portal pages above, **t
 
 ---
 
-## 3. Official Pricing Rates & BudgetGuard
+## 3. Which Meta Model Does What, and Why
+
+| Meta Model | API Identifier | Role in AuditLens | Why This Model | Pricing Rate |
+|---|---|---|---|---|
+| **SAM 3.1** | `sam-3.1` | Zero-shot visual segmentation & region isolation | Yields pixel-accurate polygon masks and bounding boxes for safety elements (extinguishers, signs, doors) without retraining. Essential for optical clearance width calculation. | $2.50 / 1k images ($0.0025/ea) |
+| **Muse Spark** | `muse-spark-1.3` | Multimodal reasoning agent, tool dispatcher, checklist compiler & fix planner | Fast, low-latency multimodal reasoning over visual evidence. Standard mode ensures no user data is collected for training. | $1.25 / 1M input, $4.25 / 1M output |
+| **Muse Voice** | `muse-voice-transcribe-1.0` | Auditor walkthrough speech-to-text | Robust turn-level transcription (including multi-lingual Hinglish field jargon). Transcripts ground safety findings with auditor spoken observations. | $0.18 / hour ($0.003/min) |
+| **Escalation Cascade** *(Optional)* | `muse-wonder-1.0` *(or configured non-contributor model)* | Deep visual verification retry for ambiguous scenes | Invoked **only** when Muse Spark returns an `unsure` verdict or negative presence on high-value safety items. Retries once with clean fallback. | Standard frontier pricing |
+
+---
+
+## 4. Official Pricing Rates & BudgetGuard
 
 Rates per [dev.meta.ai/docs/pricing-rate-limits](https://dev.meta.ai/docs/pricing-rate-limits):
 

@@ -54,10 +54,10 @@ class Settings(BaseSettings):
     MODEL_ID_AGENT: str = "Muse Spark"
     MODEL_ID_TRANSCRIPTION: str = "Muse Voice Transcribe"
 
-    @field_validator("MODEL_ID_AGENT", "MODEL_ID_SEGMENTATION", "MODEL_ID_TRANSCRIPTION", mode="after")
+    @field_validator("MODEL_ID_AGENT", "MODEL_ID_SEGMENTATION", "MODEL_ID_TRANSCRIPTION", "ESCALATION_MODEL", mode="after")
     @classmethod
-    def reject_contributor_models(cls, v: str) -> str:
-        if "-contributor" in v.lower():
+    def reject_contributor_models(cls, v: str | None) -> str | None:
+        if v and "-contributor" in v.lower():
             raise ValueError(
                 f"Model ID '{v}' rejected: '-contributor' models train on user content. "
                 "Only Standard mode models are permitted."

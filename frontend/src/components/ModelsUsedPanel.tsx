@@ -175,6 +175,27 @@ export default function ModelsUsedPanel({
           * Source: cost_log table. Latencies and costs measured from local execution.
         </span>
       </div>
+
+      {/* Meta Stack Roles Table */}
+      <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-3 text-xs space-y-2">
+        <div className="font-semibold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider">
+          Which Meta model does what, and why
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-[var(--color-text-secondary)]">
+          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <span className="font-bold text-[var(--color-text)] block">SAM 3.1 (sam-3.1)</span>
+            <span>Zero-shot object & region segmentation. Outputs tight polygon masks & bboxes for precise clearance measurements.</span>
+          </div>
+          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <span className="font-bold text-[var(--color-text)] block">Muse Spark (muse-spark-1.3)</span>
+            <span>Multimodal reasoning agent. Dispatches tool calls, evaluates visual evidence against rules, compiles checklists, and generates fix plans.</span>
+          </div>
+          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <span className="font-bold text-[var(--color-text)] block">Muse Voice (muse-voice-transcribe)</span>
+            <span>Walkthrough speech-to-text. Transcribes auditor field notes and associates observations to nearest keyframe timestamps.</span>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
