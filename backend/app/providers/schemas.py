@@ -191,3 +191,105 @@ def validate_verdict(raw_data: Any) -> ReasonerVerdict:
             cited_frame_ids=[],
             confidence=0.50,
         )
+
+
+# ── Presence Verification Schema & Validation ─────────────────────────────────
+
+SPARK_PRESENCE_JSON_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "PresenceVerificationVerdict",
+    "type": "object",
+    "properties": {
+        "present": {
+            "type": "boolean",
+            "description": "True if the concept is visually verified present in the frames.",
+        },
+        "cited_frame_ids": {
+            "type": "array",
+            "items": {"type": "integer"},
+            "description": "List of frame IDs where the concept was confirmed.",
+        },
+        "rationale": {
+            "type": "string",
+            "description": "Plain-English visual rationale explaining where and how the object is present.",
+        },
+    },
+    "required": ["present", "cited_frame_ids", "rationale"],
+    "additionalProperties": False,
+}
+
+
+class PresenceVerdict(BaseModel):
+    present: bool
+    cited_frame_ids: list[int] = Field(default_factory=list)
+    rationale: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_presence(cls, values: Any) -> Any:
+        if not isinstance(values, dict):
+            return values
+        pres = values.get("present")
+        if isinstance(pres, str):
+            values["present"] = pres.lower() in ("true", "1", "yes")
+        # Ensure cited_frame_ids are ints
+        raw_ids = values.get("cited_frame_ids")
+        if isinstance(raw_ids, list):
+            cleaned_ids: list[int] = []
+            for item in raw_ids:
+                try:
+                    cleaned_ids.append(int(item))
+                except (ValueError, TypeError):
+                    continue
+            values["cited_frame_ids"] = cleaned_ids
+        return values
+
+
+def validate_presence_verdict(
+    raw_data: Any,
+    allowed_frame_ids: list[int] | None = None,
+) -> dict[str, Any]:
+    """Validate presence verification dictionary and verify cited_frame_ids exist."""
+    data = raw_data
+    if isinstance(raw_data, str):
+        try:
+            data = json.loads(raw_data)
+        except Exception as json_err:
+            return {
+                "present": False,
+                "cited_frame_ids": [],
+                "rationale": f"Invalid JSON response: {json_err}",
+            }
+
+    if not isinstance(data, dict):
+        return {
+            "present": False,
+            "cited_frame_ids": [],
+            "rationale": f"Expected object, got {type(data).__name__}",
+        }
+
+    try:
+        pv = PresenceVerdict.model_validate(data)
+    except Exception as exc:
+        return {
+            "present": False,
+            "cited_frame_ids": [],
+            "rationale": f"Presence schema validation error: {exc}",
+        }
+
+    valid_cited = pv.cited_frame_ids
+    if allowed_frame_ids is not None:
+        allowed_set = set(allowed_frame_ids)
+        valid_cited = [fid for fid in valid_cited if fid in allowed_set]
+        if pv.present and not valid_cited and allowed_frame_ids:
+            return {
+                "present": False,
+                "cited_frame_ids": [],
+                "rationale": "Model attested presence but failed to cite valid frame IDs from input frames.",
+            }
+
+    return {
+        "present": pv.present,
+        "cited_frame_ids": valid_cited,
+        "rationale": pv.rationale,
+    }

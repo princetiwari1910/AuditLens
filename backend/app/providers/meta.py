@@ -46,7 +46,13 @@ from app.providers.client import (
     execute_with_retry,
 )
 from app.providers.concept_validation import validate_concept
-from app.providers.schemas import SPARK_VERDICT_JSON_SCHEMA, VerdictStatus, validate_verdict
+from app.providers.schemas import (
+    SPARK_PRESENCE_JSON_SCHEMA,
+    SPARK_VERDICT_JSON_SCHEMA,
+    VerdictStatus,
+    validate_presence_verdict,
+    validate_verdict,
+)
 
 logger = logging.getLogger("auditlens.providers.meta")
 
@@ -532,6 +538,74 @@ class MetaAgentProvider:
         return execute_with_retry(
             _call_spark,
             estimated_cost=estimate_reasoner_cost(1.0, 0.25),
+        )
+
+    def verify_presence(
+        self,
+        concept: str,
+        frames: list[dict[str, Any]] | list[str],
+    ) -> dict[str, Any]:
+        """
+        Verify presence of concept across frames using Muse Spark with SPARK_PRESENCE_JSON_SCHEMA.
+        UNVERIFIED against live API.
+        """
+        concept_clean = validate_concept(concept)
+        client = self._get_client()
+
+        valid_frame_ids: list[int] = []
+        user_content_parts: list[dict[str, Any]] = [
+            {
+                "type": "text",
+                "text": f"Examine the provided image frames and determine if the concept '{concept_clean}' is present. Cite the exact frame ID(s) where it is observed.",
+            }
+        ]
+
+        for i, f in enumerate(frames):
+            fid = f.get("idx", f.get("id", i)) if isinstance(f, dict) else i
+            fpath = f.get("path") if isinstance(f, dict) else str(f)
+            valid_frame_ids.append(int(fid))
+            try:
+                data_url, _, _, _ = encode_image_to_base64_data_url(fpath)
+                user_content_parts.append(
+                    {"type": "text", "text": f"Frame ID {fid}:"}
+                )
+                user_content_parts.append(
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                )
+            except Exception as e:
+                logger.warning("Could not encode frame %s: %s", fpath, e)
+
+        def _call_spark_presence() -> dict[str, Any]:
+            resp = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are AuditLens Visual Verification Agent (Muse Spark). "
+                            "Determine if the specified object/concept is visible in the provided frames. "
+                            "Output strict JSON according to the schema."
+                        ),
+                    },
+                    {"role": "user", "content": user_content_parts},
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "presence_verdict",
+                        "schema": SPARK_PRESENCE_JSON_SCHEMA,
+                        "strict": True,
+                    },
+                },
+            )
+            raw = ""
+            if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
+                raw = resp.choices[0].message.content
+            return validate_presence_verdict(raw, allowed_frame_ids=valid_frame_ids)
+
+        return execute_with_retry(
+            _call_spark_presence,
+            estimated_cost=estimate_reasoner_cost(0.5, 0.1),
         )
 
     def run_audit(

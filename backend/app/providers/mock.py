@@ -261,6 +261,39 @@ class MockReasoner:
 
         return validate_verdict(raw).to_dict()
 
+    def verify_presence(
+        self,
+        concept: str,
+        frames: list[dict[str, Any]] | list[str],
+    ) -> dict[str, Any]:
+        """Mock visual verification of a concept across frames."""
+        from app.providers.schemas import validate_presence_verdict
+
+        frame_ids: list[int] = []
+        for i, f in enumerate(frames):
+            if isinstance(f, dict):
+                fid = f.get("idx", f.get("id", i))
+                frame_ids.append(int(fid))
+            else:
+                frame_ids.append(i)
+
+        clean_concept = concept.lower().strip()
+        # Mock presence rule: positive for known scenario objects
+        known_positive = ["fire extinguisher", "extinguisher", "exit sign", "emergency exit", "safety helmet", "first aid", "person"]
+        is_present = any(kp in clean_concept for kp in known_positive) and bool(frame_ids)
+
+        cited = frame_ids[:2] if is_present else []
+        rationale = (
+            f"[MOCK] Visual inspection verified '{clean_concept}' in cited frames."
+            if is_present
+            else f"[MOCK] Visual inspection did not identify '{clean_concept}' in the provided frames."
+        )
+
+        return validate_presence_verdict(
+            {"present": is_present, "cited_frame_ids": cited, "rationale": rationale},
+            allowed_frame_ids=frame_ids,
+        )
+
 
 class MockAgentProvider:
     """

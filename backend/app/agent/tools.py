@@ -42,6 +42,7 @@ class ExecutionContext:
         transcription_provider: Any,
         voice_notes: list[dict[str, Any]] | None = None,
         session: Session | None = None,
+        reasoner: Any | None = None,
     ) -> None:
         self.audit_id = audit_id
         self.rules = rules
@@ -50,6 +51,7 @@ class ExecutionContext:
         self.transcription_provider = transcription_provider
         self.voice_notes = voice_notes or []
         self.session = session
+        self.reasoner = reasoner
 
         # Evidence store: maps result_id -> EvidenceEntry
         self.evidence_store: dict[str, EvidenceEntry] = {}
@@ -196,6 +198,29 @@ class ToolRegistry:
                             "rule_id": {"type": "string"},
                             "near_timestamp_s": {"type": "number"},
                         },
+                    },
+                },
+            },
+        )
+        self.register(
+            "verify_presence",
+            self.verify_presence,
+            {
+                "type": "function",
+                "function": {
+                    "name": "verify_presence",
+                    "description": "Active visual verification of concept across keyframes using Muse Spark Reasoner.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "concept": {"type": "string"},
+                            "frame_ids": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                                "description": "Optional subset of frame IDs to inspect.",
+                            },
+                        },
+                        "required": ["concept"],
                     },
                 },
             },
@@ -479,6 +504,52 @@ class ToolRegistry:
         )
         return {"result_id": res_id, "notes": notes}
 
+    def verify_presence(
+        self,
+        concept: str,
+        frame_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Verify presence of a concept using Reasoner vision capabilities."""
+        frames_to_query = self.ctx.frames
+        if frame_ids is not None:
+            fset = set(frame_ids)
+            frames_to_query = [f for f in self.ctx.frames if f["idx"] in fset]
+        if not frames_to_query and self.ctx.frames:
+            frames_to_query = self.ctx.frames[:4]
+
+        reasoner = getattr(self.ctx, "reasoner", None)
+        if reasoner is None:
+            from app.providers import get_reasoner
+            reasoner = get_reasoner()
+
+        t0 = time.time()
+        res = reasoner.verify_presence(concept, frames_to_query)
+        latency_ms = max(int((time.time() - t0) * 1000), 5)
+
+        session = self.ctx.session
+        if session is not None:
+            log_cost(
+                session,
+                provider="agent",
+                operation="verify_presence",
+                units=float(len(frames_to_query)) * 0.25,
+                audit_id=self.ctx.audit_id,
+                latency_ms=latency_ms,
+                cache_hit=False,
+            )
+
+        res_id = self.ctx.register_evidence(
+            "verify_presence",
+            {"concept": concept, "frame_ids": [f["idx"] for f in frames_to_query]},
+            res,
+        )
+        return {
+            "result_id": res_id,
+            "present": res.get("present", False),
+            "cited_frame_ids": res.get("cited_frame_ids", []),
+            "rationale": res.get("rationale", ""),
+        }
+
     def record_finding(
         self,
         rule_id: str,
@@ -492,6 +563,10 @@ class ToolRegistry:
         severity: str = "medium",
         sources: list[str] | None = None,
         fix_text: str = "",
+        evidence_ledger: list[dict[str, Any]] | None = None,
+        strongest_evidence: dict[str, Any] | None = None,
+        decision_policy: str = "default",
+        detector: str = "sam",
     ) -> dict[str, Any]:
         """
         Record finding with strict Evidence-First validation.
@@ -519,6 +594,8 @@ class ToolRegistry:
                 elif entry.tool_name == "measure_clear_width" and "width_m" in entry.data:
                     has_factual_content = True
                 elif entry.tool_name == "check_colocation":
+                    has_factual_content = True
+                elif entry.tool_name == "verify_presence" and entry.data.get("present"):
                     has_factual_content = True
                 elif entry.tool_name == "list_rules":
                     # list_rules alone is not visual evidence
@@ -548,6 +625,10 @@ class ToolRegistry:
             "severity": severity,
             "sources": sources or ["segmentation"],
             "evidence_ids": evidence_ids,
+            "evidence_ledger": evidence_ledger or [],
+            "strongest_evidence": strongest_evidence,
+            "decision_policy": decision_policy,
+            "detector": detector,
         }
         self.ctx.findings.append(finding)
         return {"finding_id": finding_id, "finding": finding}

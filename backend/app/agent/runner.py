@@ -6,23 +6,26 @@ import json
 from pathlib import Path
 import time
 from typing import Any, Callable
+import uuid
 
 import cv2
 import numpy as np
 from sqlmodel import Session, select
 
 from app.agent.rules import (
+    apply_decision_policy,
     compute_summary_score,
     evaluate_absence_rule,
     evaluate_colocation_rule,
     evaluate_count_rule,
     evaluate_measurement_rule,
     evaluate_presence_rule,
+    select_strongest_evidence,
 )
 from app.agent.tools import ExecutionContext, ToolRegistry
 from app.config import get_settings
 from app.costlog import log_cost
-from app.models import Audit, AuditStatus, Finding, Frame, RuleModel, VoiceNote
+from app.models import Audit, AuditStatus, EvidenceItem, EvidenceStrength, Finding, Frame, RuleModel, VoiceNote
 from app.storage import get_overlays_dir
 
 
@@ -120,9 +123,11 @@ class AgentRunner:
         self,
         segmentation_provider: Any,
         transcription_provider: Any,
+        reasoner: Any | None = None,
     ) -> None:
         self.segmentation_provider = segmentation_provider
         self.transcription_provider = transcription_provider
+        self.reasoner = reasoner
 
     def run_audit(
         self,
@@ -189,6 +194,7 @@ class AgentRunner:
             transcription_provider=self.transcription_provider,
             voice_notes=voice_notes_data,
             session=session,
+            reasoner=self.reasoner,
         )
         registry = ToolRegistry(ctx)
 
@@ -227,13 +233,42 @@ class AgentRunner:
                 r_type = rule.type
                 prompts = rule.sam_prompts or [rule.title]
                 primary_prompt = prompts[0]
+                detector = getattr(rule, "detector", "sam") or "sam"
 
                 best_rep_detection: dict[str, Any] | None = None
                 evidence_ids: list[str] = [list_rules_res["result_id"]]
                 measurement_data: dict[str, Any] | None = None
+                evidence_ledger: list[dict[str, Any]] = []
 
                 # ── Rule Type Dispatch via Tools ──────────────────────────────
-                if r_type == "presence":
+                if detector == "spark_vision" and r_type == "presence":
+                    emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "verify_presence", "args_summary": {"concept": primary_prompt}}))
+                    t0 = time.time()
+                    v_res = registry.execute("verify_presence", concept=primary_prompt)
+                    emit(_make_event("tool_result", audit_id, {"tool": "verify_presence", "result_summary": f"Verified: {v_res['present']}", "duration_ms": int((time.time() - t0) * 1000)}))
+                    evidence_ids.append(v_res["result_id"])
+
+                    is_pres = v_res.get("present", False)
+                    cited = v_res.get("cited_frame_ids", [])
+                    status = FindingStatus.PASS if is_pres else FindingStatus.FAIL
+                    conf = 0.85 if is_pres else 0.40
+                    rationale = v_res.get("rationale") or f"Spark vision verification: {primary_prompt} {'present' if is_pres else 'absent'}."
+
+                    for fid in cited:
+                        f_ts = next((float(f.get("timestamp_s", 0.0)) for f in frames if f.get("idx") == fid), 0.0)
+                        evidence_ledger.append({
+                            "id": f"ev_{uuid.uuid4().hex[:8]}",
+                            "frame_id": fid,
+                            "ts": f_ts,
+                            "source": "spark",
+                            "concept": primary_prompt,
+                            "box": None,
+                            "mask_ref": None,
+                            "score": conf,
+                            "strength": EvidenceStrength.MODEL_ATTESTED.value,
+                        })
+
+                elif r_type == "presence":
                     emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "find_objects", "args_summary": {"prompt": primary_prompt}}))
                     t0 = time.time()
                     find_res = registry.execute("find_objects", prompt=primary_prompt)
@@ -245,6 +280,45 @@ class AgentRunner:
                         threshold=rule.params.get("min_score"),
                     )
                     best_rep_detection = best_det
+
+                    for d in find_res.get("detections", []):
+                        has_mask = bool(d.get("polygon") or d.get("mask"))
+                        evidence_ledger.append({
+                            "id": f"ev_{uuid.uuid4().hex[:8]}",
+                            "frame_id": int(d.get("frame_id", 0)),
+                            "ts": float(d.get("timestamp_s", 0.0)),
+                            "source": "sam",
+                            "concept": primary_prompt,
+                            "box": d.get("bbox"),
+                            "mask_ref": d.get("polygon") or d.get("mask"),
+                            "score": float(d.get("score", 0.0)),
+                            "strength": EvidenceStrength.MASK_BACKED.value if has_mask else EvidenceStrength.MODEL_ATTESTED.value,
+                        })
+
+                    # If hybrid sam_then_spark and initial pass is not confirmed
+                    if detector == "sam_then_spark" and (status == FindingStatus.UNSURE or not find_res.get("detections")):
+                        emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "verify_presence", "args_summary": {"concept": primary_prompt, "escalation": True}}))
+                        t0 = time.time()
+                        v_res = registry.execute("verify_presence", concept=primary_prompt)
+                        emit(_make_event("tool_result", audit_id, {"tool": "verify_presence", "result_summary": f"Escalated verification: {v_res['present']}", "duration_ms": int((time.time() - t0) * 1000)}))
+                        evidence_ids.append(v_res["result_id"])
+                        if v_res.get("present"):
+                            status = FindingStatus.PASS
+                            conf = 0.85
+                            rationale += f" [Escalated Spark verification: {v_res.get('rationale')}]"
+                            for fid in v_res.get("cited_frame_ids", []):
+                                f_ts = next((float(f.get("timestamp_s", 0.0)) for f in frames if f.get("idx") == fid), 0.0)
+                                evidence_ledger.append({
+                                    "id": f"ev_{uuid.uuid4().hex[:8]}",
+                                    "frame_id": fid,
+                                    "ts": f_ts,
+                                    "source": "spark",
+                                    "concept": primary_prompt,
+                                    "box": None,
+                                    "mask_ref": None,
+                                    "score": 0.85,
+                                    "strength": EvidenceStrength.MODEL_ATTESTED.value,
+                                })
 
                 elif r_type == "absence":
                     all_dets = []
@@ -323,6 +397,10 @@ class AgentRunner:
 
                 # Check for nearby voice note evidence
                 sources = ["segmentation"]
+                if detector == "spark_vision":
+                    sources = ["spark_vision"]
+                elif detector == "sam_then_spark" and 'v_res' in locals():
+                    sources = ["segmentation", "spark_vision"]
                 if measurement_data:
                     sources.append("measurement")
                 if voice_notes_data:
@@ -331,6 +409,32 @@ class AgentRunner:
                         sources.append("voice_note")
                         if closest_note.get("transcript"):
                             rationale += f" [Auditor Note: \"{closest_note['transcript']}\"]"
+                        evidence_ledger.append({
+                            "id": f"ev_{uuid.uuid4().hex[:8]}",
+                            "frame_id": rep_frame_idx,
+                            "ts": float(closest_note["timestamp_s"]),
+                            "source": "voice",
+                            "concept": closest_note.get("transcript", "voice note"),
+                            "box": None,
+                            "mask_ref": None,
+                            "score": 0.90,
+                            "strength": EvidenceStrength.VOICE_NOTE.value,
+                        })
+
+                # Apply Decision Policy (WP1)
+                status, conf, decision_policy, policy_rat = apply_decision_policy(
+                    rule_type=r_type,
+                    provisional_status=status,
+                    confidence=conf,
+                    evidence_items=evidence_ledger,
+                    escalation_ran=(detector == "sam_then_spark" and 'v_res' in locals()),
+                    min_absence_k=2,
+                    num_frames_evaluated=len(frames),
+                )
+                if policy_rat:
+                    rationale = f"{rationale} ({policy_rat})" if rationale else policy_rat
+
+                strongest_ev = select_strongest_evidence(evidence_ledger)
 
                 # Record finding through ToolRegistry (strictly checks evidence_ids)
                 rec_res = registry.execute(
@@ -346,6 +450,10 @@ class AgentRunner:
                     severity=rule.severity.value if hasattr(rule.severity, "value") else str(rule.severity),
                     sources=sources,
                     fix_text=rule.fix_text if status != "pass" else "",
+                    evidence_ledger=evidence_ledger,
+                    strongest_evidence=strongest_ev,
+                    decision_policy=decision_policy,
+                    detector=detector,
                 )
 
                 created_finding = rec_res["finding"]
@@ -389,6 +497,10 @@ class AgentRunner:
                         fix_text=created_finding["fix_text"],
                         severity=created_finding["severity"],
                         sources_json=json.dumps(sources),
+                        evidence_ledger_json=json.dumps(created_finding.get("evidence_ledger", [])),
+                        strongest_evidence_json=json.dumps(created_finding.get("strongest_evidence")) if created_finding.get("strongest_evidence") else None,
+                        decision_policy=created_finding.get("decision_policy", "default"),
+                        detector=created_finding.get("detector", "sam"),
                     )
                     session.add(finding_row)
                     session.commit()

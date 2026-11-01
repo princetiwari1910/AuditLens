@@ -97,6 +97,14 @@ class Reasoner(Protocol):
         """Evaluate rule against evidence and return verdict JSON with cited frames."""
         ...
 
+    def verify_presence(
+        self,
+        concept: str,
+        frames: list[dict[str, Any]] | list[str],
+    ) -> dict[str, Any]:
+        """Verify presence of a concept across frames; return {present: bool, cited_frame_ids: list[int], rationale: str}."""
+        ...
+
 
 @runtime_checkable
 class Transcriber(Protocol):

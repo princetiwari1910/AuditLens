@@ -329,3 +329,56 @@ class RecordReplayReasoner:
             logger.info("Recorded reasoner fixture to %s", fixture_file)
 
         return validated_result
+
+    def verify_presence(
+        self,
+        concept: str,
+        frames: list[dict[str, Any]] | list[str],
+    ) -> dict[str, Any]:
+        """Verify presence of a concept across frames with record/replay support."""
+        from app.providers.schemas import validate_presence_verdict
+
+        frame_ids: list[int] = []
+        for i, f in enumerate(frames):
+            if isinstance(f, dict):
+                frame_ids.append(int(f.get("idx", f.get("id", i))))
+            else:
+                frame_ids.append(i)
+
+        combined_hash = hashlib.sha256(
+            json.dumps({"concept": concept, "frame_ids": frame_ids}, sort_keys=True).encode("utf-8")
+        ).hexdigest()[:24]
+
+        fixture_hash = f"presence_{combined_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                if hasattr(self.inner, "verify_presence"):
+                    return self.inner.verify_presence(concept, frames)
+                return {
+                    "present": False,
+                    "cited_frame_ids": [],
+                    "rationale": f"[Replay Mode] Presence fixture '{fixture_hash}.json' missing.",
+                }
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return validate_presence_verdict(data, allowed_frame_ids=frame_ids)
+
+        cost = estimate_reasoner_cost(0.5, 0.1)
+        raw_result = execute_with_retry(
+            self.inner.verify_presence,
+            concept,
+            frames,
+            estimated_cost=cost,
+            is_video=False,
+        )
+        validated_result = validate_presence_verdict(raw_result, allowed_frame_ids=frame_ids)
+
+        if self.mode == "record":
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(validated_result, f, indent=2)
+            logger.info("Recorded presence fixture to %s", fixture_file)
+
+        return validated_result

@@ -430,3 +430,118 @@ def evaluate_colocation_rule(
             "All detected personnel are equipped with required protective equipment.",
             best_match_det or confident_containers[0],
         )
+
+
+# ── Evidence Strength & Decision Policies (WP1) ───────────────────────────────
+
+def select_strongest_evidence(evidence_items: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """
+    Select the strongest evidence item by strength hierarchy:
+    mask_backed (3) > model_attested (2) > voice_note (1), with highest score as tiebreaker.
+    """
+    if not evidence_items:
+        return None
+
+    def _rank(item: dict[str, Any]) -> tuple[int, float]:
+        strength = str(item.get("strength", "model_attested")).lower()
+        if "mask" in strength:
+            s_val = 3
+        elif "model" in strength or "spark" in strength:
+            s_val = 2
+        else:
+            s_val = 1
+        return (s_val, float(item.get("score", 0.0)))
+
+    return max(evidence_items, key=_rank)
+
+
+def apply_decision_policy(
+    rule_type: str,
+    provisional_status: str | FindingStatus,
+    confidence: float,
+    evidence_items: list[dict[str, Any]],
+    escalation_ran: bool = False,
+    min_absence_k: int = 2,
+    num_frames_evaluated: int = 0,
+) -> tuple[FindingStatus, float, str, str]:
+    """
+    Evidence-First decision policy for safety findings:
+    1. 'pass' requires mask_backed evidence, OR model_attested evidence across >=2 distinct frames.
+       Single-frame model_attested evidence is insufficient for definitive PASS (downgraded to 'unsure').
+    2. 'fail-by-absence' requires consensus across >=k frames AND active escalation loop (WP3) ran;
+       otherwise status is held as 'unsure'.
+    3. Returns: (final_status, confidence, policy_name, policy_rationale)
+    """
+    settings = get_settings()
+    if not getattr(settings, "ENABLE_EVIDENCE_MODEL", True):
+        status_enum = FindingStatus(str(provisional_status).lower())
+        return status_enum, confidence, "legacy_policy", ""
+
+    prov = str(provisional_status.value if hasattr(provisional_status, "value") else provisional_status).lower()
+
+    mask_backed = [e for e in evidence_items if "mask" in str(e.get("strength", "")).lower()]
+    model_attested = [
+        e for e in evidence_items
+        if "model" in str(e.get("strength", "")).lower() or str(e.get("source", "")).lower() in ("spark", "sam")
+    ]
+
+    # 1. PASS Policy Check
+    if prov == "pass":
+        if mask_backed:
+            return (
+                FindingStatus.PASS,
+                confidence,
+                "mask_backed_pass",
+                "Verified with mask-backed visual evidence.",
+            )
+        distinct_frames = {
+            int(e.get("frame_id", 0))
+            for e in model_attested
+            if float(e.get("score", 0.0)) >= 0.5 or e.get("source") == "spark"
+        }
+        if len(distinct_frames) >= 2:
+            return (
+                FindingStatus.PASS,
+                confidence,
+                "multi_frame_model_attested_pass",
+                f"Verified with model-attested evidence across {len(distinct_frames)} distinct frames.",
+            )
+        # Single frame model-attested is insufficient for pass
+        return (
+            FindingStatus.UNSURE,
+            min(confidence, 0.55),
+            "single_frame_attested_insufficient",
+            "Model attested on only 1 frame without spatial mask; downgraded to unsure pending multi-frame consensus.",
+        )
+
+    # 2. FAIL-BY-ABSENCE Policy Check
+    if rule_type == "presence" and prov == "fail":
+        frames_checked = max(num_frames_evaluated, len({int(e.get("frame_id", 0)) for e in evidence_items}))
+        has_k_consensus = frames_checked >= min_absence_k
+        if has_k_consensus and escalation_ran:
+            return (
+                FindingStatus.FAIL,
+                confidence,
+                "absence_escalated_consensus_fail",
+                f"Item confirmed absent across {frames_checked} frames with active escalation verification.",
+            )
+        else:
+            reason = "Absence verification pending escalation loop" if not escalation_ran else f"Insufficient frame consensus ({frames_checked} < {min_absence_k} frames)"
+            return (
+                FindingStatus.UNSURE,
+                0.50,
+                "absence_unverified_escalation_unsure",
+                f"Item not detected, but {reason}; status held as unsure.",
+            )
+
+    # 3. Hazard detected (absence rule failing because obstacle was observed)
+    if rule_type == "absence" and prov == "fail":
+        return (
+            FindingStatus.FAIL,
+            confidence,
+            "hazard_detected_fail",
+            "Hazard or prohibited obstruction detected.",
+        )
+
+    status_enum = FindingStatus(prov) if prov in ("pass", "fail", "unsure") else FindingStatus.UNSURE
+    return status_enum, confidence, "standard_eval", ""

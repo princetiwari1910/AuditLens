@@ -360,6 +360,10 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
     for f in findings:
         meas = json.loads(f.measurement_json) if f.measurement_json else None
         sources = json.loads(f.sources_json) if f.sources_json else ["segmentation"]
+        ev_ledger = json.loads(getattr(f, "evidence_ledger_json", "[]")) if getattr(f, "evidence_ledger_json", None) else []
+        strongest_ev = json.loads(getattr(f, "strongest_evidence_json", "null")) if getattr(f, "strongest_evidence_json", None) else None
+        policy = getattr(f, "decision_policy", "default")
+        detector_val = getattr(f, "detector", "sam")
         findings_data.append({
             "id": f.id,
             "rule_id": f.rule_id,
@@ -373,6 +377,10 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
             "fix_text": f.fix_text,
             "severity": f.severity,
             "sources": sources,
+            "evidence_ledger": ev_ledger,
+            "strongest_evidence": strongest_ev,
+            "decision_policy": policy,
+            "detector": detector_val,
         })
 
     has_video = bool(

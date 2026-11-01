@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Self
 import uuid
 
-from pydantic import BaseModel, Field as PydanticField, model_validator
+from pydantic import BaseModel, Field as PydanticField, field_validator, model_validator
 from sqlmodel import Field, SQLModel
 
 from app.concept_validation import validate_concept
@@ -50,6 +50,30 @@ class AuditStatus(str, Enum):
     FAILED = "failed"
 
 
+class EvidenceStrength(str, Enum):
+    MASK_BACKED = "mask_backed"
+    MODEL_ATTESTED = "model_attested"
+    VOICE_NOTE = "voice_note"
+
+
+class DetectorType(str, Enum):
+    SAM = "sam"
+    SPARK_VISION = "spark_vision"
+    SAM_THEN_SPARK = "sam_then_spark"
+
+
+class EvidenceItem(BaseModel):
+    id: str = PydanticField(default_factory=lambda: f"ev_{uuid.uuid4().hex[:8]}")
+    frame_id: int
+    ts: float
+    source: str  # "sam" | "spark" | "voice"
+    concept: str
+    box: dict[str, float] | None = None
+    mask_ref: Any | None = None
+    score: float = 0.0
+    strength: EvidenceStrength = EvidenceStrength.MODEL_ATTESTED
+
+
 class RuleModel(BaseModel):
     id: str
     title: str
@@ -58,8 +82,22 @@ class RuleModel(BaseModel):
     sam_prompts: list[str] = PydanticField(default_factory=list)
     params: dict[str, Any] = PydanticField(default_factory=dict)
     fix_text: str = ""
-    detector: str = "SAM 3.1"
+    detector: str = "sam"
     evidence_needed: str = "Bounding box detection and confidence score"
+
+    @field_validator("detector", mode="before")
+    @classmethod
+    def normalize_detector(cls, v: Any) -> str:
+        if not v:
+            return "sam"
+        v_str = str(v).lower().strip()
+        if "spark_vision" in v_str or v_str == "spark":
+            return "spark_vision"
+        if "sam_then_spark" in v_str or "hybrid" in v_str:
+            return "sam_then_spark"
+        if "sam" in v_str:
+            return "sam"
+        return "sam"
 
 
 class TemplateModel(BaseModel):
@@ -139,6 +177,10 @@ class Finding(SQLModel, table=True):
     fix_text: str = ""
     severity: str = "medium"
     sources_json: str = "[]"
+    evidence_ledger_json: str = "[]"
+    strongest_evidence_json: str | None = Field(default=None)
+    decision_policy: str = "default"
+    detector: str = "sam"
 
 
 class VoiceNote(SQLModel, table=True):

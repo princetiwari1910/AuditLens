@@ -103,6 +103,22 @@ class Settings(BaseSettings):
     VIDEO_CONCURRENCY_LIMIT: int = 1
     IMAGE_CONCURRENCY_LIMIT: int = 4
 
+    # ── Feature Flags (default ON unless stated, env overridable) ──────────────
+    ENABLE_EVIDENCE_MODEL: bool = True
+    ENABLE_HYBRID_DETECTORS: bool = True
+    ENABLE_TRACKING: bool = True
+    ENABLE_ACTIVE_GATHERING: bool = True
+    PRIVACY_MODE: bool = True
+    ENABLE_HUMAN_REVIEW: bool = True
+    ENABLE_TRACE_OBSERVABILITY: bool = True
+    ENABLE_EVIDENCE_BUNDLE: bool = True
+    ENABLE_FIX_PLAN: bool = True
+    ENABLE_SITES: bool = True
+    ENABLE_NATURAL_LANGUAGE_CHECKLIST: bool = True
+    ENABLE_STRUCTURED_VOICE_NOTES: bool = True
+    ENABLE_ESCALATION_CASCADE: bool = False  # default OFF per WP16
+    ESCALATION_MODEL: str | None = None
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property
