@@ -226,3 +226,19 @@ class CostLog(SQLModel, table=True):
     latency_ms: int = Field(default=0)
     cache_hit: bool = Field(default=False)
     created_at: datetime = Field(default_factory=_utc_now)
+
+
+class AuditSpan(SQLModel, table=True):
+    __tablename__ = "audit_span"
+
+    id: int | None = Field(default=None, primary_key=True)
+    audit_id: str = Field(index=True)
+    stage: str = Field(index=True)
+    model: str = Field(default="")
+    concept: str | None = Field(default=None)
+    latency_ms: int = Field(default=0)
+    cost_usd: float = Field(default=0.0)
+    cache_hit: bool = Field(default=False)
+    retries: int = Field(default=0)
+    step_reason: str = Field(default="")
+    created_at: datetime = Field(default_factory=_utc_now)

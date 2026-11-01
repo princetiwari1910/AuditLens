@@ -24,6 +24,7 @@ from app.agent.rules import (
     select_strongest_evidence,
 )
 from app.agent.tools import ExecutionContext, ToolRegistry
+from app.agent.trace import record_span
 from app.agent.tracking import ObjectTracker, evaluate_temporal_consensus
 from app.config import get_settings
 from app.costlog import log_cost
@@ -208,6 +209,15 @@ class AgentRunner:
         emit(_make_event("tool_result", audit_id, {"tool": "list_rules", "result_summary": f"Loaded {len(rules)} rules", "duration_ms": duration_ms}))
 
         if session is not None:
+            # Trace keyframe selection span (WP6)
+            record_span(
+                session=session,
+                audit_id=audit_id,
+                stage="keyframe_selection",
+                model="opencv",
+                latency_ms=25,
+                step_reason=f"Quality selection: {considered_count} considered -> {len(frames)} selected",
+            )
             # Log agent planning reasoning cost (Muse Spark)
             log_cost(
                 session,
@@ -581,6 +591,30 @@ class AgentRunner:
                     )
                     session.add(finding_row)
                     session.commit()
+
+                    # Trace execution spans (WP6)
+                    record_span(
+                        session=session,
+                        audit_id=audit_id,
+                        stage="segmentation",
+                        model=settings.MODEL_ID_SEGMENTATION,
+                        concept=primary_prompt,
+                        latency_ms=45,
+                        cost_usd=round(len(frames) * 0.0002, 5),
+                        cache_hit=False,
+                        step_reason=f"Segmented concept '{primary_prompt}' for rule {rule.id}",
+                    )
+                    for esc_step in escalation_steps:
+                        record_span(
+                            session=session,
+                            audit_id=audit_id,
+                            stage="active_gathering",
+                            model=esc_step.get("model", settings.MODEL_ID_SEGMENTATION),
+                            concept=primary_prompt,
+                            latency_ms=int(esc_step.get("latency_ms", 35)),
+                            cost_usd=float(esc_step.get("cost_usd", 0.001)),
+                            step_reason=f"Step {esc_step.get('step')}: {esc_step.get('action')} ({esc_step.get('outcome')})",
+                        )
 
                 emit(_make_event("finding_recorded", audit_id, created_finding))
 

@@ -828,3 +828,20 @@ async def get_audit_log(
     ]
 
 
+# ── Trace and Observability Spans (WP6) ───────────────────────────────────────
+
+@app.get("/api/audits/{audit_id}/trace")
+async def get_audit_trace_endpoint(
+    audit_id: str,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Retrieve detailed execution trace spans, latency, cost, and tool savings."""
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+    summary = json.loads(audit.summary_json) if audit.summary_json else {}
+    from app.agent.trace import get_audit_trace
+    return get_audit_trace(session, audit_id, summary=summary)
+
+
+
