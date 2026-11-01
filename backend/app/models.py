@@ -181,6 +181,8 @@ class Finding(SQLModel, table=True):
     strongest_evidence_json: str | None = Field(default=None)
     decision_policy: str = "default"
     detector: str = "sam"
+    support_count: int = 1
+    stability: float = 1.0
 
 
 class VoiceNote(SQLModel, table=True):

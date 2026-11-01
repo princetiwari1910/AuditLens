@@ -23,6 +23,7 @@ from app.agent.rules import (
     select_strongest_evidence,
 )
 from app.agent.tools import ExecutionContext, ToolRegistry
+from app.agent.tracking import ObjectTracker, evaluate_temporal_consensus
 from app.config import get_settings
 from app.costlog import log_cost
 from app.models import Audit, AuditStatus, EvidenceItem, EvidenceStrength, Finding, Frame, RuleModel, VoiceNote
@@ -421,6 +422,33 @@ class AgentRunner:
                             "strength": EvidenceStrength.VOICE_NOTE.value,
                         })
 
+                # Temporal consensus via ObjectTracker (WP2)
+                supp_cnt = 1
+                stability_val = 1.0
+                settings = get_settings()
+                if getattr(settings, "ENABLE_TRACKING", True):
+                    tracker_input_dets = []
+                    if r_type == "presence" and 'find_res' in locals():
+                        tracker_input_dets = find_res.get("detections", [])
+                    elif r_type == "absence" and 'all_dets' in locals():
+                        tracker_input_dets = all_dets
+                    elif r_type == "count" and 'find_res' in locals():
+                        tracker_input_dets = find_res.get("detections", [])
+
+                    if tracker_input_dets:
+                        tracker = ObjectTracker()
+                        rule_tracks = tracker.track(tracker_input_dets)
+                        consensus_res = evaluate_temporal_consensus(
+                            rule_tracks,
+                            total_frames=len(frames),
+                            min_k=int(rule.params.get("min_k", 2)),
+                            min_confidence=float(rule.params.get("min_score", 0.6)),
+                        )
+                        supp_cnt = consensus_res["support_count"]
+                        stability_val = consensus_res["stability"]
+                        if consensus_res["best_detection"]:
+                            best_rep_detection = consensus_res["best_detection"]
+
                 # Apply Decision Policy (WP1)
                 status, conf, decision_policy, policy_rat = apply_decision_policy(
                     rule_type=r_type,
@@ -454,6 +482,8 @@ class AgentRunner:
                     strongest_evidence=strongest_ev,
                     decision_policy=decision_policy,
                     detector=detector,
+                    support_count=supp_cnt,
+                    stability=stability_val,
                 )
 
                 created_finding = rec_res["finding"]
@@ -501,6 +531,8 @@ class AgentRunner:
                         strongest_evidence_json=json.dumps(created_finding.get("strongest_evidence")) if created_finding.get("strongest_evidence") else None,
                         decision_policy=created_finding.get("decision_policy", "default"),
                         detector=created_finding.get("detector", "sam"),
+                        support_count=supp_cnt,
+                        stability=stability_val,
                     )
                     session.add(finding_row)
                     session.commit()
