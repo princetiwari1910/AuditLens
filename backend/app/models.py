@@ -121,10 +121,20 @@ class TemplateModel(BaseModel):
 
 # ── Database Tables (SQLModel) ────────────────────────────────────────────────
 
+class Site(SQLModel, table=True):
+    __tablename__ = "site"
+
+    id: str = Field(default_factory=_gen_uuid, primary_key=True)
+    name: str = Field(index=True)
+    location_label: str = Field(default="")
+    created_at: datetime = Field(default_factory=_utc_now)
+
+
 class Audit(SQLModel, table=True):
     __tablename__ = "audit"
 
     id: str = Field(default_factory=_gen_uuid, primary_key=True)
+    site_id: str | None = Field(default=None, index=True)
     template_id: str = Field(index=True)
     custom_rules_json: str | None = Field(default=None)
     status: str = Field(default=AuditStatus.QUEUED.value, index=True)

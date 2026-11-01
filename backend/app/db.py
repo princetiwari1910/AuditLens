@@ -56,6 +56,7 @@ def init_db(engine_instance=None) -> None:
                 ("model_transcription", "VARCHAR DEFAULT 'Muse Voice Transcribe'"),
                 ("is_replay", "BOOLEAN DEFAULT 0"),
                 ("fix_plan_json", "TEXT DEFAULT NULL"),
+                ("site_id", "VARCHAR DEFAULT NULL"),
             ]:
                 if col_name not in audit_cols:
                     conn.exec_driver_sql(f"ALTER TABLE audit ADD COLUMN {col_name} {col_type}")
@@ -84,6 +85,23 @@ def init_db(engine_instance=None) -> None:
                 if col_name not in finding_cols:
                     conn.exec_driver_sql(f"ALTER TABLE finding ADD COLUMN {col_name} {col_type}")
             conn.commit()
+    except Exception:
+        pass
+
+    # Seed default demo site (WP11)
+    try:
+        from app.models import Site
+        with Session(eng) as s:
+            demo_site = s.get(Site, "site_demo_building_a")
+            if not demo_site:
+                s.add(
+                    Site(
+                        id="site_demo_building_a",
+                        name="Building A - Engineering Hub",
+                        location_label="HQ Campus, 2nd Floor",
+                    )
+                )
+                s.commit()
     except Exception:
         pass
 

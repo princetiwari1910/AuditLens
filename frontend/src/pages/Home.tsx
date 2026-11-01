@@ -11,6 +11,7 @@ import {
   FileCheck,
   Loader2,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 import {
   getAudits,
@@ -99,6 +100,14 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/sites"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)]"
+            >
+              <Building2 className="h-4 w-4 text-indigo-500" />
+              <span className="hidden sm:inline">Sites & History</span>
+            </Link>
+
             <Link
               to="/eval"
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)]"

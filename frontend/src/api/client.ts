@@ -252,6 +252,63 @@ export function getFixPlan(auditId: string): Promise<FixAction[]> {
   return request<FixAction[]>(`/audits/${auditId}/fix_plan`);
 }
 
+export interface Site {
+  id: string;
+  name: string;
+  location_label: string;
+  created_at?: string;
+  audit_count: number;
+  latest_score?: number | null;
+  latest_audit_id?: string | null;
+}
+
+export interface ScoreTrendItem {
+  audit_id: string;
+  created_at: string;
+  score: number;
+  pass_count: number;
+  fail_count: number;
+  unsure_count: number;
+}
+
+export interface SiteTrends {
+  site: {
+    id: string;
+    name: string;
+    location_label: string;
+    created_at?: string;
+  };
+  score_trend: ScoreTrendItem[];
+  open_issues: Array<{
+    finding_id: string;
+    rule_id: string;
+    severity: string;
+    rationale: string;
+    fix_text: string;
+  }>;
+  recurring_issues: Array<{
+    rule_id: string;
+    fail_occurrences: number;
+  }>;
+  resolved_issues: Array<{
+    rule_id: string;
+    status: string;
+    note: string;
+  }>;
+}
+
+export function getSites(): Promise<Site[]> {
+  return request<Site[]>('/sites');
+}
+
+export function getSiteAudits(siteId: string): Promise<Audit[]> {
+  return request<Audit[]>(`/sites/${siteId}/audits`);
+}
+
+export function getSiteTrends(siteId: string): Promise<SiteTrends> {
+  return request<SiteTrends>(`/sites/${siteId}/trends`);
+}
+
 export default {
   getHealth,
   getTemplates,

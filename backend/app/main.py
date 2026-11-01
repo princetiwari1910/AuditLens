@@ -34,7 +34,7 @@ from app.costlog import get_audit_cost_summary
 from app.db import get_session, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
-from app.models import Audit, AuditLog, AuditStatus, Finding, Frame, VoiceNote
+from app.models import Audit, AuditLog, AuditStatus, Finding, Frame, Site, VoiceNote
 from app.providers import get_transcription_provider
 from app.storage import (
     ALLOWED_AUDIO_EXTENSIONS,
@@ -183,6 +183,7 @@ async def create_demo_audit(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown template: '{template_id}'")
 
     audit = Audit(
+        site_id="site_demo_building_a",
         template_id=template_id,
         status=AuditStatus.QUEUED.value,
         provider_mode=settings.PROVIDER_MODE,
@@ -238,6 +239,7 @@ async def create_audit(
     images: list[UploadFile] | None = File(default=None),
     template_id: str | None = Form(default=None),
     custom_rules: str | None = Form(default=None),
+    site_id: str | None = Form(default=None),
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """
@@ -266,6 +268,7 @@ async def create_audit(
 
     # Create new audit record
     audit = Audit(
+        site_id=site_id or "site_demo_building_a",
         template_id=template_id or "custom",
         custom_rules_json=custom_rules if custom_rules else None,
         status=AuditStatus.QUEUED.value,
@@ -328,6 +331,7 @@ async def list_audits(session: Session = Depends(get_session)) -> list[dict[str,
         summary = json.loads(a.summary_json) if a.summary_json else None
         results.append({
             "id": a.id,
+            "site_id": a.site_id,
             "status": a.status,
             "template_id": a.template_id,
             "created_at": a.created_at.isoformat() if a.created_at else None,
@@ -402,6 +406,7 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
 
     return {
         "id": audit.id,
+        "site_id": audit.site_id,
         "status": audit.status,
         "template_id": audit.template_id,
         "created_at": audit.created_at.isoformat() if audit.created_at else None,
@@ -924,6 +929,177 @@ async def get_audit_fix_plan(
     session.add(audit)
     session.commit()
     return fix_plan
+
+
+# ── Sites and Multi-Audit Trend History (WP11) ────────────────────────────────
+
+@app.get("/api/sites")
+async def list_sites(session: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    """List all registered sites with audit counts and latest safety scores."""
+    sites = session.exec(select(Site).order_by(Site.name.asc())).all()
+    results = []
+    for s in sites:
+        audits = session.exec(
+            select(Audit).where(Audit.site_id == s.id).order_by(desc(Audit.created_at))
+        ).all()
+        latest_audit = audits[0] if audits else None
+        latest_score = None
+        if latest_audit and latest_audit.summary_json:
+            try:
+                latest_score = json.loads(latest_audit.summary_json).get("score")
+            except Exception:
+                pass
+        results.append({
+            "id": s.id,
+            "name": s.name,
+            "location_label": s.location_label,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "audit_count": len(audits),
+            "latest_score": latest_score,
+            "latest_audit_id": latest_audit.id if latest_audit else None,
+        })
+    return results
+
+
+@app.get("/api/sites/{site_id}/audits")
+async def list_site_audits(
+    site_id: str,
+    session: Session = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Retrieve all historical audits conducted at a specific site."""
+    site = session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Site '{site_id}' not found")
+
+    audits = session.exec(
+        select(Audit).where(Audit.site_id == site_id).order_by(desc(Audit.created_at))
+    ).all()
+    results = []
+    for a in audits:
+        summary = json.loads(a.summary_json) if a.summary_json else None
+        results.append({
+            "id": a.id,
+            "site_id": a.site_id,
+            "status": a.status,
+            "template_id": a.template_id,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+            "duration_s": a.duration_s,
+            "summary": summary,
+            "provider_mode": a.provider_mode,
+            "is_replay": a.is_replay,
+        })
+    return results
+
+
+@app.get("/api/sites/{site_id}/trends")
+async def get_site_trends(
+    site_id: str,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Retrieve longitudinal multi-audit trends: score progression, open issues, recurring issues, and resolved issues."""
+    site = session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Site '{site_id}' not found")
+
+    # Chronological audits for score trend
+    audits = session.exec(
+        select(Audit).where(Audit.site_id == site_id)
+        .order_by(Audit.created_at.asc())
+    ).all()
+
+    score_trend = []
+    for a in audits:
+        summ = json.loads(a.summary_json) if a.summary_json else {}
+        score_trend.append({
+            "audit_id": a.id,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+            "score": summ.get("score", 0),
+            "pass_count": summ.get("pass_count", 0),
+            "fail_count": summ.get("fail_count", 0),
+            "unsure_count": summ.get("unsure_count", 0),
+        })
+
+    audit_ids = [a.id for a in audits]
+    audit_findings: dict[str, list[Finding]] = {}
+    if audit_ids:
+        all_findings = session.exec(
+            select(Finding).where(Finding.audit_id.in_(audit_ids))
+        ).all()
+        for f in all_findings:
+            audit_findings.setdefault(f.audit_id, []).append(f)
+
+    # 1. Open issues: from latest completed/processed audit where verdict is 'fail'
+    open_issues = []
+    latest_audit = audits[-1] if audits else None
+    if latest_audit:
+        for f in audit_findings.get(latest_audit.id, []):
+            st = getattr(f, "final_verdict", f.status) or f.status
+            if st == "fail":
+                open_issues.append({
+                    "finding_id": f.id,
+                    "rule_id": f.rule_id,
+                    "severity": f.severity,
+                    "rationale": f.rationale,
+                    "fix_text": f.fix_text,
+                })
+
+    # 2. Recurring issues: rules that failed across >= 2 separate audits
+    fail_counts_by_rule: dict[str, int] = {}
+    for a in audits:
+        failed_rules_in_audit = set()
+        for f in audit_findings.get(a.id, []):
+            st = getattr(f, "final_verdict", f.status) or f.status
+            if st == "fail":
+                failed_rules_in_audit.add(f.rule_id)
+        for r_id in failed_rules_in_audit:
+            fail_counts_by_rule[r_id] = fail_counts_by_rule.get(r_id, 0) + 1
+
+    recurring_issues = [
+        {"rule_id": r_id, "fail_occurrences": cnt}
+        for r_id, cnt in fail_counts_by_rule.items()
+        if cnt >= 2
+    ]
+
+    # 3. Resolved issues: rules that failed in an earlier audit and passed in a subsequent audit
+    resolved_issues = []
+    all_rules_seen = set()
+    for f_list in audit_findings.values():
+        for f in f_list:
+            all_rules_seen.add(f.rule_id)
+
+    for r_id in all_rules_seen:
+        earlier_failed = False
+        subsequent_passed = False
+        for a in audits:
+            r_findings = [f for f in audit_findings.get(a.id, []) if f.rule_id == r_id]
+            if not r_findings:
+                continue
+            st = getattr(r_findings[0], "final_verdict", r_findings[0].status) or r_findings[0].status
+            if st == "fail":
+                earlier_failed = True
+            elif st == "pass" and earlier_failed:
+                subsequent_passed = True
+
+        if earlier_failed and subsequent_passed:
+            resolved_issues.append({
+                "rule_id": r_id,
+                "status": "resolved",
+                "note": "Previously failed in earlier inspection, verified passing in subsequent walkthrough.",
+            })
+
+    return {
+        "site": {
+            "id": site.id,
+            "name": site.name,
+            "location_label": site.location_label,
+            "created_at": site.created_at.isoformat() if site.created_at else None,
+        },
+        "score_trend": score_trend,
+        "open_issues": open_issues,
+        "recurring_issues": recurring_issues,
+        "resolved_issues": resolved_issues,
+    }
+
 
 
 
