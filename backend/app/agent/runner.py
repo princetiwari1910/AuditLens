@@ -417,16 +417,38 @@ class AgentRunner:
                     sources.append("measurement")
                 if voice_notes_data:
                     closest_note = min(voice_notes_data, key=lambda vn: abs(vn["timestamp_s"] - rep_timestamp_s))
-                    if abs(closest_note["timestamp_s"] - rep_timestamp_s) <= 4.0:
+                    if abs(closest_note["timestamp_s"] - rep_timestamp_s) <= 5.0:
                         sources.append("voice_note")
-                        if closest_note.get("transcript"):
-                            rationale += f" [Auditor Note: \"{closest_note['transcript']}\"]"
+                        raw_transcript = closest_note.get("transcript") or ""
+                        structured_note: dict[str, Any] = {}
+                        if raw_transcript:
+                            try:
+                                extract_reasoner = self.reasoner
+                                if extract_reasoner is None:
+                                    from app.providers.mock import MockReasoner
+                                    extract_reasoner = MockReasoner()
+                                if hasattr(extract_reasoner, "extract_note"):
+                                    structured_note = extract_reasoner.extract_note(raw_transcript)
+                            except Exception:
+                                pass
+
+                        loc_str = structured_note.get("location", "")
+                        issue_str = structured_note.get("issue", "")
+                        sev_hint = structured_note.get("severity_hint", "")
+
+                        tag_parts = [p for p in [loc_str, sev_hint] if p]
+                        tag_header = f"Auditor Note: ({', '.join(tag_parts)})" if tag_parts else "Auditor Note:"
+                        if raw_transcript:
+                            rationale += f" [{tag_header} \"{raw_transcript}\"]"
+
                         evidence_ledger.append({
                             "id": f"ev_{uuid.uuid4().hex[:8]}",
                             "frame_id": rep_frame_idx,
                             "ts": float(closest_note["timestamp_s"]),
                             "source": "voice",
-                            "concept": closest_note.get("transcript", "voice note"),
+                            "concept": issue_str or raw_transcript or "voice note",
+                            "location": loc_str or "general",
+                            "severity_hint": sev_hint or "medium",
                             "box": None,
                             "mask_ref": None,
                             "score": 0.90,

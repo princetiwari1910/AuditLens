@@ -451,6 +451,55 @@ class MockReasoner:
             "rules": rules,
         }
 
+    def extract_note(
+        self,
+        transcript: str,
+    ) -> dict[str, Any]:
+        """Extract structured {location, issue, severity_hint} from spoken transcript, supporting Hinglish."""
+        from app.providers.schemas import validate_structured_voice_note
+
+        t_lower = transcript.lower()
+
+        # Location extraction (English and Hindi/Hinglish terms)
+        location = "General Area"
+        if any(w in t_lower for w in ["entrance", "entry", "gate", "doorway", "darwaza", "main gate"]):
+            location = "Main Entrance"
+        elif any(w in t_lower for w in ["hallway", "corridor", "rasta", "aisle", "passage", "walkway"]):
+            location = "Hallway / Egress Path"
+        elif any(w in t_lower for w in ["exit", "fire door", "emergency exit", "stair", "stairs"]):
+            location = "Emergency Exit Door"
+        elif any(w in t_lower for w in ["lab", "room", "workshop", "kamra", "office"]):
+            location = "Work Area"
+
+        # Severity hint
+        severity = "medium"
+        if any(w in t_lower for w in ["danger", "hazard", "khatra", "emergency", "critical", "blocked", "band", "expire", "fail", "bad"]):
+            severity = "high"
+        elif any(w in t_lower for w in ["minor", "slight", "theek", "clear", "pass", "ok", "valid", "saaf", "good"]):
+            severity = "low"
+
+        # Issue extraction
+        issue = transcript.strip()
+        if "fire extinguisher" in t_lower or "extinguisher" in t_lower:
+            if "expire" in t_lower or "check" in t_lower or "valid" in t_lower:
+                issue = "Fire extinguisher inspection & validity check"
+            else:
+                issue = "Fire extinguisher condition observation"
+        elif "exit" in t_lower or "rasta" in t_lower or "door" in t_lower:
+            if "block" in t_lower or "band" in t_lower or "box" in t_lower:
+                issue = "Exit obstruction / blockage reported"
+            else:
+                issue = "Exit path clearance check"
+
+        raw = {
+            "location": location,
+            "issue": issue,
+            "severity_hint": severity,
+            "raw_transcript": transcript,
+        }
+        return validate_structured_voice_note(raw)
+
+
 
 
 

@@ -569,8 +569,14 @@ async def upload_voice_note(
                 if "voice_note" not in sources:
                     sources.append("voice_note")
                     f.sources_json = json.dumps(sources)
-                if transcript_text and f"[Auditor Note:" not in f.rationale:
-                    f.rationale = f.rationale + f" [Auditor Note: \"{transcript_text}\"]"
+                if transcript_text and "[Auditor Note:" not in f.rationale:
+                    try:
+                        from app.providers.mock import MockReasoner
+                        structured = MockReasoner().extract_note(transcript_text)
+                        tag = f"Auditor Note: ({structured['location']}, {structured['severity_hint']})"
+                    except Exception:
+                        tag = "Auditor Note:"
+                    f.rationale = f.rationale + f" [{tag} \"{transcript_text}\"]"
                 session.add(f)
         if findings:
             session.commit()

@@ -457,4 +457,47 @@ class RecordReplayReasoner:
 
         return raw_result
 
+    def extract_note(
+        self,
+        transcript: str,
+    ) -> dict[str, Any]:
+        """Extract structured voice note information with record/replay support."""
+        from app.providers.schemas import validate_structured_voice_note
+
+        t_hash = hashlib.sha256(transcript.strip().encode("utf-8")).hexdigest()[:24]
+        fixture_hash = f"vn_{t_hash}"
+        fixtures_dir = get_fixtures_dir()
+        fixture_file = fixtures_dir / f"{fixture_hash}.json"
+
+        if self.mode == "replay":
+            if not fixture_file.exists():
+                if hasattr(self.inner, "extract_note"):
+                    return self.inner.extract_note(transcript)
+                return {
+                    "location": "general",
+                    "issue": transcript,
+                    "severity_hint": "medium",
+                    "raw_transcript": transcript,
+                }
+            with open(fixture_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return validate_structured_voice_note(data)
+
+        cost = estimate_reasoner_cost(0.2, 0.1)
+        raw_result = execute_with_retry(
+            self.inner.extract_note,
+            transcript,
+            estimated_cost=cost,
+            is_video=False,
+        )
+        validated = validate_structured_voice_note(raw_result)
+
+        if self.mode == "record":
+            with open(fixture_file, "w", encoding="utf-8") as f:
+                json.dump(validated, f, indent=2)
+            logger.info("Recorded structured voice note fixture to %s", fixture_file)
+
+        return validated
+
+
 

@@ -376,3 +376,59 @@ def validate_fix_actions(
 
     return results
 
+
+# ── Structured Voice Note Schema & Validation (WP13) ──────────────────────────
+
+class StructuredVoiceNote(BaseModel):
+    location: str = "general"
+    issue: str = ""
+    severity_hint: str = "medium"  # "high" | "medium" | "low"
+    raw_transcript: str = ""
+
+    @field_validator("severity_hint", mode="before")
+    @classmethod
+    def clean_severity_hint(cls, v: Any) -> str:
+        s = str(v).lower().strip() if v else "medium"
+        return s if s in ("high", "medium", "low") else "medium"
+
+
+def validate_structured_voice_note(raw_data: Any) -> dict[str, Any]:
+    """Validate structured voice note representation."""
+    data = raw_data
+    if isinstance(raw_data, str):
+        try:
+            data = json.loads(raw_data)
+        except Exception:
+            return {
+                "location": "general",
+                "issue": raw_data[:120],
+                "severity_hint": "medium",
+                "raw_transcript": raw_data,
+            }
+
+    if not isinstance(data, dict):
+        return {
+            "location": "general",
+            "issue": str(data)[:120],
+            "severity_hint": "medium",
+            "raw_transcript": str(data),
+        }
+
+    try:
+        vn = StructuredVoiceNote.model_validate(data)
+        return {
+            "location": vn.location,
+            "issue": vn.issue,
+            "severity_hint": vn.severity_hint,
+            "raw_transcript": vn.raw_transcript,
+        }
+    except Exception as exc:
+        logger.warning("StructuredVoiceNote validation error: %s", exc)
+        return {
+            "location": str(data.get("location", "general")),
+            "issue": str(data.get("issue", "")),
+            "severity_hint": "medium",
+            "raw_transcript": str(data.get("raw_transcript", "")),
+        }
+
+

@@ -119,6 +119,13 @@ class Reasoner(Protocol):
         """Compile plain-English checklist text into structured draft template JSON."""
         ...
 
+    def extract_note(
+        self,
+        transcript: str,
+    ) -> dict[str, Any]:
+        """Extract structured information {location, issue, severity_hint} from spoken transcript."""
+        ...
+
 
 @runtime_checkable
 class Transcriber(Protocol):

@@ -696,6 +696,45 @@ class MetaAgentProvider:
             estimated_cost=estimate_reasoner_cost(1.0, 0.5),
         )
 
+    def extract_note(
+        self,
+        transcript: str,
+    ) -> dict[str, Any]:
+        """
+        Extract structured information {location, issue, severity_hint} from spoken transcript using Muse Spark.
+        TODO(meta): Connect to live Muse Spark when API key is provided.
+        UNVERIFIED against live API.
+        """
+        from app.providers.schemas import validate_structured_voice_note
+
+        client = self._get_client()
+
+        def _call_spark_extract() -> dict[str, Any]:
+            resp = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are AuditLens Voice Note Structurer (Muse Spark). "
+                            "Extract location, issue, and severity_hint ('high'|'medium'|'low') "
+                            "from the auditor transcript (supports English and Hinglish). Output strict JSON."
+                        ),
+                    },
+                    {"role": "user", "content": transcript},
+                ],
+                response_format={"type": "json_object"},
+            )
+            raw = ""
+            if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
+                raw = resp.choices[0].message.content
+            return validate_structured_voice_note(raw)
+
+        return execute_with_retry(
+            _call_spark_extract,
+            estimated_cost=estimate_reasoner_cost(0.2, 0.1),
+        )
+
     def run_audit(
         self,
         audit: Any,
