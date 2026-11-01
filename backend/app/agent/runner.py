@@ -576,6 +576,8 @@ class AgentRunner:
                         support_count=supp_cnt,
                         stability=stability_val,
                         escalation_steps_json=json.dumps(created_finding.get("escalation_steps", [])),
+                        ai_verdict=created_finding["status"],
+                        final_verdict=created_finding["status"],
                     )
                     session.add(finding_row)
                     session.commit()

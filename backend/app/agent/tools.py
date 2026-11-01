@@ -635,6 +635,8 @@ class ToolRegistry:
             "support_count": support_count,
             "stability": stability,
             "escalation_steps": escalation_steps or [],
+            "ai_verdict": status,
+            "final_verdict": status,
         }
         self.ctx.findings.append(finding)
         return {"finding_id": finding_id, "finding": finding}

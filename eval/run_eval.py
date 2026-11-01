@@ -89,6 +89,7 @@ class ModeEvaluationSummary:
     reliability_curve: list[dict[str, Any]]
     accuracy_vs_abstain: list[dict[str, Any]]
     failure_cases: list[FailureCase]
+    override_rate: float = 0.0
 
 
 def compute_rule_metrics(
@@ -270,10 +271,12 @@ def summarize_evaluation(
             reliability_curve=rel_curve,
             accuracy_vs_abstain=acc_abstain,
             failure_cases=[],
+            override_rate=0.0,
         )
 
     correct_count = sum(1 for m in flat_metrics if m.is_correct)
     unsure_count = sum(1 for m in flat_metrics if m.is_unsure)
+    override_count = sum(1 for m in flat_metrics if getattr(m, "is_override", False))
 
     overall_accuracy = round(correct_count / total_evals, 4)
     unsure_rate = round(unsure_count / total_evals, 4)
@@ -304,6 +307,7 @@ def summarize_evaluation(
         reliability_curve=rel_curve,
         accuracy_vs_abstain=acc_abstain,
         failure_cases=failure_cases or [],
+        override_rate=round(override_count / total_evals, 4) if total_evals > 0 else 0.0,
     )
 
 
@@ -447,6 +451,10 @@ def generate_markdown_report(
     base_unsure = f"{baseline_summary.unsure_rate * 100:.1f}%" if baseline_summary else "N/A"
     delta_unsure = delta_hidden_msg if is_mock else "Resolved by Tools"
     lines.append(f"| **Unsure Rate (Needs Review)** | {pipe_unsure} | {base_unsure} | {delta_unsure} |")
+
+    pipe_over = f"{getattr(pipeline_summary, 'override_rate', 0.0) * 100:.1f}%" if pipeline_summary else "N/A"
+    base_over = f"{getattr(baseline_summary, 'override_rate', 0.0) * 100:.1f}%" if baseline_summary else "N/A"
+    lines.append(f"| **Human Override Rate** | {pipe_over} | {base_over} | N/A |")
 
     pipe_f1 = f"{pipeline_summary.macro_f1:.3f}" if pipeline_summary else "N/A"
     base_f1 = f"{baseline_summary.macro_f1:.3f}" if baseline_summary else "N/A"

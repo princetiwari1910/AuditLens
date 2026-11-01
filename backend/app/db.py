@@ -77,6 +77,8 @@ def init_db(engine_instance=None) -> None:
                 ("support_count", "INTEGER DEFAULT 1"),
                 ("stability", "FLOAT DEFAULT 1.0"),
                 ("escalation_steps_json", "TEXT DEFAULT '[]'"),
+                ("ai_verdict", "VARCHAR DEFAULT 'unsure'"),
+                ("final_verdict", "VARCHAR DEFAULT 'unsure'"),
             ]:
                 if col_name not in finding_cols:
                     conn.exec_driver_sql(f"ALTER TABLE finding ADD COLUMN {col_name} {col_type}")

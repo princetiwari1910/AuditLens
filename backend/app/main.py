@@ -28,12 +28,13 @@ from sse_starlette.sse import EventSourceResponse
 from sqlmodel import Session, desc, select
 
 from app.agent.compare import compare_audits
+from app.agent.rules import compute_summary_score
 from app.config import get_settings
 from app.costlog import get_audit_cost_summary
 from app.db import get_session, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
-from app.models import Audit, AuditStatus, Finding, Frame, VoiceNote
+from app.models import Audit, AuditLog, AuditStatus, Finding, Frame, VoiceNote
 from app.providers import get_transcription_provider
 from app.storage import (
     ALLOWED_AUDIO_EXTENSIONS,
@@ -367,10 +368,14 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
         supp_cnt = getattr(f, "support_count", 1)
         stab_val = getattr(f, "stability", 1.0)
         esc_steps = json.loads(getattr(f, "escalation_steps_json", "[]")) if getattr(f, "escalation_steps_json", None) else []
+        ai_verd = getattr(f, "ai_verdict", f.status) or f.status
+        final_verd = getattr(f, "final_verdict", f.status) or f.status
         findings_data.append({
             "id": f.id,
             "rule_id": f.rule_id,
-            "status": f.status,
+            "status": final_verd,
+            "ai_verdict": ai_verd,
+            "final_verdict": final_verd,
             "confidence": f.confidence,
             "timestamp_s": f.timestamp_s,
             "frame_idx": f.frame_idx,
@@ -687,4 +692,139 @@ async def get_latest_eval():
         "status": "empty",
         "message": "No evaluation run recorded yet. Execute 'make eval' to generate benchmark.",
     }
+
+
+# ── Human Review Queue & Append-Only Audit Log (WP5) ──────────────────────────
+
+class FindingReviewRequest(BaseModel):
+    action: str  # "approve_ai" | "override_pass" | "override_fail"
+    actor_label: str = "reviewer"
+    note: str
+
+
+@app.post("/api/audits/{audit_id}/findings/{finding_id}/review")
+async def review_finding(
+    audit_id: str,
+    finding_id: str,
+    req: FindingReviewRequest,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    if req.action not in ("approve_ai", "override_pass", "override_fail"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid review action '{req.action}'. Expected 'approve_ai', 'override_pass', or 'override_fail'."
+        )
+    if not req.note or not req.note.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A non-empty review note is required."
+        )
+
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    finding = session.exec(
+        select(Finding).where(Finding.id == finding_id, Finding.audit_id == audit_id)
+    ).first()
+    if not finding:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Finding '{finding_id}' not found")
+
+    before = getattr(finding, "final_verdict", None) or finding.status
+    if req.action == "approve_ai":
+        after = getattr(finding, "ai_verdict", None) or finding.status
+    elif req.action == "override_pass":
+        after = "pass"
+    elif req.action == "override_fail":
+        after = "fail"
+    else:
+        after = before
+
+    finding.final_verdict = after
+    finding.status = after
+    session.add(finding)
+
+    log_entry = AuditLog(
+        audit_id=audit_id,
+        finding_id=finding_id,
+        actor_label=req.actor_label,
+        action=req.action,
+        before=before,
+        after=after,
+        note=req.note.strip(),
+    )
+    session.add(log_entry)
+
+    # Recalculate summary & score with final verdicts
+    all_findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
+    findings_dicts = [
+        {
+            "id": f.id,
+            "rule_id": f.rule_id,
+            "status": getattr(f, "final_verdict", f.status) or f.status,
+            "severity": f.severity,
+            "confidence": f.confidence,
+        }
+        for f in all_findings
+    ]
+    new_summary = compute_summary_score(findings_dicts)
+    if audit.summary_json:
+        try:
+            old_summary = json.loads(audit.summary_json)
+            new_summary["frames_analyzed"] = old_summary.get("frames_analyzed", 0)
+            new_summary["frames_considered"] = old_summary.get("frames_considered", 0)
+        except Exception:
+            pass
+    audit.summary_json = json.dumps(new_summary)
+    session.add(audit)
+    session.commit()
+    session.refresh(finding)
+    session.refresh(log_entry)
+
+    return {
+        "finding_id": finding.id,
+        "ai_verdict": finding.ai_verdict,
+        "final_verdict": finding.final_verdict,
+        "status": finding.status,
+        "audit_log": {
+            "id": log_entry.id,
+            "audit_id": log_entry.audit_id,
+            "finding_id": log_entry.finding_id,
+            "actor_label": log_entry.actor_label,
+            "action": log_entry.action,
+            "before": log_entry.before,
+            "after": log_entry.after,
+            "note": log_entry.note,
+            "ts": log_entry.ts.isoformat(),
+        },
+        "summary": new_summary,
+    }
+
+
+@app.get("/api/audits/{audit_id}/audit_log")
+async def get_audit_log(
+    audit_id: str,
+    session: Session = Depends(get_session),
+) -> list[dict[str, Any]]:
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+    logs = session.exec(
+        select(AuditLog).where(AuditLog.audit_id == audit_id).order_by(AuditLog.ts.asc())
+    ).all()
+    return [
+        {
+            "id": l.id,
+            "audit_id": l.audit_id,
+            "finding_id": l.finding_id,
+            "actor_label": l.actor_label,
+            "action": l.action,
+            "before": l.before,
+            "after": l.after,
+            "note": l.note,
+            "ts": l.ts.isoformat(),
+        }
+        for l in logs
+    ]
+
 

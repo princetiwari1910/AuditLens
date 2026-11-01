@@ -184,6 +184,22 @@ class Finding(SQLModel, table=True):
     support_count: int = 1
     stability: float = 1.0
     escalation_steps_json: str = "[]"
+    ai_verdict: str = Field(default="unsure")
+    final_verdict: str = Field(default="unsure")
+
+
+class AuditLog(SQLModel, table=True):
+    __tablename__ = "audit_log"
+
+    id: str = Field(default_factory=_gen_uuid, primary_key=True)
+    audit_id: str = Field(index=True)
+    finding_id: str = Field(index=True)
+    actor_label: str = Field(default="reviewer")
+    action: str = Field(index=True)  # "approve_ai", "override_pass", "override_fail"
+    before: str
+    after: str
+    note: str
+    ts: datetime = Field(default_factory=_utc_now)
 
 
 class VoiceNote(SQLModel, table=True):
