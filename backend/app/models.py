@@ -253,6 +253,7 @@ class AuditSpan(SQLModel, table=True):
     cache_hit: bool = Field(default=False)
     retries: int = Field(default=0)
     step_reason: str = Field(default="")
+    simulated: bool = Field(default=False)
     created_at: datetime = Field(default_factory=_utc_now)
 
 

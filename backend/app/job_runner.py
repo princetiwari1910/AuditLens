@@ -147,6 +147,76 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
     if "frames_considered" not in summary_data:
         summary_data["frames_considered"] = 25
 
+    # 4. Populate execution trace spans for demo / replay audits
+    from app.agent.trace import record_span
+    is_simulated = (source_provider_mode == "mock")
+    fixture_spans = fixture.get("spans", [])
+    if fixture_spans:
+        for sp in fixture_spans:
+            record_span(
+                session=session,
+                audit_id=audit_id,
+                stage=sp.get("stage", "segmentation"),
+                model=sp.get("model", settings.MODEL_ID_SEGMENTATION),
+                concept=sp.get("concept"),
+                latency_ms=int(sp.get("latency_ms", 25)),
+                cost_usd=float(sp.get("cost_usd", 0.0)),
+                cache_hit=bool(sp.get("cache_hit", False)),
+                retries=int(sp.get("retries", 0)),
+                step_reason=sp.get("step_reason", ""),
+                simulated=is_simulated,
+            )
+    else:
+        record_span(
+            session=session,
+            audit_id=audit_id,
+            stage="keyframe_selection",
+            model="opencv",
+            latency_ms=25,
+            cost_usd=0.0,
+            cache_hit=False,
+            step_reason=f"Quality selection: {summary_data.get('frames_considered', 25)} considered -> {summary_data.get('frames_analyzed', 12)} selected",
+            simulated=is_simulated,
+        )
+        for fd in findings_data:
+            record_span(
+                session=session,
+                audit_id=audit_id,
+                stage="segmentation",
+                model=settings.MODEL_ID_SEGMENTATION,
+                concept=fd.get("rule_id", "object").replace("_", " "),
+                latency_ms=45,
+                cost_usd=round(0.0002 * summary_data.get("frames_analyzed", 12), 4),
+                cache_hit=False,
+                step_reason=f"Segmented concept '{fd.get('rule_id', 'object').replace('_', ' ')}' for rule {fd.get('rule_id')}",
+                simulated=is_simulated,
+            )
+        record_span(
+            session=session,
+            audit_id=audit_id,
+            stage="reasoning",
+            model=settings.MODEL_ID_AGENT,
+            concept=None,
+            latency_ms=35,
+            cost_usd=0.001,
+            cache_hit=False,
+            step_reason="Agent rule reasoning and evidence synthesis",
+            simulated=is_simulated,
+        )
+        if fixture.get("voice_notes"):
+            record_span(
+                session=session,
+                audit_id=audit_id,
+                stage="transcription",
+                model=settings.MODEL_ID_TRANSCRIPTION,
+                concept="voice note",
+                latency_ms=30,
+                cost_usd=0.001,
+                cache_hit=False,
+                step_reason="Transcribed voice note audio",
+                simulated=is_simulated,
+            )
+
     audit.status = AuditStatus.COMPLETED.value
     audit.summary_json = json.dumps(summary_data)
     audit.duration_s = fixture.get("duration_s", 25.0)

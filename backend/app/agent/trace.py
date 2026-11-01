@@ -24,6 +24,7 @@ def record_span(
     cache_hit: bool = False,
     retries: int = 0,
     step_reason: str = "",
+    simulated: bool | None = None,
 ) -> AuditSpan | None:
     """Record an individual audit execution span into the database."""
     if not audit_id or session is None:
@@ -32,6 +33,9 @@ def record_span(
     settings = get_settings()
     if not getattr(settings, "ENABLE_TRACE_OBSERVABILITY", True):
         return None
+
+    if simulated is None:
+        simulated = (settings.PROVIDER_MODE == "mock")
 
     span = AuditSpan(
         audit_id=audit_id,
@@ -43,6 +47,7 @@ def record_span(
         cache_hit=cache_hit,
         retries=int(retries),
         step_reason=step_reason,
+        simulated=simulated,
     )
     try:
         session.add(span)
@@ -56,6 +61,7 @@ def record_span(
 
 def get_audit_trace(session: Session, audit_id: str, summary: dict[str, Any] | None = None) -> dict[str, Any]:
     """Retrieve all execution spans and aggregated totals for an audit."""
+    settings = get_settings()
     spans = session.exec(
         select(AuditSpan).where(AuditSpan.audit_id == audit_id).order_by(AuditSpan.id.asc())
     ).all()
@@ -93,6 +99,7 @@ def get_audit_trace(session: Session, audit_id: str, summary: dict[str, Any] | N
                 "cache_hit": s.cache_hit,
                 "retries": s.retries,
                 "step_reason": s.step_reason,
+                "simulated": bool(getattr(s, "simulated", False)),
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in spans
@@ -101,6 +108,7 @@ def get_audit_trace(session: Session, audit_id: str, summary: dict[str, Any] | N
             "total_spans": len(spans),
             "total_latency_ms": total_latency,
             "total_cost_usd": total_cost,
+            "budget_cap_usd": float(settings.MAX_BUDGET_PER_AUDIT_USD),
             "cache_hits": cache_hits,
             "cache_hit_rate": round(cache_hits / len(spans), 2) if spans else 0.0,
             "calls_saved_by_cache": cache_hits,

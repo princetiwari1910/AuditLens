@@ -142,6 +142,30 @@ def test_demo_audit_creates_trace_spans(tmp_path, monkeypatch):
     assert trace_resp.status_code == 200
     data = trace_resp.json()
     assert data["totals"]["total_spans"] >= 1
+    assert data["totals"]["budget_cap_usd"] == 1.0
     stages = [s["stage"] for s in data["spans"]]
     assert "keyframe_selection" in stages
     assert "segmentation" in stages
+
+
+def test_replay_demo_audit_persists_simulated_trace_spans(tmp_path, monkeypatch):
+    """Replay demo audit populates spans flagged simulated=True."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True)
+    s = get_settings()
+    monkeypatch.setattr(s, "DATA_DIR", data_dir)
+    reset_engine()
+    init_db()
+
+    client = TestClient(app)
+    demo_resp = client.post("/api/audits/demo?replay=true")
+    assert demo_resp.status_code == 201
+    audit_id = demo_resp.json()["id"]
+
+    trace_resp = client.get(f"/api/audits/{audit_id}/trace")
+    assert trace_resp.status_code == 200
+    data = trace_resp.json()
+    assert data["totals"]["total_spans"] >= 1
+    assert data["totals"]["budget_cap_usd"] == 1.0
+    # Every span from mock-derived replay fixture must be flagged simulated
+    assert all(s["simulated"] is True for s in data["spans"])

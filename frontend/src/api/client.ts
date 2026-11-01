@@ -400,6 +400,7 @@ export interface TraceSpan {
   cache_hit: boolean;
   retries: number;
   step_reason: string;
+  simulated?: boolean;
 }
 
 export interface AuditTraceResponse {
@@ -409,6 +410,7 @@ export interface AuditTraceResponse {
     total_spans: number;
     total_latency_ms: number;
     total_cost_usd: number;
+    budget_cap_usd?: number;
     cache_hits: number;
     cache_hit_rate: number;
     frames_considered: number;

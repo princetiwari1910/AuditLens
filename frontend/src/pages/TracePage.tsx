@@ -70,7 +70,7 @@ export default function TracePage({ initialTrace = null }: TracePageProps = {}) 
   }
 
   const { totals, spans } = trace;
-  const budgetLimitUsd = 0.05;
+  const budgetLimitUsd = totals.budget_cap_usd ?? 1.0;
   const budgetPercent = Math.min(100, Math.round((totals.total_cost_usd / budgetLimitUsd) * 100));
 
   return (
@@ -136,7 +136,7 @@ export default function TracePage({ initialTrace = null }: TracePageProps = {}) 
               />
             </div>
             <p className="text-[10px] text-[var(--color-text-secondary)] font-mono">
-              {budgetPercent}% of ${budgetLimitUsd} guard
+              {budgetPercent}% of ${budgetLimitUsd.toFixed(2)} guard
             </p>
           </div>
 
@@ -203,6 +203,11 @@ export default function TracePage({ initialTrace = null }: TracePageProps = {}) 
                       <span className={`px-2 py-0.5 rounded font-mono font-bold uppercase text-[10px] ${colorClass}`}>
                         {span.stage.replace('_', ' ')}
                       </span>
+                      {span.simulated && (
+                        <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
+                          SIMULATED
+                        </span>
+                      )}
                       <span className="font-semibold text-[var(--color-text)] flex items-center gap-1 font-mono">
                         <Cpu className="h-3 w-3 text-slate-400" />
                         {span.model}

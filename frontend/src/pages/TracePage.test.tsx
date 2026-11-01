@@ -21,6 +21,7 @@ describe('TracePage component', () => {
         total_spans: 4,
         total_latency_ms: 150,
         total_cost_usd: 0.0035,
+        budget_cap_usd: 1.0,
         cache_hits: 1,
         cache_hit_rate: 0.25,
         calls_saved_by_cache: 1,
@@ -40,6 +41,7 @@ describe('TracePage component', () => {
           cache_hit: false,
           retries: 0,
           step_reason: 'Primary visual detector pass',
+          simulated: true,
           created_at: '2026-11-01T12:00:00Z',
         },
       ],
@@ -53,5 +55,10 @@ describe('TracePage component', () => {
 
     expect(html).toContain('12 of 25');
     expect(html).toContain('12 of 25 frames analyzed');
+    // Verify configured budget cap of $1.00 (not hardcoded $0.05)
+    expect(html).toContain('1.00');
+    expect(html).toContain('guard');
+    // Verify SIMULATED span badge
+    expect(html).toContain('SIMULATED');
   });
 });

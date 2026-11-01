@@ -85,6 +85,13 @@ def init_db(engine_instance=None) -> None:
             ]:
                 if col_name not in finding_cols:
                     conn.exec_driver_sql(f"ALTER TABLE finding ADD COLUMN {col_name} {col_type}")
+
+            span_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(audit_span)").fetchall()]
+            for col_name, col_type in [
+                ("simulated", "BOOLEAN DEFAULT 0"),
+            ]:
+                if col_name not in span_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE audit_span ADD COLUMN {col_name} {col_type}")
             conn.commit()
     except Exception:
         pass
