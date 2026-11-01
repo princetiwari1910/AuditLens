@@ -3,53 +3,124 @@
 ## System Diagram
 
 ```
-┌──────────────────────────── Browser (React) ────────────────────────────┐
-│ Home → Capture → Processing (SSE timeline) → Report → Compare          │
-│  OverlayCanvas draws boxes/polygons on <video> synced to currentTime    │
-└───────────────▲──────────────────────────────┬──────────────────────────┘
-                │ JSON / SSE                     │ multipart upload
-┌───────────────┴──────────────────────────────▼──────────────────────────┐
-│ FastAPI backend                                                          │
-│  API layer ──► Job runner (background task per audit)                    │
-│                   │                                                      │
-│                   ├─ frames.py        ffmpeg/OpenCV sample at 1 fps      │
-│                   ├─ cache.py         key = sha256(frame)+prompt+provider│
-│                   ├─ Providers (interfaces)                              │
-│                   │    ├─ SegmentationProvider  (mock now, SAM 3.1 later)│
-│                   │    ├─ AgentProvider         (mock now, Muse Spark)   │
-│                   │    └─ TranscriptionProvider (mock now, Muse Voice)   │
-│                   ├─ agent/tools.py   plain Python tools + JSON schemas  │
-│                   ├─ agent/rules.py   rule evaluation                    │
-│                   ├─ agent/measure.py geometry + scale (A4 0.297m)       │
-│                   ├─ agent/compare.py re-audit comparison                │
-│                   └─ costlog.py       every provider call is logged      │
-│  Storage: SQLite (SQLModel) + files under ./data/audits/{id}/            │
-└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── Browser (React / TypeScript) ────────────────────────────┐
+│ Home → Capture (Voice + Video) → Processing (SSE stream) → Report → Compare / Sites  │
+│  OverlayCanvas: bounding boxes/masks synced to video currentTime                     │
+│  EvidenceViewerModal: cited keyframe strip, keyboard navigation, best-frame overlays │
+│  ReviewQueuePanel: auditor human-in-the-loop overrides & audit log verification       │
+│  TracePage: execution waterfall, model latencies, token costs, cache savings         │
+└────────────────────────▲──────────────────────────────┬──────────────────────────────┘
+                         │ JSON / SSE                   │ multipart video/audio upload
+┌────────────────────────┴──────────────────────────────▼──────────────────────────────┐
+│ FastAPI Backend (Python 3.11 + OpenCV + FFmpeg)                                      │
+│  API Layer ──► Background Job Runner (per audit)                                     │
+│                   │                                                                  │
+│                   ├─ keyframes.py     Laplacian sharpness + perceptual deduplication │
+│                   ├─ privacy.py       in-memory person blur (unblurred never saved)  │
+│                   ├─ cache.py         hash = sha256(frame)+prompt+provider           │
+│                   ├─ Providers (Contract-isolated)                                   │
+│                   │    ├─ Segmenter   (MockSegmenter, RecordReplay, MetaSegmenter)   │
+│                   │    ├─ Reasoner    (MockReasoner, RecordReplay, MetaReasoner)     │
+│                   │    └─ Transcriber (MockTranscriber, RecordReplay, MetaTranscriber)│
+│                   ├─ tracking.py      IoU object tracker & temporal consensus        │
+│                   ├─ escalation.py    active evidence gathering (2x2 tiles -> spark) │
+│                   ├─ concept_val.py   rejects conjunctions, negation, spatial words  │
+│                   ├─ trace.py         observability spans (latency, cost, cache hit) │
+│                   ├─ bundle.py        tamper-evident ZIP evidence bundle with SHA-256│
+│                   └─ costlog.py       cost tracking & model telemetry                │
+│  Storage: SQLite (SQLModel) + persistent files under ./data/audits/{id}/             │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Audit Flow
+---
 
-1. `POST /api/audits` — upload video or photos, validate file type and 90-second duration limit, create audit (status=queued), start background job.
-2. **Frame sampling** — extract frames at 1 fps with OpenCV, compute SHA-256 hash per frame.
-3. **Rule evaluation** — for each rule, call tools: `list_rules`, `find_objects`, `measure_clear_width`, `check_colocation`.
-4. **Voice notes** — transcribe and attach to nearest finding by timestamp as extra evidence (`"voice_note"`).
-5. **Overlay generation** — render annotated evidence images with OpenCV (bounding boxes, polygons, status labels).
-6. **Summary score** — compute weighted safety compliance score (0–100) and counts by status/severity.
-7. **SSE events** — stream progress in real time (`audit_started` -> `frames_sampled` -> `tool_call` -> `tool_result` -> `finding_recorded` -> `audit_completed`).
+## Provider Discipline & Truth
 
-## Provider Target Specifications
+AuditLens enforces strict separation across three provider environments:
 
-| Provider Interface | Mock Implementation | Real Target (Phase 2) |
+1. **`mock` (Default)**:
+   - Uses deterministic local scenarios (`backend/app/scenarios/`) and synthetic frames.
+   - All findings, scores, eval metrics, and trace spans derived from mock mode are permanently stamped **`MOCK`** or **`SIMULATED, NOT A RESULT`** across the API and frontend UI.
+   - Never hallucinates fake live API behavior.
+
+2. **`replay`**:
+   - Zero network requests. Operates exclusively off recorded response fixtures located in `data/fixtures/`.
+   - UI and reports prominently display **`RECORDED RUN`** / **`OFFLINE REPLAY`** banners. Replay is an offline testing fallback, never presented as live inspection.
+
+3. **`record`**:
+   - Used when authenticated against Meta endpoints (`MODEL_API_KEY`) to persist verified API responses for downstream replay fixtures.
+
+4. **`meta` (Live Meta API Target)**:
+   - Targets Meta AI endpoints:
+     - Media Segmentation: `sam-3.1` (OpenAI-compatible Responses API, 1-bit PNG / RLE masks)
+     - Multimodal Reasoner: `muse-spark` (structured schema outputs, tool calling, fix action plans)
+     - Speech-to-Text: `muse-voice-transcribe` (whisper/audio turn transcription)
+   - **Status Truth**: Mark everything **"UNVERIFIED against live API"** until `scripts/smoke_meta.py` passes with a verified `MODEL_API_KEY`.
+   - Safety: Contributor and beta models (e.g. `-contributor`) are strictly rejected. No plaintext keys are ever logged or checked into git.
+
+---
+
+## Containerized Deployment (Docker & Compose)
+
+### Dockerfile (`backend/Dockerfile`)
+- Base image: `python:3.11-slim`
+- OS-level dependencies: `ffmpeg`, `libgl1`, `libglib2.0-0`, `libgomp1`, `curl`
+- Unbuffered Python execution with standard OpenCV headless bindings (`opencv-python-headless`).
+- Volume mount: `/app/data` (or host `./data` mapped to container).
+- Health check: Queries `http://localhost:8000/api/health` every 15–30 seconds.
+
+### Docker Compose (`docker-compose.yml`)
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: auditlens-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/data
+      - CORS_ORIGINS=*
+      - PROVIDER_MODE=mock
+      - DEMO_REPLAY=0
+      - FRAME_FPS=1
+      - MAX_UPLOAD_MB=200
+      - MAX_VIDEO_DURATION_S=90
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+```
+
+### SSE-Safe Production Streaming
+- Server-Sent Events endpoint `GET /api/audits/{id}/events` serves real-time job execution.
+- Headers:
+  - `Cache-Control: no-cache, no-transform`
+  - `X-Accel-Buffering: no` (disables Nginx reverse proxy buffering)
+  - `Connection: keep-alive`
+  - Automated keep-alive pings transmitted every 15 seconds to prevent client timeout drops.
+
+---
+
+## Database Entities (SQLModel + SQLite)
+
+| Model | Table | Purpose |
 |---|---|---|
-| `SegmentationProvider` | `scenarios/demo_room.json` + seeded fallback | **SAM 3.1** |
-| `AgentProvider` | Deterministic ToolRegistry planner | **Muse Spark** (tool-calling over ToolRegistry) |
-| `TranscriptionProvider` | Hinglish canned segments | **Muse Voice Transcribe** |
-
-## Database Schema (SQLModel + SQLite)
-
-- `audit`: id (UUID), template_id, custom_rules_json, status, created_at, video_path, duration_s, summary_json, error
-- `frame`: id, audit_id, idx, timestamp_s, path, sha256
-- `cache_entry`: key (sha256), provider, prompt, result_json, created_at
-- `finding`: id, audit_id, rule_id, status, confidence, timestamp_s, frame_idx, overlay_path, measurement_json, rationale, fix_text, severity, sources_json
-- `voice_note`: id, audit_id, timestamp_s, audio_path, transcript, language
-- `cost_log`: id, audit_id, provider, operation, units, est_cost_usd, created_at
+| `Audit` | `audit` | Core inspection record: template, provider mode, model IDs, summary score, status |
+| `Site` | `site` | Physical location entity (e.g. Building A, Lab 4) for longitudinal trend analysis |
+| `Frame` | `frame` | Sampled video keyframe path, timestamp, and SHA-256 content digest |
+| `Finding` | `finding` | Rule verdict (pass/fail/unsure), confidence, mask overlay, optical measurement, rationale, fix text |
+| `VoiceNote` | `voice_note` | Auditor audio walkthrough recordings, transcript, and attached findings |
+| `AuditLog` | `audit_log` | Append-only ledger of human review overrides and supervisor sign-offs |
+| `AuditSpan` | `audit_span` | Fine-grained telemetry spans: model name, latency ms, token cost, cache hit |
+| `ShareToken` | `share_token` | Cryptographic SHA-256 token hash for secure read-only report sharing |
+| `CacheEntry` | `cache_entry` | Deterministic model response cache keyed by frame hash + concept |
+| `CostLog` | `cost_log` | Per-call invocation tracking and budget guard enforcement |

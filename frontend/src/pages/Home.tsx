@@ -44,10 +44,10 @@ export default function Home() {
     getAudits().then(setRecentAudits).catch(console.error);
   }, []);
 
-  async function handleLoadDemo() {
+  async function handleLoadDemo(replay: boolean = false) {
     try {
       setIsStartingDemo(true);
-      const res = await createDemoAudit('fire_exit_safety');
+      const res = await createDemoAudit('campus_fire_exit_core', replay);
       navigate(`/audits/${res.id}/processing`);
     } catch (err: any) {
       alert(`Could not start demo audit: ${err.message}`);
@@ -124,7 +124,7 @@ export default function Home() {
             )}
 
             <button
-              onClick={handleLoadDemo}
+              onClick={() => handleLoadDemo(false)}
               disabled={isStartingDemo}
               className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
             >
@@ -158,6 +158,37 @@ export default function Home() {
 
         {/* Disclaimer Banner */}
         <Disclaimer compact />
+
+        {/* Guided Demo Walkthrough Card */}
+        <section className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50/70 to-blue-50/70 dark:from-indigo-950/30 dark:to-blue-950/30 p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                  Recorded run / MOCK
+                </span>
+                <h3 className="font-semibold text-sm text-[var(--color-text)]">
+                  Try Guided Demo (Recorded Walkthrough)
+                </h3>
+              </div>
+              <p className="text-xs text-[var(--color-text-secondary)] max-w-xl">
+                Experience AuditLens immediately without recording video. Launches a pre-recorded campus safety walkthrough in replay mode with realistic timeline event streaming and verified evidence.
+              </p>
+            </div>
+            <button
+              onClick={() => handleLoadDemo(true)}
+              disabled={isStartingDemo}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0"
+            >
+              {isStartingDemo ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <PlayCircle className="h-4 w-4 text-white" />
+              )}
+              <span>Launch Guided Demo</span>
+            </button>
+          </div>
+        </section>
 
         {/* Template Checklists */}
         <section className="space-y-4">

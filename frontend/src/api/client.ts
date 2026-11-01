@@ -136,8 +136,14 @@ export async function createAudit(formData: FormData): Promise<{ id: string; sta
   });
 }
 
-export async function createDemoAudit(templateId: string = 'fire_exit_safety'): Promise<{ id: string; status: string }> {
-  return request<{ id: string; status: string }>(`/audits/demo?template_id=${encodeURIComponent(templateId)}`, {
+export async function createDemoAudit(
+  templateId: string = 'campus_fire_exit_core',
+  replay: boolean = false,
+): Promise<{ id: string; status: string }> {
+  const query = new URLSearchParams();
+  if (templateId) query.set('template_id', templateId);
+  if (replay) query.set('replay', 'true');
+  return request<{ id: string; status: string }>(`/audits/demo?${query.toString()}`, {
     method: 'POST',
   });
 }

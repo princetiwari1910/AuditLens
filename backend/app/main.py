@@ -214,13 +214,15 @@ async def get_sample_video():
 @app.post("/api/audits/demo", status_code=status.HTTP_201_CREATED)
 async def create_demo_audit(
     background_tasks: BackgroundTasks,
-    template_id: str = "fire_exit_safety",
+    template_id: str = "campus_fire_exit_core",
+    replay: bool = False,
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
     """
     Launch a demo audit on data/sample_walkthrough.mp4 running the full real pipeline:
     stores the video in the audit folder, executes frame sampling, runs tool-based evaluation,
     generates OpenCV overlays, and streams live SSE timeline events to the processing page.
+    If replay=True or DEMO_REPLAY=1, replays recorded fixtures with realistic event timing.
     """
     settings = get_settings()
     sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
@@ -238,17 +240,23 @@ async def create_demo_audit(
 
     tmpl = get_template(template_id)
     if not tmpl:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown template: '{template_id}'")
+        # Fallback to campus_fire_exit_core if old template id passed
+        tmpl = get_template("campus_fire_exit_core") or get_template("fire_exit_safety")
+        if tmpl:
+            template_id = tmpl.id
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown template: '{template_id}'")
 
+    is_replay = bool(replay or settings.DEMO_REPLAY)
     audit = Audit(
         site_id="site_demo_building_a",
         template_id=template_id,
         status=AuditStatus.QUEUED.value,
-        provider_mode=settings.PROVIDER_MODE,
+        provider_mode="replay" if is_replay else settings.PROVIDER_MODE,
         model_segmentation=settings.MODEL_ID_SEGMENTATION,
         model_agent=settings.MODEL_ID_AGENT,
         model_transcription=settings.MODEL_ID_TRANSCRIPTION,
-        is_replay=bool(settings.DEMO_REPLAY),
+        is_replay=is_replay,
     )
     session.add(audit)
     session.commit()

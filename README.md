@@ -26,7 +26,8 @@ make dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-- Click **"Load Demo Audit (Demo Data)"** on the top right to run an end-to-end audit with the pre-generated synthetic video in 1 click without uploading any files.
+- Click **"Launch Guided Demo"** on Home to experience an instant walkthrough in replay mode with realistic timeline events, bounding box overlays, and verified evidence.
+- Or click **"Load Demo Audit (Demo Data)"** to run an end-to-end audit with the synthetic video under mock mode in 1 click.
 
 ---
 
