@@ -45,6 +45,7 @@ from app.providers.client import (
     estimate_transcription_cost,
     execute_with_retry,
 )
+from app.providers.concept_validation import validate_concept
 from app.providers.schemas import SPARK_VERDICT_JSON_SCHEMA, VerdictStatus, validate_verdict
 
 logger = logging.getLogger("auditlens.providers.meta")
@@ -71,31 +72,10 @@ FORBIDDEN_SPATIAL_NEGATION_PATTERNS = [
 
 def sanitize_concept(prompt: str) -> str:
     """
-    Sanitize prompt to ONE short noun phrase per dev.meta.ai SAM 3.1 documentation:
-    - Strips commas (takes first concept)
-    - Strips negation ('not', 'no', 'not blocked')
-    - Strips spatial words ('on the left', 'in the middle', 'blocking')
+    Validate prompt to ONE short noun phrase per dev.meta.ai SAM 3.1 documentation.
+    Does NOT silently rewrite concept prompts; raises ValueError on invalid input.
     """
-    if not prompt or not isinstance(prompt, str):
-        raise ValueError("Concept prompt must be a non-empty string.")
-
-    # One concept per request: split on comma and take first
-    text = prompt.split(",")[0]
-
-    # Strip forbidden spatial and negation patterns
-    for pattern in FORBIDDEN_SPATIAL_NEGATION_PATTERNS:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-
-    # Strip punctuation and collapse whitespace
-    cleaned = re.sub(r"[^\w\s\-]", "", text).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)
-
-    if not cleaned:
-        raise ValueError(
-            f"Concept prompt '{prompt}' is invalid after removing spatial/negation descriptors: "
-            "SAM 3.1 requires a single short noun phrase (e.g. 'fire extinguisher', 'exit sign')."
-        )
-    return cleaned
+    return validate_concept(prompt)
 
 
 def encode_image_to_base64_data_url(
@@ -268,14 +248,14 @@ class MetaSegmentationProvider:
         Segment an image against given natural language prompts using SAM 3.1.
         UNVERIFIED against live API.
         """
+        validated_concepts = [validate_concept(p) for p in text_prompts]
         client = self._get_client()
         data_url, frame_w, frame_h, raw_bytes = encode_image_to_base64_data_url(image)
         frame_hash = hashlib.sha256(raw_bytes).hexdigest()
 
         all_detections: list[SegmentDetection] = []
 
-        for prompt in text_prompts:
-            concept = sanitize_concept(prompt)
+        for concept in validated_concepts:
 
             # Check cache: sha256(frame) + concept + model + mask_encoding
             cache_key = compute_cache_key(
@@ -387,7 +367,7 @@ class MetaSegmentationProvider:
         Supports SAM_VIDEO_MODE flag for multi-frame video format.
         UNVERIFIED against live API.
         """
-        concept = sanitize_concept(prompt)
+        concept = validate_concept(prompt)
         settings = get_settings()
         results: list[Detection] = []
 

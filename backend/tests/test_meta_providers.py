@@ -39,6 +39,7 @@ from app.providers.meta import (
     MetaTranscriptionProvider,
     map_mask_to_full_frame,
     sanitize_concept,
+    validate_concept,
 )
 
 
@@ -205,28 +206,153 @@ def test_box_cropped_mask_mapping_to_full_frame():
         assert pt[1] >= top / frame_h
 
 
-# ── Prompt Sanitization ───────────────────────────────────────────────────────
+# ── Prompt Concept Validation ─────────────────────────────────────────────────
 
-def test_prompt_sanitization_single_noun_phrase():
-    """Verify prompt sanitizer rejects commas, spatial language, and negation."""
-    # Strips commas (takes first)
-    assert sanitize_concept("fire extinguisher, emergency exit sign") == "fire extinguisher"
+def test_validate_concept_rejects_commas_conjunctions_negation_and_spatial():
+    """Verify validate_concept rejects commas, conjunctions, negation, and spatial descriptors."""
+    # 1. Valid plain noun phrases pass unmodified
+    assert validate_concept("fire extinguisher") == "fire extinguisher"
+    assert validate_concept("emergency exit sign") == "emergency exit sign"
+    assert validate_concept("  safety helmet  ") == "safety helmet"
+    assert validate_concept("hard hat") == "hard hat"
 
-    # Strips spatial descriptors
-    assert sanitize_concept("fire extinguisher on the left") == "fire extinguisher"
-    assert sanitize_concept("box in the middle") == "box"
-    assert sanitize_concept("person blocking door") == "person door"
+    # 2. Rejects commas (naming rule and concept)
+    with pytest.raises(ValueError, match="Rule 'r1': concept 'fire extinguisher, exit sign' contains commas"):
+        validate_concept("fire extinguisher, exit sign", rule_id="r1")
 
-    # Strips negation
-    assert sanitize_concept("exit path not blocked") == "exit path"
-    assert sanitize_concept("not obstructed extinguisher") == "extinguisher"
+    # 3. Rejects conjunctions 'and' / 'or'
+    with pytest.raises(ValueError, match="Rule 'r2': concept 'fire extinguisher and exit sign' contains conjunction"):
+        validate_concept("fire extinguisher and exit sign", rule_id="r2")
+    with pytest.raises(ValueError, match="contains conjunction"):
+        validate_concept("box or chair", rule_id="r2")
 
-    # Empty after stripping raises ValueError
-    with pytest.raises(ValueError, match="invalid after removing"):
-        sanitize_concept("not blocked")
+    # 4. Rejects negation
+    with pytest.raises(ValueError, match="Rule 'r3': concept 'exit path not blocked' contains negation"):
+        validate_concept("exit path not blocked", rule_id="r3")
+    with pytest.raises(ValueError, match="contains negation"):
+        validate_concept("not obstructed extinguisher", rule_id="r3")
+    with pytest.raises(ValueError, match="contains negation"):
+        validate_concept("no obstacles", rule_id="r3")
+    with pytest.raises(ValueError, match="contains negation"):
+        validate_concept("unblocked exit door", rule_id="r3")
 
-    with pytest.raises(ValueError):
-        sanitize_concept("")
+    # 5. Rejects spatial words
+    with pytest.raises(ValueError, match="Rule 'r4': concept 'fire extinguisher on the left' contains spatial words"):
+        validate_concept("fire extinguisher on the left", rule_id="r4")
+    with pytest.raises(ValueError, match="contains spatial words"):
+        validate_concept("box in the middle", rule_id="r4")
+    with pytest.raises(ValueError, match="contains spatial words"):
+        validate_concept("person blocking door", rule_id="r4")
+    with pytest.raises(ValueError, match="contains spatial words"):
+        validate_concept("pallet near door", rule_id="r4")
+    with pytest.raises(ValueError, match="contains spatial words"):
+        validate_concept("extension cord on floor", rule_id="r4")
+
+    # 6. Rejects empty/blank
+    with pytest.raises(ValueError, match="non-empty string"):
+        validate_concept("", rule_id="r5")
+    with pytest.raises(ValueError, match="non-empty string"):
+        validate_concept("   ", rule_id="r5")
+
+
+def test_template_load_validation_rejects_invalid_sam_prompts():
+    """Verify TemplateModel and template loading reject bad concepts with rule and concept names."""
+    from app.models import RuleModel, RuleType, TemplateModel
+    import pydantic
+
+    # Invalid comma prompt rejected at template load time
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TemplateModel(
+            id="test_tmpl",
+            name="Test Template",
+            rules=[
+                RuleModel(
+                    id="bad_exit_rule",
+                    title="Bad Exit",
+                    type=RuleType.PRESENCE,
+                    sam_prompts=["exit sign, door"],
+                )
+            ],
+        )
+    err_str = str(exc_info.value)
+    assert "bad_exit_rule" in err_str
+    assert "contains commas" in err_str
+
+    # Invalid negation prompt rejected
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TemplateModel(
+            id="test_tmpl",
+            name="Test Template",
+            rules=[
+                RuleModel(
+                    id="bad_negation_rule",
+                    title="Bad Negation",
+                    type=RuleType.ABSENCE,
+                    sam_prompts=["exit not blocked"],
+                )
+            ],
+        )
+    err_str = str(exc_info.value)
+    assert "bad_negation_rule" in err_str
+    assert "contains negation" in err_str
+
+    # Invalid spatial prompt rejected
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TemplateModel(
+            id="test_tmpl",
+            name="Test Template",
+            rules=[
+                RuleModel(
+                    id="bad_spatial_rule",
+                    title="Bad Spatial",
+                    type=RuleType.PRESENCE,
+                    sam_prompts=["box in the middle"],
+                )
+            ],
+        )
+    err_str = str(exc_info.value)
+    assert "bad_spatial_rule" in err_str
+    assert "contains spatial words" in err_str
+
+    # Valid noun phrases pass
+    valid_tmpl = TemplateModel(
+        id="good_tmpl",
+        name="Good Template",
+        rules=[
+            RuleModel(
+                id="good_rule",
+                title="Good Rule",
+                type=RuleType.PRESENCE,
+                sam_prompts=["fire extinguisher", "emergency exit sign"],
+            )
+        ],
+    )
+    assert len(valid_tmpl.rules[0].sam_prompts) == 2
+
+
+def test_all_bundled_templates_pass_concept_validation():
+    """Verify all bundled safety templates contain only plain noun phrases."""
+    from app.template_loader import list_templates
+    templates = list_templates()
+    assert len(templates) >= 4
+    for tmpl in templates:
+        for rule in tmpl.rules:
+            for prompt in rule.sam_prompts:
+                # Must not raise
+                validated = validate_concept(prompt, rule_id=rule.id)
+                assert validated == prompt.strip()
+
+
+def test_meta_segmenter_does_not_silently_rewrite_prompts():
+    """Verify MetaSegmenter rejects invalid concepts instead of silently modifying them."""
+    segmenter = MetaSegmenter()
+    # Does not strip comma to take first - rejects with ValueError
+    with pytest.raises(ValueError, match="contains commas"):
+        segmenter.segment("dummy.jpg", ["fire extinguisher, exit sign"])
+
+    # Does not strip negation - rejects with ValueError
+    with pytest.raises(ValueError, match="contains negation"):
+        segmenter.segment("dummy.jpg", ["exit not blocked"])
 
 
 # ── Contributor Model Rejection ───────────────────────────────────────────────

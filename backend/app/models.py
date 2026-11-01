@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 import uuid
 
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel, Field as PydanticField, model_validator
 from sqlmodel import Field, SQLModel
+
+from app.concept_validation import validate_concept
 
 
 def _utc_now() -> datetime:
@@ -69,6 +71,14 @@ class TemplateModel(BaseModel):
         "Verify against local regulations and a qualified inspector."
     )
     rules: list[RuleModel] = PydanticField(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_concepts_on_load(self) -> Self:
+        """Validate that all rules in template use plain noun phrases for SAM 3.1."""
+        for rule in self.rules:
+            for prompt in rule.sam_prompts:
+                validate_concept(prompt, rule_id=rule.id)
+        return self
 
 
 # ── Database Tables (SQLModel) ────────────────────────────────────────────────

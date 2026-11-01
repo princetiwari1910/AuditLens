@@ -57,7 +57,7 @@
       "title": "No loose or unbridged power cords across walkways",
       "type": "absence",
       "severity": "high",
-      "sam_prompts": ["loose cable", "extension cord on floor", "exposed wire"],
+      "sam_prompts": ["loose cable", "extension cord", "exposed wire"],
       "params": {
         "threshold": 0.6
       },
