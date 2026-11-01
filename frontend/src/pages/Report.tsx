@@ -387,7 +387,7 @@ export default function Report() {
               {audit.is_replay ? ' (RECORDED RUN)' : ''}
             </span>
             <span className="font-mono text-[9px] text-slate-600 block">
-              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio) • People blurred (best effort)
+              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio) • Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring.
             </span>
           </div>
         </div>
@@ -410,13 +410,15 @@ export default function Report() {
               ({audit.model_segmentation || 'SAM 3.1'} • {audit.model_agent || 'Muse Spark'} • {audit.model_transcription || 'Muse Voice Transcribe'})
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <PrivacyBadge />
+          <div>
             <span className="text-[11px] text-[var(--color-text-secondary)]">
               Audit ID: {audit.id.slice(0, 14)}
             </span>
           </div>
         </div>
+
+        {/* Privacy Note Banner */}
+        <PrivacyBadge />
 
         {/* Executive Summary Block (WP14) */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-2 shadow-sm print:border-slate-300 print:break-inside-avoid">

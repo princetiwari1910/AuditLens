@@ -171,6 +171,8 @@ AuditLens is designed for fast, assistive walkthrough pre-audits. To ensure reli
 3. **Lighting & Motion Blur:** Low-light environments or rapid phone panning introduce motion blur. While the quality-aware frame selector filters blurry frames, severe blur will result in an `unsure` ("Needs Review") status.
 4. **Scale Calibration for Measurement:** Distance and clearance measurements require an optical scale reference (e.g., standard A4 paper placed on the floor) to calibrate pixel-to-meter ratios.
 5. **Audio-Visual Temporal Window:** Auditor voice notes are associated with visual findings within a ±5-second window of the recorded timestamp.
+6. **Redaction & Privacy Notice:** Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring. AuditLens is **never** described as privacy-safe.
+7. **Evidence Bundle Integrity:** The downloaded evidence bundle (`/api/audits/{id}/bundle`) is an **integrity check (hashes in a manifest), not a digital signature and not legal evidence**.
 
 ---
 

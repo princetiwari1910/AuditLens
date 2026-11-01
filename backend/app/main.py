@@ -431,12 +431,18 @@ async def get_audit(
     if token:
         th = hashlib.sha256(token.encode("utf-8")).hexdigest()
         st_row = session.exec(
-            select(ShareToken).where(ShareToken.audit_id == audit_id, ShareToken.token_hash == th)
+            select(ShareToken).where(ShareToken.token_hash == th)
         ).first()
-        if st_row:
-            st_row.access_count += 1
-            session.add(st_row)
-            session.commit()
+        if not st_row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid share token")
+        if st_row.audit_id != audit_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Share token is not authorized for this audit",
+            )
+        st_row.access_count += 1
+        session.add(st_row)
+        session.commit()
 
     findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
     summary = json.loads(audit.summary_json) if audit.summary_json else None

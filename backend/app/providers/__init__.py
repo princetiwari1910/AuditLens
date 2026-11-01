@@ -41,7 +41,9 @@ def get_segmentation_provider() -> SegmentationProvider:
     settings = get_settings()
     mode = settings.PROVIDER_MODE.lower()
 
-    if mode == "meta":
+    if mode == "replay":
+        base = MockSegmentationProvider()
+    elif mode == "meta":
         base = MetaSegmentationProvider()
     elif mode == "mock":
         base = MockSegmentationProvider()
@@ -56,7 +58,9 @@ def get_transcription_provider() -> TranscriptionProvider:
     settings = get_settings()
     mode = settings.PROVIDER_MODE.lower()
 
-    if mode == "meta":
+    if mode == "replay":
+        base = MockTranscriptionProvider()
+    elif mode == "meta":
         base = MetaTranscriptionProvider()
     elif mode == "mock":
         base = MockTranscriptionProvider()
@@ -71,7 +75,9 @@ def get_agent_provider() -> AgentProvider:
     settings = get_settings()
     mode = settings.PROVIDER_MODE.lower()
 
-    if mode == "meta":
+    if mode == "replay":
+        return MockAgentProvider()
+    elif mode == "meta":
         return MetaAgentProvider()
     return MockAgentProvider()
 
@@ -87,16 +93,20 @@ def get_transcriber() -> Transcriber:
 
 
 def get_reasoner() -> Reasoner:
-    """Returns provider conforming to the Reasoner protocol."""
     settings = get_settings()
     mode = settings.PROVIDER_MODE.lower()
 
-    if mode == "meta":
+    if mode == "replay":
+        base = MockReasoner()
+    elif mode == "meta":
         base = MetaReasoner()
     elif mode == "mock":
         base = MockReasoner()
     else:
         base = MetaReasoner() if settings.MODEL_API_KEY else MockReasoner()
+
+    wrap_mode = mode if mode in ("record", "replay") else "passthrough"
+    return RecordReplayReasoner(base, mode=wrap_mode)
 
     wrap_mode = mode if mode in ("record", "replay") else "passthrough"
     return RecordReplayReasoner(base, mode=wrap_mode)

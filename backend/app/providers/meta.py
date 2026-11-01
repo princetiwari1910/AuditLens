@@ -191,9 +191,14 @@ class MetaSegmentationProvider:
         return "meta-api"
 
     def _get_client(self) -> OpenAI:
+        settings = get_settings()
+        if settings.PROVIDER_MODE.lower() == "replay":
+            raise RuntimeError(
+                "Live provider calls are strictly prohibited when PROVIDER_MODE=replay. "
+                "Serving exclusively from recorded fixtures."
+            )
         if self._client is not None:
             return self._client
-        settings = get_settings()
         api_key = settings.MODEL_API_KEY or settings.META_API_KEY
         if not api_key:
             raise ValueError(ERR_UNVERIFIED)
@@ -428,9 +433,14 @@ class MetaAgentProvider:
         self._client = client
 
     def _get_client(self) -> OpenAI:
+        settings = get_settings()
+        if settings.PROVIDER_MODE.lower() == "replay":
+            raise RuntimeError(
+                "Live provider calls are strictly prohibited when PROVIDER_MODE=replay. "
+                "Serving exclusively from recorded fixtures."
+            )
         if self._client is not None:
             return self._client
-        settings = get_settings()
         api_key = settings.MODEL_API_KEY or settings.META_API_KEY
         if not api_key:
             raise ValueError(ERR_UNVERIFIED)
@@ -839,9 +849,14 @@ class MetaTranscriptionProvider:
         self._client = client
 
     def _get_client(self) -> OpenAI:
+        settings = get_settings()
+        if settings.PROVIDER_MODE.lower() == "replay":
+            raise RuntimeError(
+                "Live provider calls are strictly prohibited when PROVIDER_MODE=replay. "
+                "Serving exclusively from recorded fixtures."
+            )
         if self._client is not None:
             return self._client
-        settings = get_settings()
         api_key = settings.MODEL_API_KEY or settings.META_API_KEY
         if not api_key:
             raise ValueError(ERR_UNVERIFIED)

@@ -19,8 +19,8 @@ from app.storage import get_audit_dir, get_frames_dir, get_overlays_dir
 
 
 DISCLAIMER_TEXT = (
-    "AuditLens is an assistive pre-audit inspection tool. This tamper-evident bundle "
-    "cryptographically records AI perception, tool outputs, and human reviews. "
+    "AuditLens is an assistive pre-audit inspection tool. This bundle provides "
+    "an integrity check (hashes in a manifest), not a signature and not legal evidence. "
     "It does NOT certify legal, statutory, or regulatory compliance."
 )
 
