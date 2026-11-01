@@ -15,6 +15,9 @@ import {
   AlertCircle,
   RefreshCw,
   BarChart3,
+  Activity,
+  Share2,
+  FileText,
 } from 'lucide-react';
 import {
   getAudit,
@@ -22,6 +25,7 @@ import {
   getHealth,
   getAuditLog,
   createDemoAudit,
+  createShareLink,
   type CostSummary,
   type HealthResponse,
   type AuditLogEntry,
@@ -104,6 +108,7 @@ export default function Report() {
   const [isStartingDemo, setIsStartingDemo] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [reviewingFindingId, setReviewingFindingId] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -290,6 +295,19 @@ export default function Report() {
     setSelectedFindingId(filteredFindings[prevIndex].id);
   };
 
+  const handleShare = async () => {
+    if (!id) return;
+    try {
+      const res = await createShareLink(id);
+      const fullUrl = `${window.location.origin}${res.share_url}`;
+      await navigator.clipboard.writeText(fullUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 3000);
+    } catch (err: any) {
+      alert(`Could not create share link: ${err?.message}`);
+    }
+  };
+
   const videoUrl = audit.video_url
     ? (audit.video_url.startsWith('http') ? audit.video_url : `${API_BASE_URL}${audit.video_url}`)
     : `${API_BASE_URL}/api/audits/${id}/video`;
@@ -307,13 +325,29 @@ export default function Report() {
             Home
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <Link
+              to={`/audits/${id}/trace`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+            >
+              <Activity className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="hidden sm:inline">Trace</span>
+            </Link>
+
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+            >
+              <Share2 className="h-3.5 w-3.5 text-blue-500" />
+              <span>{shareCopied ? 'Copied!' : 'Share'}</span>
+            </button>
+
             <Link
               to="/eval"
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
             >
               <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-              <span>Eval Benchmark</span>
+              <span className="hidden sm:inline">Eval Benchmark</span>
             </Link>
 
             <Link
@@ -321,7 +355,7 @@ export default function Report() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
             >
               <Layers className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-              <span>Compare with Re-Audit</span>
+              <span className="hidden sm:inline">Compare</span>
             </Link>
 
             <button
@@ -382,6 +416,23 @@ export default function Report() {
               Audit ID: {audit.id.slice(0, 14)}
             </span>
           </div>
+        </div>
+
+        {/* Executive Summary Block (WP14) */}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 space-y-2 shadow-sm print:border-slate-300 print:break-inside-avoid">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] flex items-center gap-1.5">
+              <FileText className="h-4 w-4 text-[var(--color-accent)]" />
+              Executive Safety Summary
+            </span>
+            <span className="text-xs font-mono text-[var(--color-text-secondary)]">
+              {audit.created_at ? new Date(audit.created_at).toLocaleDateString() : 'Recent'}
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
+            AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id}</code> across {audit.summary?.frames_analyzed || 0} visual keyframes.
+            Overall safety compliance scored <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {audit.summary?.pass || 0} verified passing items, {audit.summary?.fail || 0} non-compliant issues requiring remediation, and {audit.summary?.unsure || 0} items pending review.
+          </p>
         </div>
 
         {/* Models Used & Provider Evidence Panel (Shown on screen and in print view) */}

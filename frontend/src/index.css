@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+@media print {
+  html, body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

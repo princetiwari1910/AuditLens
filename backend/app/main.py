@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+import hashlib
 import json
 import logging
 from pathlib import Path
+import secrets
 import shutil
 from typing import Any, AsyncGenerator
 
@@ -34,7 +36,7 @@ from app.costlog import get_audit_cost_summary
 from app.db import get_session, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
-from app.models import Audit, AuditLog, AuditStatus, Finding, Frame, Site, VoiceNote
+from app.models import Audit, AuditLog, AuditStatus, Finding, Frame, ShareToken, Site, VoiceNote
 from app.providers import get_transcription_provider
 from app.storage import (
     ALLOWED_AUDIO_EXTENSIONS,
@@ -409,10 +411,24 @@ async def list_audits(session: Session = Depends(get_session)) -> list[dict[str,
 
 
 @app.get("/api/audits/{audit_id}")
-async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
+async def get_audit(
+    audit_id: str,
+    token: str | None = None,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
     audit = session.get(Audit, audit_id)
     if not audit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    if token:
+        th = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        st_row = session.exec(
+            select(ShareToken).where(ShareToken.audit_id == audit_id, ShareToken.token_hash == th)
+        ).first()
+        if st_row:
+            st_row.access_count += 1
+            session.add(st_row)
+            session.commit()
 
     findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
     summary = json.loads(audit.summary_json) if audit.summary_json else None
@@ -1161,6 +1177,51 @@ async def get_site_trends(
         "recurring_issues": recurring_issues,
         "resolved_issues": resolved_issues,
     }
+
+
+# ── Shareable Read-Only Links (WP14) ──────────────────────────────────────────
+
+@app.post("/api/audits/{audit_id}/share")
+async def create_share_link(
+    audit_id: str,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Generate a cryptographically secure, read-only share token link."""
+    audit = session.get(Audit, audit_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audit '{audit_id}' not found")
+
+    raw_token = secrets.token_urlsafe(24)
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    st = ShareToken(audit_id=audit_id, token_hash=token_hash)
+    session.add(st)
+    session.commit()
+    session.refresh(st)
+
+    return {
+        "token": raw_token,
+        "share_url": f"/audits/{audit_id}?token={raw_token}",
+        "created_at": st.created_at.isoformat(),
+    }
+
+
+@app.get("/api/share/{token}")
+async def get_shared_audit(
+    token: str,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Resolve a share token to its audit."""
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    st = session.exec(select(ShareToken).where(ShareToken.token_hash == token_hash)).first()
+    if not st:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or expired share token")
+
+    st.access_count += 1
+    session.add(st)
+    session.commit()
+
+    return await get_audit(st.audit_id, token=None, session=session)
+
 
 
 

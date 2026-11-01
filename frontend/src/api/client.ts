@@ -323,6 +323,51 @@ export function getSiteTrends(siteId: string): Promise<SiteTrends> {
   return request<SiteTrends>(`/sites/${siteId}/trends`);
 }
 
+export interface ShareResponse {
+  token: string;
+  share_url: string;
+  created_at: string;
+}
+
+export function createShareLink(auditId: string): Promise<ShareResponse> {
+  return request<ShareResponse>(`/audits/${auditId}/share`, {
+    method: 'POST',
+  });
+}
+
+export interface TraceSpan {
+  id: number;
+  audit_id: string;
+  stage: string;
+  model: string;
+  concept: string | null;
+  latency_ms: number;
+  cost_usd: number;
+  cache_hit: boolean;
+  retries: number;
+  step_reason: string;
+}
+
+export interface AuditTraceResponse {
+  audit_id: string;
+  spans: TraceSpan[];
+  totals: {
+    total_spans: number;
+    total_latency_ms: number;
+    total_cost_usd: number;
+    cache_hits: number;
+    cache_hit_rate: number;
+    frames_considered: number;
+    frames_analyzed: number;
+    calls_saved_by_cache: number;
+    frames_saved_by_selection: number;
+  };
+}
+
+export function getAuditTrace(auditId: string): Promise<AuditTraceResponse> {
+  return request<AuditTraceResponse>(`/audits/${auditId}/trace`);
+}
+
 export default {
   getHealth,
   getTemplates,

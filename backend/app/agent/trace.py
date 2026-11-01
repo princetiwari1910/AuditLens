@@ -88,7 +88,12 @@ def get_audit_trace(session: Session, audit_id: str, summary: dict[str, Any] | N
             "total_spans": len(spans),
             "total_latency_ms": total_latency,
             "total_cost_usd": total_cost,
+            "cache_hits": cache_hits,
+            "cache_hit_rate": round(cache_hits / len(spans), 2) if spans else 0.0,
             "calls_saved_by_cache": cache_hits,
+            "frames_considered": frames_considered,
+            "frames_analyzed": frames_analyzed,
+            "frames_saved_by_selection": calls_saved_by_keyframes,
             "calls_saved_by_keyframes": calls_saved_by_keyframes,
         },
     }

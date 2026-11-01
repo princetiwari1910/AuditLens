@@ -253,3 +253,15 @@ class AuditSpan(SQLModel, table=True):
     retries: int = Field(default=0)
     step_reason: str = Field(default="")
     created_at: datetime = Field(default_factory=_utc_now)
+
+
+class ShareToken(SQLModel, table=True):
+    __tablename__ = "share_token"
+
+    id: str = Field(default_factory=_gen_uuid, primary_key=True)
+    audit_id: str = Field(index=True)
+    token_hash: str = Field(index=True)
+    created_at: datetime = Field(default_factory=_utc_now)
+    expires_at: datetime | None = Field(default=None)
+    access_count: int = Field(default=0)
+
