@@ -1,12 +1,15 @@
 {
   "recorded_at": "2026-10-31T10:35:33Z",
   "template_id": "fire_exit_safety",
+  "source_provider_mode": "mock",
   "duration_s": 0.21,
   "summary": {
     "score": 50,
     "pass": 2,
     "fail": 2,
     "unsure": 1,
+    "frames_analyzed": 12,
+    "frames_considered": 25,
     "by_severity": {
       "high": 4,
       "medium": 1,
@@ -181,11 +184,12 @@
         "frame_idx": 2,
         "timestamp_s": 2.0,
         "measurement": null,
-        "rationale": "Observed 2 candidate instances, but some have marginal confidence.",
+        "rationale": "Observed 2 candidate instances, but some have marginal confidence. [Auditor Note: (door, medium) \"Checking exit route near door, secondary exit signage unclear.\"]",
         "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
         "severity": "medium",
         "sources": [
-          "segmentation"
+          "segmentation",
+          "voice_note"
         ],
         "evidence_ids": [
           "res_aa269b8be2c8",
@@ -407,6 +411,8 @@
           "pass": 2,
           "fail": 2,
           "unsure": 1,
+          "frames_analyzed": 12,
+          "frames_considered": 25,
           "by_severity": {
             "high": 4,
             "medium": 1,
@@ -449,10 +455,10 @@
       "timestamp_s": 2.0,
       "frame_idx": 2,
       "measurement_json": null,
-      "rationale": "Observed 2 candidate instances, but some have marginal confidence.",
+      "rationale": "Observed 2 candidate instances, but some have marginal confidence. [Auditor Note: (door, medium) \"Checking exit route near door, secondary exit signage unclear.\"]",
       "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
       "severity": "medium",
-      "sources_json": "[\"segmentation\"]"
+      "sources_json": "[\"segmentation\", \"voice_note\"]"
     },
     {
       "rule_id": "exit_path_not_blocked",
@@ -477,6 +483,13 @@
       "fix_text": "Reorganize stored items and furniture so at least 1.0 m clear walkway width is continuously preserved.",
       "severity": "high",
       "sources_json": "[\"segmentation\", \"measurement\"]"
+    }
+  ],
+  "voice_notes": [
+    {
+      "timestamp_s": 2.0,
+      "transcript": "Checking exit route near door, secondary exit signage unclear.",
+      "language": "en"
     }
   ],
   "cost_summary": {
@@ -511,11 +524,11 @@
         "name": "Voice Transcription",
         "model_id": "Muse Voice Transcribe",
         "role": "Muse Voice Transcribe: transcribes audio notes into searchable evidence",
-        "calls": 0,
+        "calls": 1,
         "cache_hits": 0,
-        "latency_ms": 0,
-        "units": 0.0,
-        "cost_usd": 0.0,
+        "latency_ms": 28,
+        "units": 1.0,
+        "cost_usd": 0.001,
         "simulated": true
       }
     },

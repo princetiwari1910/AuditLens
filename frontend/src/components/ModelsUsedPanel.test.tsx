@@ -77,15 +77,31 @@ describe('ModelsUsedPanel component', () => {
     expect(html).toContain('Mock Mode: Simulated Detections');
   });
 
-  it('renders Recorded Run badge when isReplay is true', () => {
+  it('renders Simulated Replay badge when isReplay is true and sourceProviderMode is mock', () => {
     const html = renderToString(
       <ModelsUsedPanel
         costSummary={null}
         providerMode="mock"
         isReplay={true}
+        sourceProviderMode="mock"
       />
     );
 
-    expect(html).toContain('Recorded Run');
+    expect(html).toContain('SIMULATED REPLAY (mock fixtures)');
+    expect(html).toContain('Latencies and costs are simulated.');
+  });
+
+  it('renders Recorded Run badge when isReplay is true and sourceProviderMode is record', () => {
+    const html = renderToString(
+      <ModelsUsedPanel
+        costSummary={null}
+        providerMode="replay"
+        isReplay={true}
+        sourceProviderMode="record"
+      />
+    );
+
+    expect(html).toContain('RECORDED RUN (live providers)');
+    expect(html).toContain('Latencies and costs are simulated.');
   });
 });

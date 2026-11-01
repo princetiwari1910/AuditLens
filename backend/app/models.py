@@ -148,6 +148,7 @@ class Audit(SQLModel, table=True):
     model_agent: str = Field(default="Muse Spark")
     model_transcription: str = Field(default="Muse Voice Transcribe")
     is_replay: bool = Field(default=False)
+    source_provider_mode: str | None = Field(default=None)
     fix_plan_json: str | None = Field(default=None)
 
 
@@ -219,7 +220,7 @@ class VoiceNote(SQLModel, table=True):
     id: str = Field(default_factory=_gen_uuid, primary_key=True)
     audit_id: str = Field(index=True)
     timestamp_s: float
-    audio_path: str
+    audio_path: str = Field(default="")
     transcript: str | None = Field(default=None)
     language: str | None = Field(default=None)
 

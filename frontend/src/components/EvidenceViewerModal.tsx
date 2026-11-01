@@ -269,7 +269,7 @@ export default function EvidenceViewerModal({
                 </div>
               ) : (
                 <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                  No confident detection met the safety compliance threshold. Escalation steps were bounded to preserve budget.
+                  No confident detection met the inspection threshold. Escalation steps were bounded to preserve budget.
                 </p>
               )}
             </div>

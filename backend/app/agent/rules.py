@@ -80,7 +80,7 @@ def parse_custom_rule(text: str, rule_idx: int = 1) -> RuleModel:
             severity=Severity.HIGH,
             sam_prompts=[cleaned] if cleaned else ["obstacle"],
             params={"threshold": 0.6},
-            fix_text=f"Remove {cleaned or 'detected hazard'} to ensure safety compliance.",
+            fix_text=f"Remove {cleaned or 'detected hazard'} to ensure a clear path.",
         )
 
     # Count keywords

@@ -15,7 +15,7 @@
         "item_prompt": "safety helmet",
         "min_overlap": 0.25
       },
-      "fix_text": "Mandate hard hat compliance at all designated workshop entry points and provide helmets for all active personnel."
+      "fix_text": "Ensure helmets are worn at all designated workshop entry points and provide helmets for all active personnel."
     },
     {
       "id": "person_wearing_safety_gloves",

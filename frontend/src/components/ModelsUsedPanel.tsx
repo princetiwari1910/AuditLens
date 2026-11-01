@@ -10,6 +10,7 @@ export interface ModelsUsedPanelProps {
     transcription?: string;
   };
   isReplay?: boolean;
+  sourceProviderMode?: string;
 }
 
 export default function ModelsUsedPanel({
@@ -17,8 +18,11 @@ export default function ModelsUsedPanel({
   providerMode = 'mock',
   models,
   isReplay = false,
+  sourceProviderMode,
 }: ModelsUsedPanelProps) {
   const isMock = providerMode.toLowerCase() === 'mock';
+  const isLiveReplay = isReplay && sourceProviderMode === 'record';
+  const isSimulated = isMock || isReplay || providerMode.toLowerCase() === 'replay' || providerMode.toLowerCase() === 'mock';
 
   // Fallbacks if costSummary not yet loaded
   const segData = costSummary?.by_provider?.segmentation || {
@@ -75,7 +79,7 @@ export default function ModelsUsedPanel({
               <span>Models Used & Provider Evidence</span>
               {isReplay && (
                 <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                  Recorded Run
+                  {isLiveReplay ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
                 </span>
               )}
             </h3>
@@ -172,7 +176,7 @@ export default function ModelsUsedPanel({
           </span>
         </div>
         <span className="text-[10px] text-slate-500 italic">
-          * Source: cost_log table. Latencies and costs measured from local execution.
+          * Source: cost_log table. {isSimulated ? 'Latencies and costs are simulated.' : 'Latencies and costs measured from local execution.'}
         </span>
       </div>
 

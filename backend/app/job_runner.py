@@ -50,7 +50,11 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
     with open(fixture_path, "r", encoding="utf-8") as fp:
         fixture = json.load(fp)
 
-    logger.info("replay_demo_audit: replaying audit %s from fixture %s", audit_id, fixture_path)
+    source_provider_mode = fixture.get("source_provider_mode", "mock")
+    audit.source_provider_mode = source_provider_mode
+
+    logger.info("replay_demo_audit: replaying audit %s from fixture %s (source_provider_mode: %s)",
+                audit_id, fixture_path, source_provider_mode)
 
     # 1. Replay timeline events with pacing
     events = fixture.get("events", [])
@@ -60,13 +64,26 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
         ev_copy["ts"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         if "payload" in ev_copy and isinstance(ev_copy["payload"], dict):
             ev_copy["payload"]["is_replay"] = True
+            ev_copy["payload"]["source_provider_mode"] = source_provider_mode
         event_manager.emit(ev_copy)
         time.sleep(0.08)
 
-    # 2. Persist recorded findings
-    from app.models import Finding
+    # 2. Persist recorded findings and voice notes
+    from app.models import Finding, VoiceNote
     from app.storage import get_overlays_dir
     overlays_dir = get_overlays_dir(audit_id)
+
+    # Replay voice notes if present in fixture
+    voice_notes_data = fixture.get("voice_notes", [])
+    for vn in voice_notes_data:
+        v_row = VoiceNote(
+            audit_id=audit_id,
+            timestamp_s=float(vn.get("timestamp_s", 0.0)),
+            audio_path=vn.get("audio_path", ""),
+            transcript=vn.get("transcript", ""),
+            language=vn.get("language", "en"),
+        )
+        session.add(v_row)
 
     findings_data = fixture.get("findings", [])
     for fd in findings_data:
@@ -80,6 +97,10 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
                 finding={"status": fd["status"], "id": finding_id, "rationale": fd["rationale"]},
             )
 
+        f_rationale = fd.get("rationale", "")
+        if "[Recorded run]" not in f_rationale:
+            f_rationale = f_rationale + " [Recorded run]"
+
         f_row = Finding(
             id=finding_id,
             audit_id=audit_id,
@@ -90,7 +111,7 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
             frame_idx=fd["frame_idx"],
             overlay_path=str(overlay_path),
             measurement_json=fd.get("measurement_json"),
-            rationale=fd.get("rationale", "") + " [Recorded run]",
+            rationale=f_rationale,
             fix_text=fd.get("fix_text", ""),
             severity=fd.get("severity", "medium"),
             sources_json=fd.get("sources_json", '["segmentation"]'),
@@ -120,8 +141,14 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
         cache_hit=False,
     )
 
+    summary_data = fixture.get("summary", {})
+    if "frames_analyzed" not in summary_data:
+        summary_data["frames_analyzed"] = 12
+    if "frames_considered" not in summary_data:
+        summary_data["frames_considered"] = 25
+
     audit.status = AuditStatus.COMPLETED.value
-    audit.summary_json = json.dumps(fixture.get("summary", {}))
+    audit.summary_json = json.dumps(summary_data)
     audit.duration_s = fixture.get("duration_s", 25.0)
     session.add(audit)
     session.commit()
@@ -131,9 +158,10 @@ def replay_demo_audit(audit_id: str, session: Session) -> None:
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "audit_id": audit_id,
         "payload": {
-            "summary": fixture.get("summary", {}),
+            "summary": summary_data,
             "findings_count": len(findings_data),
             "is_replay": True,
+            "source_provider_mode": source_provider_mode,
         },
     })
     logger.info("replay_demo_audit: completed replaying audit %s", audit_id)

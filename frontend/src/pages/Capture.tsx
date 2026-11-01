@@ -277,7 +277,7 @@ export default function Capture() {
           <p className="text-sm text-[var(--color-text-secondary)]">
             {customRuleQuery
               ? `Inspecting for: "${customRuleQuery}"`
-              : template?.description || 'Upload inspection footage for AI compliance analysis.'}
+              : template?.description || 'Upload inspection footage for AI pre-inspection analysis.'}
           </p>
         </div>
 

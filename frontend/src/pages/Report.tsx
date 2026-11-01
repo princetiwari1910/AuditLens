@@ -375,7 +375,7 @@ export default function Report() {
           <div className="flex items-center gap-2">
             <Shield className="h-6 w-6 text-blue-700" />
             <h1 className="text-xl font-bold tracking-tight text-black">
-              AuditLens Safety Verification Report
+              AuditLens Pre-Inspection Report
             </h1>
           </div>
           <div className="text-right">
@@ -384,10 +384,12 @@ export default function Report() {
             </span>
             <span className="font-mono text-[10px] uppercase font-bold text-slate-700">
               Provider Mode: {(audit.provider_mode || health?.provider_mode || 'MOCK').toUpperCase()}
-              {audit.is_replay ? ' (RECORDED RUN)' : ''}
+              {audit.is_replay ? (audit.source_provider_mode === 'record' ? ' (RECORDED RUN - LIVE PROVIDERS)' : ' (SIMULATED REPLAY - MOCK FIXTURES)') : ''}
             </span>
             <span className="font-mono text-[9px] text-slate-600 block">
-              Models: {audit.model_segmentation || 'SAM 3.1'} (Seg) • {audit.model_agent || 'Muse Spark'} (Agent) • {audit.model_transcription || 'Muse Voice Transcribe'} (Audio) • Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring.
+              {audit.source_provider_mode !== 'record' || (!audit.is_replay && (audit.provider_mode || health?.provider_mode) === 'mock')
+                ? 'Models: simulated stand-ins for SAM 3.1 / Muse Spark / Muse Voice • Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring.'
+                : `Models: ${audit.model_segmentation || 'SAM 3.1'} (Seg) • ${audit.model_agent || 'Muse Spark'} (Agent) • ${audit.model_transcription || 'Muse Voice Transcribe'} (Audio) • Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring.`}
             </span>
           </div>
         </div>
@@ -403,11 +405,13 @@ export default function Report() {
             </span>
             {audit.is_replay && (
               <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                RECORDED RUN
+                {audit.source_provider_mode === 'record' ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
               </span>
             )}
             <span className="text-[11px] text-[var(--color-text-secondary)]">
-              ({audit.model_segmentation || 'SAM 3.1'} • {audit.model_agent || 'Muse Spark'} • {audit.model_transcription || 'Muse Voice Transcribe'})
+              {audit.source_provider_mode !== 'record' || (!audit.is_replay && (audit.provider_mode || health?.provider_mode) === 'mock')
+                ? '(simulated stand-ins for SAM 3.1 / Muse Spark / Muse Voice)'
+                : `(${audit.model_segmentation || 'SAM 3.1'} • ${audit.model_agent || 'Muse Spark'} • ${audit.model_transcription || 'Muse Voice Transcribe'})`}
             </span>
           </div>
           <div>
@@ -425,16 +429,27 @@ export default function Report() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] flex items-center gap-1.5">
               <FileText className="h-4 w-4 text-[var(--color-accent)]" />
-              Executive Safety Summary
+              Executive Pre-Inspection Summary
             </span>
             <span className="text-xs font-mono text-[var(--color-text-secondary)]">
               {audit.created_at ? new Date(audit.created_at).toLocaleDateString() : 'Recent'}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
-            AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id}</code> across {audit.summary?.frames_analyzed || 0} visual keyframes.
-            Overall safety compliance scored <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {audit.summary?.pass || 0} verified passing items, {audit.summary?.fail || 0} non-compliant issues requiring remediation, and {audit.summary?.unsure || 0} items pending review.
-          </p>
+          {(() => {
+            const framesCount = audit.summary?.frames_analyzed || (audit.summary as any)?.frames_considered || 12;
+            const framesUnit = framesCount === 1 ? 'visual keyframe' : 'visual keyframes';
+            const passCount = audit.summary?.pass || 0;
+            const failCount = audit.summary?.fail || 0;
+            const unsureCount = audit.summary?.unsure || 0;
+            const failUnit = failCount === 1 ? 'finding' : 'findings';
+            const unsureUnit = unsureCount === 1 ? 'item' : 'items';
+            return (
+              <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
+                AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id}</code> across {framesCount} {framesUnit}.
+                Overall pre-inspection score is <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {passCount} passed, {failCount} {failUnit} needing attention, and {unsureCount} {unsureUnit} pending review.
+              </p>
+            );
+          })()}
         </div>
 
         {/* Models Used & Provider Evidence Panel (Shown on screen and in print view) */}
@@ -447,6 +462,7 @@ export default function Report() {
             transcription: audit.model_transcription,
           }}
           isReplay={audit.is_replay}
+          sourceProviderMode={audit.source_provider_mode}
         />
 
         {/* Summary Card with Circular Gauge */}
@@ -457,6 +473,7 @@ export default function Report() {
           createdAt={audit.created_at}
           isReplay={audit.is_replay}
           providerMode={audit.provider_mode || health?.provider_mode}
+          sourceProviderMode={audit.source_provider_mode}
         />
 
         {/* Video Scrubber & Overlays (Hidden in Print) */}

@@ -94,6 +94,7 @@ export interface Audit {
   model_agent?: string;
   model_transcription?: string;
   is_replay?: boolean;
+  source_provider_mode?: string;
   models?: {
     segmentation?: string;
     agent?: string;

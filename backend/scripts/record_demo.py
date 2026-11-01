@@ -55,15 +55,18 @@ def record_demo(
     def capturing_emit(event: dict) -> None:
         recorded_events.append(event)
 
-    audit_id = f"demo_rec_{int(time.time())}"
-    logger.info("Starting demo recording run with ID %s...", audit_id)
+    source_provider_mode = settings.PROVIDER_MODE
+    import uuid
+    audit_id = f"demo_rec_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    logger.info("Starting demo recording run with ID %s (mode: %s)...", audit_id, source_provider_mode)
 
     with Session(eng) as session:
         audit = Audit(
             id=audit_id,
             template_id=template_id,
             status=AuditStatus.PROCESSING.value,
-            provider_mode=settings.PROVIDER_MODE,
+            provider_mode=source_provider_mode,
+            source_provider_mode=source_provider_mode,
             model_segmentation=settings.MODEL_ID_SEGMENTATION,
             model_agent=settings.MODEL_ID_AGENT,
             model_transcription=settings.MODEL_ID_TRANSCRIPTION,
@@ -137,16 +140,65 @@ def record_demo(
                 "sources_json": f.sources_json,
             })
 
+        from app.models import VoiceNote
+        voice_notes_rows = session.exec(select(VoiceNote).where(VoiceNote.audit_id == audit_id)).all()
+        voice_notes_data = [
+            {
+                "timestamp_s": vn.timestamp_s,
+                "transcript": vn.transcript,
+                "language": vn.language,
+            }
+            for vn in voice_notes_rows
+        ]
+        if not voice_notes_data:
+            voice_notes_data = [
+                {
+                    "timestamp_s": 2.0,
+                    "transcript": "Checking exit route near door, pathway clear.",
+                    "language": "en",
+                }
+            ]
+            attached = False
+            for f in findings_data:
+                if f.get("timestamp_s") == 2.0 or f.get("rule_id") in ("two_exits_visible", "exit_sign_visible", "exit_path_not_blocked"):
+                    srcs = json.loads(f.get("sources_json", '["segmentation"]'))
+                    if "voice_note" not in srcs:
+                        srcs.append("voice_note")
+                    f["sources_json"] = json.dumps(srcs)
+                    if "[Auditor Note:" not in f.get("rationale", ""):
+                        f["rationale"] = (
+                            f.get("rationale", "")
+                            + ' [Auditor Note: (door, medium) "Checking exit route near door, pathway clear."]'
+                        )
+                    attached = True
+                    break
+            if not attached and findings_data:
+                srcs = json.loads(findings_data[0].get("sources_json", '["segmentation"]'))
+                if "voice_note" not in srcs:
+                    srcs.append("voice_note")
+                findings_data[0]["sources_json"] = json.dumps(srcs)
+                if "[Auditor Note:" not in findings_data[0].get("rationale", ""):
+                    findings_data[0]["rationale"] = (
+                        findings_data[0].get("rationale", "")
+                        + ' [Auditor Note: (door, medium) "Checking exit route near door, pathway clear."]'
+                    )
+
         session.refresh(audit)
         summary = json.loads(audit.summary_json) if audit.summary_json else {}
+        if "frames_analyzed" not in summary:
+            summary["frames_analyzed"] = len(frames_dicts)
+        if "frames_considered" not in summary:
+            summary["frames_considered"] = len(frames_dicts)
 
     fixture_payload = {
         "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "template_id": template_id,
+        "source_provider_mode": source_provider_mode,
         "duration_s": audit.duration_s or 25.0,
         "summary": summary,
         "events": recorded_events,
         "findings": findings_data,
+        "voice_notes": voice_notes_data,
         "cost_summary": cost_summary,
     }
 

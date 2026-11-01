@@ -55,6 +55,7 @@ def init_db(engine_instance=None) -> None:
                 ("model_agent", "VARCHAR DEFAULT 'Muse Spark'"),
                 ("model_transcription", "VARCHAR DEFAULT 'Muse Voice Transcribe'"),
                 ("is_replay", "BOOLEAN DEFAULT 0"),
+                ("source_provider_mode", "VARCHAR DEFAULT NULL"),
                 ("fix_plan_json", "TEXT DEFAULT NULL"),
                 ("site_id", "VARCHAR DEFAULT NULL"),
             ]:

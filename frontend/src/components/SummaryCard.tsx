@@ -9,6 +9,7 @@ interface SummaryCardProps {
   createdAt: string;
   isReplay?: boolean;
   providerMode?: string;
+  sourceProviderMode?: string;
 }
 
 export default function SummaryCard({
@@ -18,6 +19,7 @@ export default function SummaryCard({
   createdAt,
   isReplay = false,
   providerMode,
+  sourceProviderMode,
 }: SummaryCardProps) {
   const score = summary?.score ?? 0;
   const grade = getScoreGrade(score);
@@ -39,7 +41,7 @@ export default function SummaryCard({
             </div>
             {isReplay && (
               <span className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                RECORDED RUN
+                {sourceProviderMode === 'record' ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
               </span>
             )}
             {providerMode && (

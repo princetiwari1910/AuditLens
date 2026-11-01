@@ -409,6 +409,7 @@ async def list_audits(session: Session = Depends(get_session)) -> list[dict[str,
             "model_agent": a.model_agent,
             "model_transcription": a.model_transcription,
             "is_replay": a.is_replay,
+            "source_provider_mode": a.source_provider_mode,
             "models": {
                 "segmentation": a.model_segmentation,
                 "agent": a.model_agent,
@@ -506,6 +507,7 @@ async def get_audit(
         "model_agent": audit.model_agent,
         "model_transcription": audit.model_transcription,
         "is_replay": audit.is_replay,
+        "source_provider_mode": audit.source_provider_mode,
         "models": {
             "segmentation": audit.model_segmentation,
             "agent": audit.model_agent,
@@ -1176,7 +1178,7 @@ async def get_site_trends(
             resolved_issues.append({
                 "rule_id": r_id,
                 "status": "resolved",
-                "note": "Previously failed in earlier inspection, verified passing in subsequent walkthrough.",
+                "note": "Previously failed in earlier inspection, passed in subsequent walkthrough.",
             })
 
     return {
