@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { AuditNotFoundView } from './Report';
+import Report from './Report';
 import { ApiError, getAudit, getAuditCost } from '../api/client';
 
 describe('Report not-found state', () => {
@@ -167,5 +168,30 @@ describe('Report not-found state', () => {
     }
 
     globalThis.fetch = originalFetch;
+  });
+
+  it('renders Evidence bundle (.zip) link and verification help text in report header', () => {
+    const mockAudit: any = {
+      id: 'audit_evidence_test_1',
+      status: 'completed',
+      template_id: 'campus_fire_exit_core',
+      created_at: '2026-11-01T12:00:00Z',
+      provider_mode: 'mock',
+      summary: { score: 100, pass: 4, fail: 0, unsure: 0 },
+      findings: [],
+    };
+
+    const html = renderToString(
+      <MemoryRouter initialEntries={['/audits/audit_evidence_test_1']}>
+        <Report initialAudit={mockAudit} />
+      </MemoryRouter>
+    );
+
+    // Verify Evidence bundle button text
+    expect(html).toContain('Evidence bundle (.zip)');
+    // Verify GET /api/audits/{id}/bundle link target
+    expect(html).toContain('/api/audits/audit_evidence_test_1/bundle');
+    // Verify one-line verification help text
+    expect(html).toContain('scripts/verify_bundle.py checks the hashes');
   });
 });

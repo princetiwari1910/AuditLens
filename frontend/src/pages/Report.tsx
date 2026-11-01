@@ -18,6 +18,7 @@ import {
   Activity,
   Share2,
   FileText,
+  Download,
 } from 'lucide-react';
 import {
   getAudit,
@@ -122,9 +123,10 @@ export function AuditNotFoundView({
 
 export interface ReportProps {
   isShared?: boolean;
+  initialAudit?: Audit | null;
 }
 
-export default function Report({ isShared = false }: ReportProps = {}) {
+export default function Report({ isShared = false, initialAudit = null }: ReportProps = {}) {
   const { id, token } = useParams<{ id?: string; token?: string }>();
   const navigate = useNavigate();
 
@@ -132,7 +134,7 @@ export default function Report({ isShared = false }: ReportProps = {}) {
   const activeIdentifier = token || id;
   const isTokenRequest = Boolean(token);
 
-  const [audit, setAudit] = useState<Audit | null>(null);
+  const [audit, setAudit] = useState<Audit | null>(initialAudit);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export default function Report({ isShared = false }: ReportProps = {}) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pass' | 'fail' | 'unsure' | 'needs_review'>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [isCostOpen, setIsCostOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialAudit);
   const [isNotFound, setIsNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStartingDemo, setIsStartingDemo] = useState(false);
@@ -196,6 +198,9 @@ export default function Report({ isShared = false }: ReportProps = {}) {
   }, [stopPolling]);
 
   useEffect(() => {
+    if (initialAudit) {
+      return;
+    }
     if (!activeIdentifier) {
       setIsNotFound(true);
       setIsLoading(false);
@@ -209,7 +214,7 @@ export default function Report({ isShared = false }: ReportProps = {}) {
     return () => {
       stopPolling();
     };
-  }, [activeIdentifier, isTokenRequest, loadAuditData, stopPolling]);
+  }, [activeIdentifier, isTokenRequest, loadAuditData, stopPolling, initialAudit]);
 
   const [demoError, setDemoError] = useState<string | null>(null);
 
@@ -421,6 +426,16 @@ export default function Report({ isShared = false }: ReportProps = {}) {
               </>
             )}
 
+            <a
+              href={`${API_BASE_URL}/api/audits/${audit.id}/bundle`}
+              download={`audit-${audit.id}-evidence.zip`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+              title="Download SHA-256 verified evidence bundle"
+            >
+              <Download className="h-3.5 w-3.5 text-indigo-500" />
+              <span>Evidence bundle (.zip)</span>
+            </a>
+
             <Link
               to="/eval"
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
@@ -447,6 +462,11 @@ export default function Report({ isShared = false }: ReportProps = {}) {
               <span>Export PDF</span>
             </button>
           </div>
+        </div>
+        <div className="mx-auto max-w-5xl pt-1 flex justify-end">
+          <p className="text-[11px] text-[var(--color-text-secondary)] font-mono">
+            Integrity check: scripts/verify_bundle.py checks the hashes.
+          </p>
         </div>
       </header>
 
