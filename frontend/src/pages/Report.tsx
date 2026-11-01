@@ -46,9 +46,17 @@ export interface AuditNotFoundViewProps {
   id?: string;
   onLoadDemo?: () => void;
   isStartingDemo?: boolean;
+  demoError?: string | null;
+  onDismissError?: () => void;
 }
 
-export function AuditNotFoundView({ id, onLoadDemo, isStartingDemo }: AuditNotFoundViewProps) {
+export function AuditNotFoundView({
+  id,
+  onLoadDemo,
+  isStartingDemo,
+  demoError,
+  onDismissError,
+}: AuditNotFoundViewProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--color-bg)] px-6 py-12">
       <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-lg">
@@ -63,6 +71,27 @@ export function AuditNotFoundView({ id, onLoadDemo, isStartingDemo }: AuditNotFo
             'specified'
           )} does not exist or has been deleted.
         </p>
+
+        {demoError && (
+          <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200 text-left">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold">Could not start demo audit</p>
+                <p className="font-mono text-[11px] mt-0.5 text-rose-700 dark:text-rose-300">{demoError}</p>
+              </div>
+              {onDismissError && (
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="text-rose-500 hover:text-rose-700 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
@@ -165,20 +194,31 @@ export default function Report() {
     };
   }, [id, loadAuditData, stopPolling]);
 
+  const [demoError, setDemoError] = useState<string | null>(null);
+
   async function handleLoadDemo() {
     try {
+      setDemoError(null);
       setIsStartingDemo(true);
-      const res = await createDemoAudit('fire_exit_safety');
+      const res = await createDemoAudit('campus_fire_exit_core');
       navigate(`/audits/${res.id}/processing`);
     } catch (err: any) {
-      alert(`Could not start demo audit: ${err.message}`);
+      setDemoError(err.message || 'Could not start demo audit');
     } finally {
       setIsStartingDemo(false);
     }
   }
 
   if (isNotFound) {
-    return <AuditNotFoundView id={id} onLoadDemo={handleLoadDemo} isStartingDemo={isStartingDemo} />;
+    return (
+      <AuditNotFoundView
+        id={id}
+        onLoadDemo={handleLoadDemo}
+        isStartingDemo={isStartingDemo}
+        demoError={demoError}
+        onDismissError={() => setDemoError(null)}
+      />
+    );
   }
 
   if (loadError) {
@@ -295,16 +335,20 @@ export default function Report() {
     setSelectedFindingId(filteredFindings[prevIndex].id);
   };
 
+  const [shareError, setShareError] = useState<string | null>(null);
+
   const handleShare = async () => {
     if (!id) return;
     try {
+      setShareError(null);
       const res = await createShareLink(id);
       const fullUrl = `${window.location.origin}${res.share_url}`;
       await navigator.clipboard.writeText(fullUrl);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 3000);
     } catch (err: any) {
-      alert(`Could not create share link: ${err?.message}`);
+      setShareError(err?.message || 'Could not create share link');
+      setTimeout(() => setShareError(null), 5000);
     }
   };
 
@@ -341,6 +385,11 @@ export default function Report() {
               <Share2 className="h-3.5 w-3.5 text-blue-500" />
               <span>{shareCopied ? 'Copied!' : 'Share'}</span>
             </button>
+            {shareError && (
+              <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-1 rounded border border-rose-200 dark:border-rose-800">
+                {shareError}
+              </span>
+            )}
 
             <Link
               to="/eval"

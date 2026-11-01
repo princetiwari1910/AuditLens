@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, AlertTriangle, RefreshCw, XCircle, ArrowLeft } from 'lucide-react';
 import { useAuditEvents } from '../api/sse';
@@ -21,7 +21,7 @@ export default function Processing() {
     retry,
   } = useAuditEvents(id);
 
-  // Auto-navigate to report on completion
+  const [confirmCancel, setConfirmCancel] = useState(false);
   useEffect(() => {
     if (isCompleted && id) {
       const timer = setTimeout(() => {
@@ -33,12 +33,10 @@ export default function Processing() {
 
   async function handleCancel() {
     if (!id) return;
-    if (window.confirm('Are you sure you want to cancel this audit run?')) {
-      try {
-        await cancelAudit(id);
-      } catch (err) {
-        console.error('Cancel request error:', err);
-      }
+    try {
+      await cancelAudit(id);
+    } catch (err) {
+      console.error('Cancel request error:', err);
     }
   }
 
@@ -103,13 +101,34 @@ export default function Processing() {
           </div>
 
           {!isCompleted && !error && (
-            <button
-              onClick={handleCancel}
-              className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-lg border border-red-200 bg-red-50 px-3.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel Audit
-            </button>
+            confirmCancel ? (
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">Cancel run?</span>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
+                >
+                  Yes, Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmCancel(false)}
+                  className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] transition-colors"
+                >
+                  Keep Running
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(true)}
+                className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-lg border border-red-200 bg-red-50 px-3.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors"
+              >
+                <XCircle className="h-4 w-4" />
+                Cancel Audit
+              </button>
+            )
           )}
 
           {isCompleted && id && (

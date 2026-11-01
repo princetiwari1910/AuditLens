@@ -12,6 +12,8 @@ import {
   Loader2,
   BarChart3,
   Building2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   getAudits,
@@ -32,6 +34,8 @@ export default function Home() {
   const [recentAudits, setRecentAudits] = useState<Audit[]>([]);
   const [customRuleText, setCustomRuleText] = useState('');
   const [isStartingDemo, setIsStartingDemo] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [lastReplayMode, setLastReplayMode] = useState<boolean>(false);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(console.error);
@@ -46,11 +50,13 @@ export default function Home() {
 
   async function handleLoadDemo(replay: boolean = false) {
     try {
+      setDemoError(null);
+      setLastReplayMode(replay);
       setIsStartingDemo(true);
       const res = await createDemoAudit('campus_fire_exit_core', replay);
       navigate(`/audits/${res.id}/processing`);
     } catch (err: any) {
-      alert(`Could not start demo audit: ${err.message}`);
+      setDemoError(err.message || 'Could not start demo audit');
     } finally {
       setIsStartingDemo(false);
     }
@@ -79,6 +85,38 @@ export default function Home() {
       {health?.provider_mode === 'record' && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 text-center text-xs font-medium text-emerald-800 dark:text-emerald-200">
           <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for deterministic replay.</span>
+        </div>
+      )}
+
+      {/* In-page Error Banner */}
+      {demoError && (
+        <div role="alert" className="bg-rose-50 border-b border-rose-200 px-6 py-3 text-xs text-rose-800 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-200">
+          <div className="mx-auto flex max-w-5xl flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <div>
+                <span className="font-bold mr-1.5">Could not start demo audit:</span>
+                <span className="font-mono text-[11px]">{demoError}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleLoadDemo(lastReplayMode)}
+                className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1 font-semibold text-white shadow-sm hover:bg-rose-700 transition-colors"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Retry
+              </button>
+              <Link
+                to="/"
+                onClick={() => setDemoError(null)}
+                className="rounded-md border border-rose-300 dark:border-rose-800 px-2.5 py-1 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
+              >
+                Dismiss / Home
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

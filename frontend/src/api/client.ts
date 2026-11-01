@@ -19,18 +19,62 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
   });
+
+  let rawText = '';
+  let textRead = false;
+  if (typeof res.text === 'function') {
+    try {
+      rawText = await res.text();
+      textRead = true;
+    } catch {
+      // In case body was already handled
+    }
+  }
+
   if (!res.ok) {
     let errMsg = `API error ${res.status}`;
-    try {
-      const errJson = await res.json();
-      errMsg = errJson.detail || errMsg;
-    } catch {
-      const body = await res.text();
-      if (body) errMsg = body;
+    if (textRead && rawText) {
+      try {
+        const errJson = JSON.parse(rawText);
+        if (typeof errJson === 'object' && errJson !== null) {
+          errMsg = errJson.detail || errJson.message || errMsg;
+        }
+      } catch {
+        errMsg = rawText;
+      }
+    } else if (!textRead && typeof res.json === 'function') {
+      try {
+        const errJson = await res.json();
+        if (typeof errJson === 'object' && errJson !== null) {
+          errMsg = errJson.detail || errJson.message || errMsg;
+        }
+      } catch {
+        // ignore
+      }
     }
     throw new ApiError(errMsg, res.status);
   }
-  return res.json() as Promise<T>;
+
+  if (textRead) {
+    if (!rawText || rawText.trim() === '') {
+      return {} as T;
+    }
+    try {
+      return JSON.parse(rawText) as T;
+    } catch {
+      return rawText as unknown as T;
+    }
+  }
+
+  if (typeof res.json === 'function') {
+    try {
+      return (await res.json()) as T;
+    } catch {
+      return {} as T;
+    }
+  }
+
+  return {} as T;
 }
 
 export interface HealthResponse {
