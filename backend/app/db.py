@@ -67,6 +67,19 @@ def init_db(engine_instance=None) -> None:
             ]:
                 if col_name not in cost_cols:
                     conn.exec_driver_sql(f"ALTER TABLE cost_log ADD COLUMN {col_name} {col_type}")
+
+            finding_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(finding)").fetchall()]
+            for col_name, col_type in [
+                ("evidence_ledger_json", "TEXT DEFAULT '[]'"),
+                ("strongest_evidence_json", "TEXT DEFAULT NULL"),
+                ("decision_policy", "VARCHAR DEFAULT 'default'"),
+                ("detector", "VARCHAR DEFAULT 'sam'"),
+                ("support_count", "INTEGER DEFAULT 1"),
+                ("stability", "FLOAT DEFAULT 1.0"),
+                ("escalation_steps_json", "TEXT DEFAULT '[]'"),
+            ]:
+                if col_name not in finding_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE finding ADD COLUMN {col_name} {col_type}")
             conn.commit()
     except Exception:
         pass

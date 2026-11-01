@@ -366,6 +366,7 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
         detector_val = getattr(f, "detector", "sam")
         supp_cnt = getattr(f, "support_count", 1)
         stab_val = getattr(f, "stability", 1.0)
+        esc_steps = json.loads(getattr(f, "escalation_steps_json", "[]")) if getattr(f, "escalation_steps_json", None) else []
         findings_data.append({
             "id": f.id,
             "rule_id": f.rule_id,
@@ -385,6 +386,7 @@ async def get_audit(audit_id: str, session: Session = Depends(get_session)) -> d
             "detector": detector_val,
             "support_count": supp_cnt,
             "stability": stab_val,
+            "escalation_steps": esc_steps,
         })
 
     has_video = bool(

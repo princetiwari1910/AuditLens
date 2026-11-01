@@ -569,6 +569,7 @@ class ToolRegistry:
         detector: str = "sam",
         support_count: int = 1,
         stability: float = 1.0,
+        escalation_steps: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         Record finding with strict Evidence-First validation.
@@ -633,6 +634,7 @@ class ToolRegistry:
             "detector": detector,
             "support_count": support_count,
             "stability": stability,
+            "escalation_steps": escalation_steps or [],
         }
         self.ctx.findings.append(finding)
         return {"finding_id": finding_id, "finding": finding}

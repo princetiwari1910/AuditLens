@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 from sqlmodel import Session, select
 
+from app.agent.escalation import run_active_evidence_gathering
 from app.agent.rules import (
     apply_decision_policy,
     compute_summary_score,
@@ -26,7 +27,7 @@ from app.agent.tools import ExecutionContext, ToolRegistry
 from app.agent.tracking import ObjectTracker, evaluate_temporal_consensus
 from app.config import get_settings
 from app.costlog import log_cost
-from app.models import Audit, AuditStatus, EvidenceItem, EvidenceStrength, Finding, Frame, RuleModel, VoiceNote
+from app.models import Audit, AuditStatus, EvidenceItem, EvidenceStrength, Finding, FindingStatus, Frame, RuleModel, RuleType, VoiceNote
 from app.storage import get_overlays_dir
 
 
@@ -449,13 +450,53 @@ class AgentRunner:
                         if consensus_res["best_detection"]:
                             best_rep_detection = consensus_res["best_detection"]
 
+                # Active Evidence Gathering (WP3) bounded loop if presence rule is unsure or concept never detected
+                escalation_steps: list[dict[str, Any]] = []
+                escalation_did_run = False
+                if getattr(settings, "ENABLE_ACTIVE_GATHERING", True) and r_type == RuleType.PRESENCE and (status in (FindingStatus.UNSURE, "unsure") or not best_rep_detection):
+                    candidate_f = frames[rep_frame_idx] if rep_frame_idx < len(frames) else (frames[0] if frames else {})
+                    work_d = settings.DATA_DIR / "audits" / audit_id
+                    esc_res = run_active_evidence_gathering(
+                        rule_id=rule.id,
+                        concept=primary_prompt,
+                        candidate_frame=candidate_f,
+                        all_frames=frames,
+                        segmenter=self.segmentation_provider,
+                        reasoner=self.reasoner,
+                        audit_id=audit_id,
+                        work_dir=work_d,
+                        session=session,
+                        pass_threshold=rule.params.get("min_score", 0.60),
+                        emit_event=lambda t, p: emit(_make_event(t, audit_id, p)),
+                    )
+                    escalation_steps = esc_res.get("steps", [])
+                    escalation_did_run = esc_res.get("escalation_ran", False)
+                    if esc_res.get("confident") and esc_res.get("best_detection"):
+                        best_rep_detection = esc_res["best_detection"]
+                        rep_frame_idx = int(best_rep_detection.get("frame_id", rep_frame_idx))
+                        rep_timestamp_s = float(best_rep_detection.get("timestamp_s", rep_timestamp_s))
+                        status = FindingStatus.PASS
+                        conf = float(best_rep_detection.get("score", 0.85))
+                        rationale += f" [Resolved via active evidence gathering ({best_rep_detection.get('source')})]"
+                        evidence_ledger.append({
+                            "id": f"ev_{uuid.uuid4().hex[:8]}",
+                            "frame_id": rep_frame_idx,
+                            "ts": rep_timestamp_s,
+                            "source": "sam" if "sam" in best_rep_detection.get("source", "") else "spark",
+                            "concept": primary_prompt,
+                            "box": best_rep_detection.get("bbox"),
+                            "mask_ref": best_rep_detection.get("polygon"),
+                            "score": conf,
+                            "strength": EvidenceStrength.MASK_BACKED.value if best_rep_detection.get("polygon") else EvidenceStrength.MODEL_ATTESTED.value,
+                        })
+
                 # Apply Decision Policy (WP1)
                 status, conf, decision_policy, policy_rat = apply_decision_policy(
                     rule_type=r_type,
                     provisional_status=status,
                     confidence=conf,
                     evidence_items=evidence_ledger,
-                    escalation_ran=(detector == "sam_then_spark" and 'v_res' in locals()),
+                    escalation_ran=(escalation_did_run or (detector == "sam_then_spark" and 'v_res' in locals())),
                     min_absence_k=2,
                     num_frames_evaluated=len(frames),
                 )
@@ -484,6 +525,7 @@ class AgentRunner:
                     detector=detector,
                     support_count=supp_cnt,
                     stability=stability_val,
+                    escalation_steps=escalation_steps,
                 )
 
                 created_finding = rec_res["finding"]
@@ -533,6 +575,7 @@ class AgentRunner:
                         detector=created_finding.get("detector", "sam"),
                         support_count=supp_cnt,
                         stability=stability_val,
+                        escalation_steps_json=json.dumps(created_finding.get("escalation_steps", [])),
                     )
                     session.add(finding_row)
                     session.commit()

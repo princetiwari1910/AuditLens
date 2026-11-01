@@ -183,6 +183,7 @@ class Finding(SQLModel, table=True):
     detector: str = "sam"
     support_count: int = 1
     stability: float = 1.0
+    escalation_steps_json: str = "[]"
 
 
 class VoiceNote(SQLModel, table=True):
