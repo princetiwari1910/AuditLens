@@ -173,3 +173,79 @@ def test_site_trends_multi_audit_history(clean_db: Path):
     assert len(data["resolved_issues"]) == 1
     assert data["resolved_issues"][0]["rule_id"] == "exit_path_not_blocked"
     assert data["resolved_issues"][0]["status"] == "resolved"
+
+
+def test_site_trends_single_audit_notice_and_non_pass_deficiencies(clean_db: Path):
+    """With a single audit, trend_notice says 'Trends need at least 2 audits' and open_deficiencies includes all non-pass findings."""
+    client = TestClient(app)
+    session = next(get_session())
+
+    site = Site(id="site_single_audit", name="Single Audit Warehouse", location_label="Bay 7")
+    session.add(site)
+
+    audit = Audit(
+        id="audit_single_01",
+        site_id="site_single_audit",
+        template_id="campus_fire_exit_core",
+        status="completed",
+        summary_json=json.dumps({"score": 60, "pass_count": 2, "fail_count": 1, "unsure_count": 1}),
+    )
+    session.add(audit)
+
+    # 1 fail finding
+    f_fail = Finding(
+        id="f_single_fail",
+        audit_id="audit_single_01",
+        rule_id="exit_path_not_blocked",
+        status="fail",
+        confidence=0.88,
+        timestamp_s=1.0,
+        frame_idx=0,
+        severity="high",
+        rationale="Blocked pathway",
+        final_verdict="fail",
+    )
+    # 1 needs_review / unsure finding
+    f_review = Finding(
+        id="f_single_review",
+        audit_id="audit_single_01",
+        rule_id="extinguisher_accessible",
+        status="unsure",
+        confidence=0.5,
+        timestamp_s=2.0,
+        frame_idx=1,
+        severity="medium",
+        rationale="Partially obscured",
+        final_verdict="needs_review",
+    )
+    # 1 pass finding
+    f_pass = Finding(
+        id="f_single_pass",
+        audit_id="audit_single_01",
+        rule_id="exit_sign_visible",
+        status="pass",
+        confidence=0.99,
+        timestamp_s=3.0,
+        frame_idx=2,
+        severity="high",
+        rationale="Clearly visible",
+        final_verdict="pass",
+    )
+    session.add(f_fail)
+    session.add(f_review)
+    session.add(f_pass)
+    session.commit()
+
+    resp = client.get("/api/sites/site_single_audit/trends")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Open deficiencies must equal non-pass findings (fail + needs_review) = 2
+    assert len(data["open_issues"]) == 2
+    rule_ids = {iss["rule_id"] for iss in data["open_issues"]}
+    assert rule_ids == {"exit_path_not_blocked", "extinguisher_accessible"}
+
+    # With a single audit: notice must be present, recurring & resolved must be empty
+    assert data["trend_notice"] == "Trends need at least 2 audits"
+    assert len(data["recurring_issues"]) == 0
+    assert len(data["resolved_issues"]) == 0

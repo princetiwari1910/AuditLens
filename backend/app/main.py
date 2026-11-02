@@ -1122,16 +1122,17 @@ async def get_site_trends(
         for f in all_findings:
             audit_findings.setdefault(f.audit_id, []).append(f)
 
-    # 1. Open issues: from latest completed/processed audit where verdict is 'fail'
+    # 1. Open deficiencies: from latest audit where verdict is non-pass ('fail' or 'needs_review' or 'unsure')
     open_issues = []
     latest_audit = audits[-1] if audits else None
     if latest_audit:
         for f in audit_findings.get(latest_audit.id, []):
             st = getattr(f, "final_verdict", f.status) or f.status
-            if st == "fail":
+            if st != "pass":
                 open_issues.append({
                     "finding_id": f.id,
                     "rule_id": f.rule_id,
+                    "status": st,
                     "severity": f.severity,
                     "rationale": f.rationale,
                     "fix_text": f.fix_text,
@@ -1181,6 +1182,12 @@ async def get_site_trends(
                 "note": "Previously failed in earlier inspection, passed in subsequent walkthrough.",
             })
 
+    trend_notice = None
+    if len(audits) < 2:
+        recurring_issues = []
+        resolved_issues = []
+        trend_notice = "Trends need at least 2 audits"
+
     return {
         "site": {
             "id": site.id,
@@ -1192,6 +1199,7 @@ async def get_site_trends(
         "open_issues": open_issues,
         "recurring_issues": recurring_issues,
         "resolved_issues": resolved_issues,
+        "trend_notice": trend_notice,
     }
 
 

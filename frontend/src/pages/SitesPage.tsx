@@ -22,18 +22,29 @@ import {
 import type { Audit } from '../api/types';
 import { getScoreGrade } from '../utils/formatters';
 
-export default function SitesPage() {
+export interface SitesPageProps {
+  initialSites?: Site[];
+  initialTrends?: SiteTrends | null;
+  initialAudits?: Audit[];
+}
+
+export default function SitesPage({
+  initialSites = [],
+  initialTrends = null,
+  initialAudits = [],
+}: SitesPageProps = {}) {
   const { id: siteIdParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-  const [trends, setTrends] = useState<SiteTrends | null>(null);
-  const [audits, setAudits] = useState<Audit[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sites, setSites] = useState<Site[]>(initialSites);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(initialSites[0]?.id || '');
+  const [trends, setTrends] = useState<SiteTrends | null>(initialTrends);
+  const [audits, setAudits] = useState<Audit[]>(initialAudits);
+  const [isLoading, setIsLoading] = useState(!initialTrends && initialSites.length === 0);
 
   // Load sites list
   useEffect(() => {
+    if (initialSites.length > 0) return;
     getSites()
       .then((data) => {
         setSites(data);
@@ -45,10 +56,11 @@ export default function SitesPage() {
         }
       })
       .catch(console.error);
-  }, [siteIdParam]);
+  }, [siteIdParam, initialSites.length]);
 
   // Load site trends and audits whenever selectedSiteId changes
   useEffect(() => {
+    if (initialTrends) return;
     if (!selectedSiteId) return;
     setIsLoading(true);
 
@@ -65,7 +77,7 @@ export default function SitesPage() {
         console.error('Failed to load site trends:', err);
         setIsLoading(false);
       });
-  }, [selectedSiteId]);
+  }, [selectedSiteId, initialTrends]);
 
   const handleSelectSite = (newSiteId: string) => {
     setSelectedSiteId(newSiteId);
@@ -180,9 +192,15 @@ export default function SitesPage() {
                   <RefreshCw className="h-3.5 w-3.5 text-amber-500" />
                   Recurring Issues
                 </span>
-                <span className="mt-1 text-2xl font-black text-amber-600 dark:text-amber-400 block">
-                  {trends.recurring_issues.length}
-                </span>
+                {(audits.length > 0 ? audits.length : trends.score_trend.length) < 2 ? (
+                  <span className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400 block">
+                    Trends need at least 2 audits
+                  </span>
+                ) : (
+                  <span className="mt-1 text-2xl font-black text-amber-600 dark:text-amber-400 block">
+                    {trends.recurring_issues.length}
+                  </span>
+                )}
               </div>
 
               <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
@@ -190,9 +208,15 @@ export default function SitesPage() {
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                   Resolved Deficiencies
                 </span>
-                <span className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400 block">
-                  {trends.resolved_issues.length}
-                </span>
+                {(audits.length > 0 ? audits.length : trends.score_trend.length) < 2 ? (
+                  <span className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 block">
+                    Trends need at least 2 audits
+                  </span>
+                ) : (
+                  <span className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400 block">
+                    {trends.resolved_issues.length}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -250,94 +274,118 @@ export default function SitesPage() {
             )}
 
             {/* Deficiencies Deep Dive: Open, Recurring, Resolved */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Open Issues */}
-              <div className="rounded-xl border border-rose-200 dark:border-rose-900/50 bg-[var(--color-surface)] p-5 space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
-                  <AlertOctagon className="h-4 w-4" />
-                  <span>Current Open Issues ({trends.open_issues.length})</span>
-                </h4>
-                {trends.open_issues.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
-                    Zero open failure deficiencies in latest inspection.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {trends.open_issues.map((iss) => (
-                      <div
-                        key={iss.finding_id}
-                        className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs space-y-1"
-                      >
-                        <div className="font-semibold text-[var(--color-text)]">
-                          {iss.rule_id}
-                        </div>
-                        <p className="text-[11px] text-[var(--color-text-secondary)]">
-                          {iss.rationale}
-                        </p>
+            {(() => {
+              const isSingleAudit = (audits.length > 0 ? audits.length : trends.score_trend.length) < 2;
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Open Issues */}
+                  <div className="rounded-xl border border-rose-200 dark:border-rose-900/50 bg-[var(--color-surface)] p-5 space-y-3">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-rose-700 dark:text-rose-400 flex items-center gap-1.5">
+                      <AlertOctagon className="h-4 w-4" />
+                      <span>{`Current Open Deficiencies (${trends.open_issues.length})`}</span>
+                    </h4>
+                    {trends.open_issues.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-secondary)] italic">
+                        Zero open deficiencies in latest inspection.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {trends.open_issues.map((iss) => (
+                          <div
+                            key={iss.finding_id}
+                            className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-[var(--color-text)]">
+                                {iss.rule_id}
+                              </span>
+                              {iss.status && (
+                                <span className={`px-1.5 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
+                                  iss.status === 'fail'
+                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                }`}>
+                                  {iss.status === 'fail' ? 'FAIL' : 'NEEDS REVIEW'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-[var(--color-text-secondary)]">
+                              {iss.rationale}
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Recurring Issues */}
-              <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-[var(--color-surface)] p-5 space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Recurring Deficiencies ({trends.recurring_issues.length})</span>
-                </h4>
-                {trends.recurring_issues.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
-                    No repeated failure patterns detected across audits.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {trends.recurring_issues.map((rec) => (
-                      <div
-                        key={rec.rule_id}
-                        className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs flex items-center justify-between"
-                      >
-                        <span className="font-semibold text-[var(--color-text)]">
-                          {rec.rule_id}
-                        </span>
-                        <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-mono font-bold">
-                          {rec.fail_occurrences}x failed
-                        </span>
+                  {/* Recurring Issues */}
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-[var(--color-surface)] p-5 space-y-3">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <RefreshCw className="h-4 w-4" />
+                      <span>{`Recurring Deficiencies (${trends.recurring_issues.length})`}</span>
+                    </h4>
+                    {isSingleAudit ? (
+                      <p className="text-xs text-[var(--color-text-secondary)] italic">
+                        Trends need at least 2 audits
+                      </p>
+                    ) : trends.recurring_issues.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-secondary)] italic">
+                        No repeated failure patterns detected across audits.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {trends.recurring_issues.map((rec) => (
+                          <div
+                            key={rec.rule_id}
+                            className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs flex items-center justify-between"
+                          >
+                            <span className="font-semibold text-[var(--color-text)]">
+                              {rec.rule_id}
+                            </span>
+                            <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-mono font-bold">
+                              {`${rec.fail_occurrences}x failed`}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Resolved Issues */}
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-[var(--color-surface)] p-5 space-y-3">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Verified Resolved ({trends.resolved_issues.length})</span>
-                </h4>
-                {trends.resolved_issues.length === 0 ? (
-                  <p className="text-xs text-[var(--color-text-secondary)] italic">
-                    No verified remediations recorded yet.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {trends.resolved_issues.map((res, i) => (
-                      <div
-                        key={i}
-                        className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs space-y-1"
-                      >
-                        <div className="font-semibold text-emerald-700 dark:text-emerald-300">
-                          {res.rule_id}
-                        </div>
-                        <p className="text-[10px] text-[var(--color-text-secondary)]">
-                          {res.note}
-                        </p>
+                  {/* Resolved Issues */}
+                  <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-[var(--color-surface)] p-5 space-y-3">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{`Verified Resolved (${trends.resolved_issues.length})`}</span>
+                    </h4>
+                    {isSingleAudit ? (
+                      <p className="text-xs text-[var(--color-text-secondary)] italic">
+                        Trends need at least 2 audits
+                      </p>
+                    ) : trends.resolved_issues.length === 0 ? (
+                      <p className="text-xs text-[var(--color-text-secondary)] italic">
+                        No verified remediations recorded yet.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {trends.resolved_issues.map((res, i) => (
+                          <div
+                            key={i}
+                            className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-xs space-y-1"
+                          >
+                            <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                              {res.rule_id}
+                            </div>
+                            <p className="text-[10px] text-[var(--color-text-secondary)]">
+                              {res.note}
+                            </p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
 
             {/* Historical Audits List */}
             <section className="space-y-3">

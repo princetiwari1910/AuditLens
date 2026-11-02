@@ -346,6 +346,7 @@ export interface SiteTrends {
   open_issues: Array<{
     finding_id: string;
     rule_id: string;
+    status?: string;
     severity: string;
     rationale: string;
     fix_text: string;
@@ -359,6 +360,7 @@ export interface SiteTrends {
     status: string;
     note: string;
   }>;
+  trend_notice?: string | null;
 }
 
 export function getSites(): Promise<Site[]> {
