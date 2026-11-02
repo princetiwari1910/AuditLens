@@ -13,7 +13,7 @@ interface VideoWithMarkersProps {
 
 export default function VideoWithMarkers({
   videoUrl,
-  findings,
+  findings = [],
   selectedFindingId,
   onSelectFinding,
 }: VideoWithMarkersProps) {

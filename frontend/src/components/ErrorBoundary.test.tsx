@@ -2,10 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import ErrorBoundary from './ErrorBoundary';
 
-function ProblemChild(): never {
-  throw new Error('Test crash in child component');
-}
-
 describe('ErrorBoundary component', () => {
   it('renders children when no error occurs', () => {
     const html = renderToString(

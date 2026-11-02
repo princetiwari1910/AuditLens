@@ -1,4 +1,4 @@
-import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertOctagon, RotateCcw, Home as HomeIcon } from 'lucide-react';
 
 export interface ErrorBoundaryProps {

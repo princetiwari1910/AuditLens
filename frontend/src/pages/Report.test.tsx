@@ -194,4 +194,157 @@ describe('Report not-found state', () => {
     // Verify one-line verification help text
     expect(html).toContain('scripts/verify_bundle.py checks the hashes');
   });
+
+  describe('Report UI Smoke Test (realistic and minimal payloads)', () => {
+    function setupErrorTrap() {
+      const recordedErrors: string[] = [];
+      const spy = vi.spyOn(console, 'error').mockImplementation((...args: any[]) => {
+        const msg = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+        // Filter out React 18 SSR warning about useLayoutEffect
+        if (msg.includes('useLayoutEffect does nothing on the server')) return;
+        recordedErrors.push(msg);
+      });
+      return {
+        spy,
+        getErrors: () => recordedErrors,
+        restore: () => spy.mockRestore(),
+      };
+    }
+
+    it('renders full Report page with realistic MOCK payload without errors', () => {
+      const trap = setupErrorTrap();
+
+      const realisticMockAudit: any = {
+        id: 'audit_mock_real_01',
+        site_id: 'site_building_a',
+        status: 'completed',
+        template_id: 'campus_fire_exit_core',
+        created_at: '2026-11-01T14:30:00Z',
+        provider_mode: 'mock',
+        is_replay: false,
+        source_provider_mode: 'mock',
+        model_segmentation: 'SAM 3.1',
+        model_agent: 'Muse Spark',
+        model_transcription: 'Muse Voice Transcribe',
+        summary: {
+          score: 75,
+          pass: 3,
+          fail: 1,
+          unsure: 0,
+          frames_analyzed: 24,
+          frames_considered: 105,
+        },
+        findings: [
+          {
+            id: 'f_01',
+            rule_id: 'extinguisher_visible',
+            status: 'pass',
+            severity: 'high',
+            confidence: 0.94,
+            timestamp_s: 2.5,
+            frame_idx: 6,
+            rationale: 'Extinguisher present on wall',
+            fix_text: '',
+            sources: ['segmentation'],
+          },
+          {
+            id: 'f_02',
+            rule_id: 'exit_path_not_blocked',
+            status: 'fail',
+            severity: 'high',
+            confidence: 0.91,
+            timestamp_s: 18.0,
+            frame_idx: 45,
+            rationale: 'Boxes obstructing corridor doorway',
+            fix_text: 'Remove boxes from hallway',
+            sources: ['segmentation'],
+          },
+        ],
+      };
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/audits/audit_mock_real_01']}>
+          <Report initialAudit={realisticMockAudit} />
+        </MemoryRouter>
+      );
+
+      expect(html).toContain('AuditLens Pre-Inspection Report');
+      expect(html).toContain('campus_fire_exit_core');
+      expect(html).toContain('extinguisher_visible');
+      expect(html).toContain('exit_path_not_blocked');
+      expect(trap.getErrors()).toEqual([]);
+
+      trap.restore();
+    });
+
+    it('renders full Report page with realistic REPLAY (mock-derived fixture) payload without errors', () => {
+      const trap = setupErrorTrap();
+
+      const realisticReplayAudit: any = {
+        id: 'audit_replay_sim_02',
+        site_id: 'site_building_b',
+        status: 'completed',
+        template_id: 'campus_fire_exit_core',
+        created_at: '2026-11-01T16:00:00Z',
+        provider_mode: 'replay',
+        is_replay: true,
+        source_provider_mode: 'mock',
+        summary: {
+          score: 50,
+          pass: 2,
+          fail: 2,
+          unsure: 0,
+          frames_analyzed: 16,
+          frames_considered: 80,
+        },
+        findings: [
+          {
+            id: 'f_03',
+            rule_id: 'exit_sign_visible',
+            status: 'pass',
+            severity: 'high',
+            confidence: 0.96,
+            timestamp_s: 3.0,
+            frame_idx: 8,
+            rationale: 'Exit sign illuminated',
+            sources: ['segmentation'],
+          },
+        ],
+      };
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/audits/audit_replay_sim_02']}>
+          <Report initialAudit={realisticReplayAudit} />
+        </MemoryRouter>
+      );
+
+      expect(html).toContain('SIMULATED REPLAY (mock fixtures)');
+      expect(html).toContain('exit_sign_visible');
+      expect(trap.getErrors()).toEqual([]);
+
+      trap.restore();
+    });
+
+    it('renders full Report page with minimal payload (all optional fields missing) without errors', () => {
+      const trap = setupErrorTrap();
+
+      const minimalAudit: any = {
+        id: 'audit_minimal_03',
+        status: 'completed',
+      };
+
+      const html = renderToString(
+        <MemoryRouter initialEntries={['/audits/audit_minimal_03']}>
+          <Report initialAudit={minimalAudit} />
+        </MemoryRouter>
+      );
+
+      expect(html).not.toBe('');
+      expect(html).toContain('Pre-Audit Inspection Report');
+      expect(html).toContain('Audit ID: audit_minimal_');
+      expect(trap.getErrors()).toEqual([]);
+
+      trap.restore();
+    });
+  });
 });

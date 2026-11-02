@@ -74,7 +74,7 @@ export default function SummaryCard({
               }) : 'Recent'}
             </span>
             <span>·</span>
-            <span>Audit ID: {(auditId || '').slice(0, 13)}</span>
+            <span>{`Audit ID: ${(auditId || '').slice(0, 13)}`}</span>
           </div>
         </div>
 

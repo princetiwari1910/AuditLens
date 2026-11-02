@@ -516,7 +516,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
           </div>
           <div>
             <span className="text-[11px] text-[var(--color-text-secondary)]">
-              Audit ID: {(audit.id || '').slice(0, 14)}
+              {`Audit ID: ${(audit.id || '').slice(0, 14)}`}
             </span>
           </div>
         </div>
@@ -586,7 +586,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
           </h3>
           <VideoWithMarkers
             videoUrl={videoUrl}
-            findings={audit.findings}
+            findings={audit.findings || []}
             selectedFindingId={selectedFindingId}
             onSelectFinding={(fId) => setSelectedFindingId(fId)}
           />
