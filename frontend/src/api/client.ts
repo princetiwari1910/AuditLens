@@ -151,6 +151,7 @@ export interface CompileTemplateResponse {
   template: Template;
   valid: boolean;
   errors: string[];
+  warnings?: string[];
 }
 
 export function compileTemplate(text: string): Promise<CompileTemplateResponse> {

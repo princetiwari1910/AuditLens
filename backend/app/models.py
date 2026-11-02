@@ -77,6 +77,7 @@ class EvidenceItem(BaseModel):
 class RuleModel(BaseModel):
     id: str
     title: str
+    condition: str = ""
     type: RuleType
     severity: Severity = Severity.MEDIUM
     sam_prompts: list[str] = PydanticField(default_factory=list)

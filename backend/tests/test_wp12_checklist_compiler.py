@@ -90,6 +90,33 @@ def test_compile_empty_text_returns_400(clean_db: Path):
     assert resp.status_code == 400
 
 
+def test_compile_template_compound_or_negated_sentence_warning(clean_db: Path):
+    client = TestClient(app)
+    # Sentence contains compound conjunction 'and' and negation 'not'
+    text = "- Ensure fire extinguisher is mounted and exit hallway is not blocked"
+    resp = client.post("/api/templates/compile", json={"text": text})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["valid"] is True
+    # Must return compound or negated statement warning
+    assert "warnings" in data
+    assert any("Compound or negated statement: split it into separate rules or confirm" in w for w in data["warnings"])
+    assert len(data["template"]["rules"]) >= 1
+
+
+def test_compile_template_separates_condition_and_concept(clean_db: Path):
+    client = TestClient(app)
+    text = "Verify fire extinguisher is mounted"
+    resp = client.post("/api/templates/compile", json={"text": text})
+    assert resp.status_code == 200
+    rule = resp.json()["template"]["rules"][0]
+    # Condition and SAM concept are distinct properties
+    assert "condition" in rule
+    assert rule["condition"] == "Verify fire extinguisher is mounted"
+    assert "sam_prompts" in rule
+    assert "fire extinguisher" in rule["sam_prompts"]
+
+
 def test_record_replay_reasoner_compile_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     fixtures_dir = tmp_path / "fixtures"
     fixtures_dir.mkdir(parents=True, exist_ok=True)

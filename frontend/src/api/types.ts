@@ -15,6 +15,7 @@ export interface Template {
 export interface Rule {
   id: string;
   title: string;
+  condition?: string;
   type: RuleType;
   severity: 'high' | 'medium' | 'low';
   sam_prompts: string[];

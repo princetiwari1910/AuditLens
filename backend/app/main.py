@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
+import re
 import secrets
 import shutil
 from typing import Any, AsyncGenerator
@@ -160,6 +161,20 @@ async def compile_template_endpoint(
             except ValueError as ve:
                 errors.append(str(ve))
 
+    # Check for compound or negated statements in the input sentence(s)
+    warnings: list[str] = []
+    sentence_compound_pattern = re.compile(
+        r"\b(and|or|not|no|neither|nor|never|without|unblocked)\b|n't\b",
+        re.IGNORECASE,
+    )
+    raw_lines = [l.strip().lstrip("-*123456789. ") for l in req.text.splitlines() if l.strip()]
+    for l in raw_lines:
+        if sentence_compound_pattern.search(l):
+            warning_msg = "Compound or negated statement: split it into separate rules or confirm"
+            if warning_msg not in warnings:
+                warnings.append(warning_msg)
+            break
+
     # Mark custom checklist as experimental and human-reviewed
     draft["status"] = "experimental"
     draft["human_reviewed"] = True
@@ -170,6 +185,7 @@ async def compile_template_endpoint(
             detail={
                 "message": "Concept validation failed: SAM 3.1 prompts must be plain noun phrases only.",
                 "errors": errors,
+                "warnings": warnings,
                 "draft_template": draft,
             },
         )
@@ -178,6 +194,7 @@ async def compile_template_endpoint(
         "template": draft,
         "valid": True,
         "errors": [],
+        "warnings": warnings,
     }
 
 

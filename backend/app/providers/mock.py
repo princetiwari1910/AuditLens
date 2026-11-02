@@ -449,6 +449,7 @@ class MockReasoner:
             rules.append({
                 "id": rule_id,
                 "title": line[:60],
+                "condition": line.strip(),
                 "type": r_type,
                 "severity": "high" if any(w in line_lower for w in ["fire", "hazard", "danger", "critical"]) else "medium",
                 "sam_prompts": prompts,

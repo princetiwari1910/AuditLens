@@ -9,6 +9,7 @@ import {
   Play,
   Pause,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Sparkles,
   ArrowLeft,
@@ -24,8 +25,20 @@ const MAX_UPLOAD_MB = 200;
 const MAX_DURATION_S = 90;
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'image/jpeg', 'image/png'];
 
-export default function Capture() {
-  const { templateId } = useParams<{ templateId: string }>();
+export interface CaptureProps {
+  initialCompiledTemplate?: Template | null;
+  initialCompileWarnings?: string[];
+  initialCompileErrors?: string[];
+  initialHasConfirmedCompound?: boolean;
+}
+
+export default function Capture({
+  initialCompiledTemplate,
+  initialCompileWarnings,
+  initialCompileErrors,
+  initialHasConfirmedCompound,
+}: CaptureProps = {}) {
+  const { templateId = 'custom' } = useParams<{ templateId: string }>();
   const [searchParams] = useSearchParams();
   const customRuleQuery = searchParams.get('rule') || '';
   const navigate = useNavigate();
@@ -40,8 +53,10 @@ export default function Capture() {
 
   // Natural Language Checklist Compiler state (WP12)
   const [customText, setCustomText] = useState(customRuleQuery || '');
-  const [compiledTemplate, setCompiledTemplate] = useState<Template | null>(null);
-  const [compileErrors, setCompileErrors] = useState<string[]>([]);
+  const [compiledTemplate, setCompiledTemplate] = useState<Template | null>(initialCompiledTemplate ?? null);
+  const [compileErrors, setCompileErrors] = useState<string[]>(initialCompileErrors ?? []);
+  const [compileWarnings, setCompileWarnings] = useState<string[]>(initialCompileWarnings ?? []);
+  const [hasConfirmedCompound, setHasConfirmedCompound] = useState(initialHasConfirmedCompound ?? false);
   const [isCompiling, setIsCompiling] = useState(false);
 
   // Voice recording state
@@ -186,10 +201,13 @@ export default function Capture() {
     if (!customText.trim()) return;
     setIsCompiling(true);
     setCompileErrors([]);
+    setCompileWarnings([]);
+    setHasConfirmedCompound(false);
     try {
       const res = await compileTemplate(customText.trim());
       setCompiledTemplate(res.template);
       setCompileErrors([]);
+      setCompileWarnings(res.warnings || []);
     } catch (err: any) {
       if (err?.data?.detail?.errors) {
         setCompileErrors(err.data.detail.errors);
@@ -198,6 +216,7 @@ export default function Capture() {
       } else {
         setCompileErrors(['Failed to compile checklist: Invalid format']);
       }
+      setCompiledTemplate(null);
     } finally {
       setIsCompiling(false);
     }
@@ -206,6 +225,11 @@ export default function Capture() {
   // ── Submit Audit ────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!file) return;
+
+    if (templateId === 'custom' && compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound) {
+      setValidationError('Compound or negated statement: split it into separate rules or confirm before saving.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -304,7 +328,11 @@ export default function Capture() {
               <textarea
                 rows={3}
                 value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
+                onChange={(e) => {
+                  setCustomText(e.target.value);
+                  setHasConfirmedCompound(false);
+                  setCompileWarnings([]);
+                }}
                 placeholder="e.g.&#10;- Verify fire extinguisher is mounted on wall&#10;- Ensure exit signs are illuminated&#10;- Check hallway is clear of storage boxes"
                 className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
               />
@@ -337,28 +365,90 @@ export default function Capture() {
               </div>
             )}
 
+            {/* Warning for compound or negated statements */}
+            {compileWarnings.length > 0 && (
+              <div className="rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>Compound or negated statement: split it into separate rules or confirm</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHasConfirmedCompound(!hasConfirmedCompound)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition-colors ${
+                      hasConfirmedCompound
+                        ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                        : 'bg-amber-600 text-white border-amber-600 hover:bg-amber-700'
+                    }`}
+                  >
+                    {hasConfirmedCompound ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>Statement Confirmed</span>
+                      </>
+                    ) : (
+                      <span>Confirm Statement</span>
+                    )}
+                  </button>
+                </div>
+                {!hasConfirmedCompound ? (
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                    Your rule statement contains conjunctions or negation. Please edit to split into separate rules, or confirm this statement before saving.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                    Statement confirmed by user. You can proceed with saving or inspection.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Compiled Template Preview */}
             {compiledTemplate && (
-              <div className="rounded-xl border border-emerald-300 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3.5 text-xs space-y-2">
+              <div className="rounded-xl border border-emerald-300 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3.5 text-xs space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1">
+                  <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span>Compiled {compiledTemplate.rules.length} Rule(s) · Validated for SAM 3.1</span>
+                    <span>{`Compiled ${compiledTemplate.rules.length} Rule(s)`}</span>
                   </span>
                   <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-semibold">
                     Ready for Walkthrough
                   </span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {compiledTemplate.rules.map((r) => (
-                    <div key={r.id} className="p-2 rounded-lg bg-[var(--color-surface)] border border-emerald-200 dark:border-emerald-800 text-[11px] flex items-center justify-between">
-                      <span className="font-medium text-[var(--color-text)]">{r.title}</span>
-                      <div className="flex items-center gap-1 font-mono text-[10px]">
-                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-slate-700 dark:text-slate-300">
+                    <div
+                      key={r.id}
+                      className="p-3 rounded-lg bg-[var(--color-surface)] border border-emerald-200 dark:border-emerald-800 text-xs space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0">
+                              Condition:
+                            </span>
+                            <span className="font-medium text-[var(--color-text)]">
+                              {(r as any).condition || r.title}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0">
+                              SAM Concept:
+                            </span>
+                            <span className="font-mono text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                              {r.sam_prompts.join(', ')}
+                            </span>
+                            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-mono font-bold border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                              SAM concept valid
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-700 dark:text-slate-300 shrink-0">
                           {r.type}
-                        </span>
-                        <span className="rounded bg-indigo-100 dark:bg-indigo-950 px-1.5 py-0.5 text-indigo-700 dark:text-indigo-300">
-                          prompts: {r.sam_prompts.join(', ')}
                         </span>
                       </div>
                     </div>
@@ -551,10 +641,28 @@ export default function Capture() {
 
         {/* Start Button & Disclaimer */}
         <div className="space-y-4 pt-2">
+          {validationError && (
+            <div className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>{validationError}</span>
+            </div>
+          )}
+
+          {templateId === 'custom' && compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5 justify-center">
+              <AlertTriangle className="h-4 w-4" />
+              <span>Compound or negated statement requires confirmation or editing before saving.</span>
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!file || isSubmitting}
+            disabled={
+              !file ||
+              isSubmitting ||
+              (templateId === 'custom' && !!compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound)
+            }
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] py-3.5 px-6 font-semibold text-white shadow-md transition-all hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2"
           >
             {isSubmitting ? (
