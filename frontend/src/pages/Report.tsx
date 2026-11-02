@@ -146,9 +146,11 @@ export default function Report({ isShared = false, initialAudit = null }: Report
   const [isNotFound, setIsNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStartingDemo, setIsStartingDemo] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [reviewingFindingId, setReviewingFindingId] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -215,8 +217,6 @@ export default function Report({ isShared = false, initialAudit = null }: Report
       stopPolling();
     };
   }, [activeIdentifier, isTokenRequest, loadAuditData, stopPolling, initialAudit]);
-
-  const [demoError, setDemoError] = useState<string | null>(null);
 
   async function handleLoadDemo() {
     try {
@@ -294,11 +294,12 @@ export default function Report({ isShared = false, initialAudit = null }: Report
   }
 
   // Filter findings based on active tabs
-  const needsReviewCount = audit.findings.filter(
+  const findings = audit.findings || [];
+  const needsReviewCount = findings.filter(
     (f) => f.status === 'unsure' || f.ai_verdict === 'unsure' || f.final_verdict === 'unsure'
   ).length;
 
-  const filteredFindings = audit.findings.filter((f) => {
+  const filteredFindings = findings.filter((f) => {
     if (statusFilter === 'needs_review') {
       const needs = f.status === 'unsure' || f.ai_verdict === 'unsure' || f.final_verdict === 'unsure';
       if (!needs) return false;
@@ -317,7 +318,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
   ) => {
     setAudit((prev) => {
       if (!prev) return prev;
-      const updatedFindings = prev.findings.map((f) =>
+      const updatedFindings = (prev.findings || []).map((f) =>
         f.id === findingId
           ? {
               ...f,
@@ -336,7 +337,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
     setAuditLogs((prev) => [newLogEntry, ...prev]);
   };
 
-  const selectedFinding = audit.findings.find((f) => f.id === selectedFindingId) || null;
+  const selectedFinding = findings.find((f) => f.id === selectedFindingId) || null;
 
   const handleSelectFinding = (findingId: string) => {
     setSelectedFindingId(findingId);
@@ -356,8 +357,6 @@ export default function Report({ isShared = false, initialAudit = null }: Report
     const prevIndex = (currentIndex - 1 + filteredFindings.length) % filteredFindings.length;
     setSelectedFindingId(filteredFindings[prevIndex].id);
   };
-
-  const [shareError, setShareError] = useState<string | null>(null);
 
   const handleShare = async () => {
     if (!id) return;
@@ -517,7 +516,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
           </div>
           <div>
             <span className="text-[11px] text-[var(--color-text-secondary)]">
-              Audit ID: {audit.id.slice(0, 14)}
+              Audit ID: {(audit.id || '').slice(0, 14)}
             </span>
           </div>
         </div>
@@ -546,7 +545,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             const unsureUnit = unsureCount === 1 ? 'item' : 'items';
             return (
               <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
-                AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id}</code> across {framesCount} {framesUnit}.
+                AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id || 'general'}</code> across {framesCount} {framesUnit}.
                 Overall pre-inspection score is <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {passCount} passed, {failCount} {failUnit} needing attention, and {unsureCount} {unsureUnit} pending review.
               </p>
             );

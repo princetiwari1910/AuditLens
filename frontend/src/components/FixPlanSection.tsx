@@ -27,7 +27,7 @@ export default function FixPlanSection({
     getFixPlan(auditId)
       .then((data) => {
         if (isMounted) {
-          setActions(data);
+          setActions(Array.isArray(data) ? data : []);
           setIsLoading(false);
         }
       })

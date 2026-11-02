@@ -37,7 +37,7 @@ export default function SummaryCard({
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-mono font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 print:border print:border-slate-300">
               <FileText className="h-3.5 w-3.5" />
-              <span>{templateId.replace(/_/g, ' ').toUpperCase()}</span>
+              <span>{(templateId || 'General Safety').replace(/_/g, ' ').toUpperCase()}</span>
             </div>
             {isReplay && (
               <span className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
@@ -65,16 +65,16 @@ export default function SummaryCard({
           <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs font-mono text-[var(--color-text-secondary)]">
             <span className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(createdAt).toLocaleDateString(undefined, {
+              {createdAt ? new Date(createdAt).toLocaleDateString(undefined, {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-              })}
+              }) : 'Recent'}
             </span>
             <span>·</span>
-            <span>Audit ID: {auditId.slice(0, 13)}</span>
+            <span>Audit ID: {(auditId || '').slice(0, 13)}</span>
           </div>
         </div>
 
