@@ -32,6 +32,7 @@ from sqlmodel import Session, desc, select
 
 from app.agent.compare import compare_audits
 from app.agent.rules import compute_summary_score
+from app.concept_validation import validate_concept
 from app.config import get_settings
 from app.costlog import get_audit_cost_summary
 from app.db import get_session, init_db
@@ -347,6 +348,20 @@ async def create_audit(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unknown template_id: '{template_id}'",
+            )
+
+    if custom_rules:
+        try:
+            parsed = json.loads(custom_rules)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict) and "sam_prompts" in item:
+                        for prompt in item.get("sam_prompts", []):
+                            validate_concept(prompt, rule_id=item.get("id"))
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
             )
 
     # Create new audit record

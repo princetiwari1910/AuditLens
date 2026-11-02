@@ -20,6 +20,31 @@ import { createAudit, getTemplate, uploadVoiceNote, compileTemplate } from '../a
 import type { Template } from '../api/types';
 import Disclaimer from '../components/Disclaimer';
 import { formatTimestamp } from '../utils/formatters';
+import { validateConceptPrompt } from '../utils/conceptValidation';
+
+export function updateRuleConcept(
+  template: Template,
+  ruleId: string,
+  newConcept: string
+): { updatedTemplate: Template; error: string | null } {
+  const error = validateConceptPrompt(newConcept, ruleId);
+  const updatedRules = template.rules.map((r) => {
+    if (r.id === ruleId) {
+      return {
+        ...r,
+        sam_prompts: [newConcept],
+      };
+    }
+    return r;
+  });
+  return {
+    updatedTemplate: {
+      ...template,
+      rules: updatedRules,
+    },
+    error,
+  };
+}
 
 const MAX_UPLOAD_MB = 200;
 const MAX_DURATION_S = 90;
@@ -222,9 +247,29 @@ export default function Capture({
     }
   }
 
+  const conceptErrorsByRuleId: Record<string, string | null> = {};
+  if (compiledTemplate) {
+    for (const r of compiledTemplate.rules) {
+      const prompt = r.sam_prompts?.[0] ?? '';
+      conceptErrorsByRuleId[r.id] = validateConceptPrompt(prompt, r.id);
+    }
+  }
+  const hasConceptError = Object.values(conceptErrorsByRuleId).some(Boolean);
+
+  function handleConceptChange(ruleId: string, newConcept: string) {
+    if (!compiledTemplate) return;
+    const { updatedTemplate } = updateRuleConcept(compiledTemplate, ruleId, newConcept);
+    setCompiledTemplate(updatedTemplate);
+  }
+
   // ── Submit Audit ────────────────────────────────────────────────────────────
   async function handleSubmit() {
     if (!file) return;
+
+    if (hasConceptError) {
+      setValidationError('Cannot start audit: one or more SAM concepts are invalid. Templates must use plain noun phrases only.');
+      return;
+    }
 
     if (templateId === 'custom' && compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound) {
       setValidationError('Compound or negated statement: split it into separate rules or confirm before saving.');
@@ -417,42 +462,71 @@ export default function Capture({
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {compiledTemplate.rules.map((r) => (
-                    <div
-                      key={r.id}
-                      className="p-3 rounded-lg bg-[var(--color-surface)] border border-emerald-200 dark:border-emerald-800 text-xs space-y-2"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1.5 flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0">
-                              Condition:
-                            </span>
-                            <span className="font-medium text-[var(--color-text)]">
-                              {(r as any).condition || r.title}
-                            </span>
+                  {compiledTemplate.rules.map((r) => {
+                    const conceptErr = conceptErrorsByRuleId[r.id];
+                    return (
+                      <div
+                        key={r.id}
+                        className="p-3 rounded-lg bg-[var(--color-surface)] border border-emerald-200 dark:border-emerald-800 text-xs space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0">
+                                Condition:
+                              </span>
+                              <span className="font-medium text-[var(--color-text)]">
+                                {(r as any).condition || r.title}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <label
+                                  htmlFor={`concept-input-${r.id}`}
+                                  className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0"
+                                >
+                                  SAM Concept:
+                                </label>
+                                <input
+                                  id={`concept-input-${r.id}`}
+                                  data-testid={`concept-input-${r.id}`}
+                                  type="text"
+                                  value={r.sam_prompts.join(', ')}
+                                  onChange={(e) => handleConceptChange(r.id, e.target.value)}
+                                  className={`font-mono text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                                    conceptErr
+                                      ? 'border-rose-400 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
+                                      : 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
+                                  } focus:outline-none focus:ring-1 focus:ring-purple-500`}
+                                />
+                                {!conceptErr ? (
+                                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-mono font-bold border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                    SAM concept valid
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {conceptErr && (
+                                <div
+                                  data-testid={`concept-error-${r.id}`}
+                                  className="text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1"
+                                >
+                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{conceptErr}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-secondary)] font-bold shrink-0">
-                              SAM Concept:
-                            </span>
-                            <span className="font-mono text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
-                              {r.sam_prompts.join(', ')}
-                            </span>
-                            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-mono font-bold border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                              SAM concept valid
-                            </span>
-                          </div>
+                          <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-700 dark:text-slate-300 shrink-0">
+                            {r.type}
+                          </span>
                         </div>
-
-                        <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-700 dark:text-slate-300 shrink-0">
-                          {r.type}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -655,13 +729,21 @@ export default function Capture({
             </p>
           )}
 
+          {hasConceptError && (
+            <p className="text-xs text-rose-600 dark:text-rose-400 flex items-center gap-1.5 justify-center">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>SAM concept contains invalid words (conjunction or negation): must be a plain noun phrase.</span>
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleSubmit}
             disabled={
               !file ||
               isSubmitting ||
-              (templateId === 'custom' && !!compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound)
+              (templateId === 'custom' && !!compiledTemplate && compileWarnings.length > 0 && !hasConfirmedCompound) ||
+              hasConceptError
             }
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] py-3.5 px-6 font-semibold text-white shadow-md transition-all hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2"
           >

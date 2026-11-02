@@ -143,3 +143,22 @@ def test_meta_agent_provider_compile_template_without_key():
     provider = MetaAgentProvider()
     with pytest.raises(ValueError, match="UNVERIFIED against live API"):
         provider.compile_template("Check exit signs")
+
+
+def test_create_audit_with_invalid_custom_rules_concept(clean_db: Path):
+    client = TestClient(app)
+    invalid_rules = [
+        {
+            "id": "rule_1",
+            "title": "Check obstacles",
+            "sam_prompts": ["boxes and pallets"],
+        }
+    ]
+    resp = client.post(
+        "/api/audits",
+        data={"custom_rules": json.dumps(invalid_rules)},
+        files={"video": ("test.mp4", b"dummy video content", "video/mp4")},
+    )
+    assert resp.status_code == 422
+    assert "conjunction" in resp.json()["detail"]
+

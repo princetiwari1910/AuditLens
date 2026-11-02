@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import Capture from './Capture';
+import Capture, { updateRuleConcept } from './Capture';
 
 describe('Capture page checklist compiler', () => {
   const mockCompiledTemplate = {
@@ -34,7 +34,7 @@ describe('Capture page checklist compiler', () => {
     expect(html).toContain('Condition:');
     expect(html).toContain('Verify fire extinguisher is mounted');
     expect(html).toContain('SAM Concept:');
-    expect(html).toContain('fire extinguisher');
+    expect(html).toContain('value="fire extinguisher"');
 
     // Label must say "SAM concept valid"
     expect(html).toContain('SAM concept valid');
@@ -87,5 +87,68 @@ describe('Capture page checklist compiler', () => {
     expect(html).toContain('Concept Validation Failed:');
     expect(html).toContain('boxes and pallets');
     expect(html).toContain('conjunction');
+  });
+
+  it('edits concept field directly: rejects conjunction, negation, and blocks saving with inline error', () => {
+    // 1. Direct edit with conjunction ("and" / "or")
+    const editedConjunction = updateRuleConcept(
+      mockCompiledTemplate,
+      'rule_1',
+      'fire extinguisher and emergency sign'
+    );
+    expect(editedConjunction.error).not.toBeNull();
+    expect(editedConjunction.error).toContain("contains conjunction ('and'/'or')");
+    expect(editedConjunction.updatedTemplate.rules[0].sam_prompts).toEqual([
+      'fire extinguisher and emergency sign',
+    ]);
+
+    // Render with conjunction edited concept
+    const htmlConjunction = renderToString(
+      <MemoryRouter initialEntries={['/audits/new/custom']}>
+        <Capture initialCompiledTemplate={editedConjunction.updatedTemplate} />
+      </MemoryRouter>
+    );
+
+    // Inline error must appear under the concept field
+    expect(htmlConjunction).toContain('contains conjunction');
+    expect(htmlConjunction).not.toContain('SAM concept valid');
+    expect(htmlConjunction).toContain('SAM concept contains invalid words (conjunction or negation): must be a plain noun phrase');
+    // Button must be disabled
+    expect(htmlConjunction).toContain('disabled=""');
+
+    // 2. Direct edit with negation ("not", "unblocked")
+    const editedNegation = updateRuleConcept(
+      mockCompiledTemplate,
+      'rule_1',
+      'not blocked pathway'
+    );
+    expect(editedNegation.error).not.toBeNull();
+    expect(editedNegation.error).toContain('contains negation');
+
+    const htmlNegation = renderToString(
+      <MemoryRouter initialEntries={['/audits/new/custom']}>
+        <Capture initialCompiledTemplate={editedNegation.updatedTemplate} />
+      </MemoryRouter>
+    );
+    expect(htmlNegation).toContain('contains negation');
+    expect(htmlNegation).not.toContain('SAM concept valid');
+
+    // 3. Direct edit back to valid plain noun phrase
+    const editedValid = updateRuleConcept(
+      mockCompiledTemplate,
+      'rule_1',
+      'emergency exit door'
+    );
+    expect(editedValid.error).toBeNull();
+    expect(editedValid.updatedTemplate.rules[0].sam_prompts).toEqual(['emergency exit door']);
+
+    const htmlValid = renderToString(
+      <MemoryRouter initialEntries={['/audits/new/custom']}>
+        <Capture initialCompiledTemplate={editedValid.updatedTemplate} />
+      </MemoryRouter>
+    );
+    expect(htmlValid).toContain('SAM concept valid');
+    expect(htmlValid).not.toContain('contains conjunction');
+    expect(htmlValid).not.toContain('contains negation');
   });
 });
