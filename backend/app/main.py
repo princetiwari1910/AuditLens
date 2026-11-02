@@ -1118,18 +1118,6 @@ async def get_site_trends(
         .order_by(Audit.created_at.asc())
     ).all()
 
-    score_trend = []
-    for a in audits:
-        summ = json.loads(a.summary_json) if a.summary_json else {}
-        score_trend.append({
-            "audit_id": a.id,
-            "created_at": a.created_at.isoformat() if a.created_at else None,
-            "score": summ.get("score", 0),
-            "pass_count": summ.get("pass_count", 0),
-            "fail_count": summ.get("fail_count", 0),
-            "unsure_count": summ.get("unsure_count", 0),
-        })
-
     audit_ids = [a.id for a in audits]
     audit_findings: dict[str, list[Finding]] = {}
     if audit_ids:
@@ -1138,6 +1126,28 @@ async def get_site_trends(
         ).all()
         for f in all_findings:
             audit_findings.setdefault(f.audit_id, []).append(f)
+
+    score_trend = []
+    for a in audits:
+        summ = json.loads(a.summary_json) if a.summary_json else {}
+        f_list = audit_findings.get(a.id, [])
+        if f_list:
+            pass_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) == "pass")
+            fail_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) == "fail")
+            unsure_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) in ["unsure", "needs_review"])
+        else:
+            pass_cnt = summ.get("pass", summ.get("pass_count", 0))
+            fail_cnt = summ.get("fail", summ.get("fail_count", 0))
+            unsure_cnt = summ.get("unsure", summ.get("unsure_count", 0))
+
+        score_trend.append({
+            "audit_id": a.id,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+            "score": summ.get("score", 0),
+            "pass_count": pass_cnt,
+            "fail_count": fail_cnt,
+            "unsure_count": unsure_cnt,
+        })
 
     # 1. Open deficiencies: from latest audit where verdict is non-pass ('fail' or 'needs_review' or 'unsure')
     open_issues = []

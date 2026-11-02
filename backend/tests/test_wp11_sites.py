@@ -158,7 +158,11 @@ def test_site_trends_multi_audit_history(clean_db: Path):
     assert data["site"]["name"] == "Research Lab Complex"
     assert len(data["score_trend"]) == 2
     assert data["score_trend"][0]["score"] == 50
+    assert data["score_trend"][0]["pass_count"] == 0
+    assert data["score_trend"][0]["fail_count"] == 2
     assert data["score_trend"][1]["score"] == 75
+    assert data["score_trend"][1]["pass_count"] == 1
+    assert data["score_trend"][1]["fail_count"] == 1
 
     # 1. Open issues from latest audit
     assert len(data["open_issues"]) == 1

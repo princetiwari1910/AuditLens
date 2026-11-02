@@ -418,9 +418,14 @@ export default function SitesPage({
 
                     <div className="flex items-center gap-3">
                       {a.summary && (
-                        <span className="font-mono text-xs font-bold text-[var(--color-text)]">
-                          Score: {a.summary.score}/100
-                        </span>
+                        <div className="text-right">
+                          <span className="font-mono text-xs font-bold text-[var(--color-text)] block">
+                            Score: {a.summary.score}/100
+                          </span>
+                          <span className="font-mono text-[10px] text-[var(--color-text-secondary)] block">
+                            {`(${a.summary.pass ?? 0} pass · ${a.summary.fail ?? 0} fail · ${a.summary.unsure ?? 0} review)`}
+                          </span>
+                        </div>
                       )}
                       <Link
                         to={`/audits/${a.id}`}
