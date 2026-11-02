@@ -127,7 +127,7 @@ location /api/audits/ {
 
 ---
 
-## 🏆 Hackathon Build History & Architecture (Started Oct 27, 2026)
+## 🏆 Hackathon Build History and Architecture (Started Oct 27, 2026)
 
 AuditLens was architected and built from scratch starting on **October 27, 2026** during the hackathon window as a complete end-to-end safety pre-audit system:
 
