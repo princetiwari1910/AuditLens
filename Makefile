@@ -1,4 +1,4 @@
-.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video record-demo
+.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video record-demo smoke-ui
 
 # ── Setup ────────────────────────────────────────────────────────────────
 setup: setup-backend setup-frontend
@@ -27,6 +27,9 @@ frontend:
 # ── Quality ──────────────────────────────────────────────────────────────
 test:
 	cd backend && .venv/bin/pytest tests/ -v
+
+smoke-ui:
+	bash scripts/smoke_ui.sh
 
 lint:
 	cd frontend && npx tsc --noEmit
