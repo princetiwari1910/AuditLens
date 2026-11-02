@@ -40,6 +40,7 @@ import FindingCard from '../components/FindingCard';
 import Disclaimer from '../components/Disclaimer';
 import ModelsUsedPanel from '../components/ModelsUsedPanel';
 import PrivacyBadge from '../components/PrivacyBadge';
+import ReplayBadge from '../components/ReplayBadge';
 import EvidenceViewerModal from '../components/EvidenceViewerModal';
 import ReviewQueuePanel from '../components/ReviewQueuePanel';
 import FixPlanSection from '../components/FixPlanSection';
@@ -503,11 +504,10 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             <span className="font-bold text-[var(--color-text)] uppercase">
               {audit.provider_mode || health?.provider_mode || 'MOCK'}
             </span>
-            {audit.is_replay && (
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                {audit.source_provider_mode === 'record' ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
-              </span>
-            )}
+            <ReplayBadge
+              isReplay={audit.is_replay}
+              sourceProviderMode={audit.source_provider_mode}
+            />
             <span className="text-[11px] text-[var(--color-text-secondary)]">
               {audit.source_provider_mode !== 'record' || (!audit.is_replay && (audit.provider_mode || health?.provider_mode) === 'mock')
                 ? '(simulated stand-ins for SAM 3.1 / Muse Spark / Muse Voice)'

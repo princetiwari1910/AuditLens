@@ -1,5 +1,6 @@
 import { Cpu, Zap, Layers } from 'lucide-react';
 import type { CostSummary } from '../api/client';
+import ReplayBadge from './ReplayBadge';
 
 export interface ModelsUsedPanelProps {
   costSummary: CostSummary | null;
@@ -21,7 +22,6 @@ export default function ModelsUsedPanel({
   sourceProviderMode,
 }: ModelsUsedPanelProps) {
   const isMock = providerMode.toLowerCase() === 'mock';
-  const isLiveReplay = isReplay && sourceProviderMode === 'record';
   const isSimulated = isMock || isReplay || providerMode.toLowerCase() === 'replay' || providerMode.toLowerCase() === 'mock';
 
   // Fallbacks if costSummary not yet loaded
@@ -77,11 +77,11 @@ export default function ModelsUsedPanel({
           <div>
             <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
               <span>Models Used & Provider Evidence</span>
-              {isReplay && (
-                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                  {isLiveReplay ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
-                </span>
-              )}
+              <ReplayBadge
+                isReplay={isReplay}
+                sourceProviderMode={sourceProviderMode}
+                className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-amber-700 dark:text-amber-400 border border-amber-500/30"
+              />
             </h3>
             <p className="text-xs text-[var(--color-text-secondary)]">
               Auditable accounting of foundation model invocations, latency, and cache hits.

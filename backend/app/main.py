@@ -1098,6 +1098,7 @@ async def list_site_audits(
             "summary": summary,
             "provider_mode": a.provider_mode,
             "is_replay": a.is_replay,
+            "source_provider_mode": a.source_provider_mode,
         })
     return results
 

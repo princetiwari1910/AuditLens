@@ -5,6 +5,7 @@ import { useAuditEvents } from '../api/sse';
 import { cancelAudit } from '../api/client';
 import AgentTimeline from '../components/AgentTimeline';
 import Disclaimer from '../components/Disclaimer';
+import ReplayBadge from '../components/ReplayBadge';
 
 export default function Processing() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,6 @@ export default function Processing() {
 
   const isReplayRun = events.some((e) => Boolean((e.payload as any)?.is_replay));
   const sourceProviderMode = (events.find((e) => (e.payload as any)?.source_provider_mode)?.payload as any)?.source_provider_mode;
-  const isLiveReplay = sourceProviderMode === 'record';
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-16">
@@ -58,9 +58,11 @@ export default function Processing() {
           </Link>
           <div className="flex items-center gap-2">
             {isReplayRun ? (
-              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                {isLiveReplay ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
-              </span>
+              <ReplayBadge
+                isReplay={isReplayRun}
+                sourceProviderMode={sourceProviderMode}
+                className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30"
+              />
             ) : (
               <>
                 <span className={`inline-block h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
@@ -76,9 +78,12 @@ export default function Processing() {
       <main className="mx-auto max-w-4xl px-6 py-10 space-y-8">
         {isReplayRun && (
           <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
-            <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-500/20 px-1.5 py-0.5 rounded mr-1">
-              {isLiveReplay ? 'RECORDED RUN' : 'SIMULATED REPLAY'}
-            </span>
+            <ReplayBadge
+              isReplay={isReplayRun}
+              sourceProviderMode={sourceProviderMode}
+              compact
+              className="font-bold uppercase tracking-wider text-[11px] bg-amber-500/20 px-1.5 py-0.5 rounded mr-1 text-amber-800 dark:text-amber-300"
+            />
             <span>Replaying captured audit fixture with realistic timing. This run is an offline fallback, not a live execution.</span>
           </div>
         )}

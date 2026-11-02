@@ -1,6 +1,7 @@
 import type { AuditSummary } from '../api/types';
 import { getScoreGrade } from '../utils/formatters';
 import { Calendar, FileText, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import ReplayBadge from './ReplayBadge';
 
 interface SummaryCardProps {
   summary: AuditSummary | undefined;
@@ -39,11 +40,11 @@ export default function SummaryCard({
               <FileText className="h-3.5 w-3.5" />
               <span>{(templateId || 'General Safety').replace(/_/g, ' ').toUpperCase()}</span>
             </div>
-            {isReplay && (
-              <span className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                {sourceProviderMode === 'record' ? 'RECORDED RUN (live providers)' : 'SIMULATED REPLAY (mock fixtures)'}
-              </span>
-            )}
+            <ReplayBadge
+              isReplay={isReplay}
+              sourceProviderMode={sourceProviderMode}
+              className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30"
+            />
             {providerMode && (
               <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-600 dark:text-slate-300 uppercase">
                 {providerMode}

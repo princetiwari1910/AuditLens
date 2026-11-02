@@ -20,6 +20,7 @@ import {
   type SiteTrends,
 } from '../api/client';
 import type { Audit } from '../api/types';
+import ReplayBadge from '../components/ReplayBadge';
 import { getScoreGrade } from '../utils/formatters';
 
 export interface SitesPageProps {
@@ -405,11 +406,12 @@ export default function SitesPage({
                         <span className="font-semibold text-xs text-[var(--color-text)]">
                           {a.template_id}
                         </span>
-                        {a.is_replay && (
-                          <span className="rounded-full bg-amber-500/10 px-1.5 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                            REPLAY
-                          </span>
-                        )}
+                        <ReplayBadge
+                          isReplay={a.is_replay}
+                          sourceProviderMode={a.source_provider_mode}
+                          compact
+                          className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                        />
                       </div>
                       <p className="text-[11px] text-[var(--color-text-secondary)] font-mono">
                         {a.id.slice(0, 16)} · {a.created_at ? new Date(a.created_at).toLocaleString() : 'Recent'}
