@@ -26,6 +26,8 @@ ENV DATA_DIR=/app/data
 ENV PROVIDER_MODE=mock
 ENV FRAME_FPS=1
 ENV CORS_ORIGINS=*
+# CORS_ORIGINS is read from the environment at runtime (e.g. Render, Railway, local dev)
+# Mount persistent disk at /app/data for SQLite and uploaded audit files across restarts
 VOLUME ["/app/data"]
 
 EXPOSE 8000
@@ -35,4 +37,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Start Uvicorn ASGI server with proxy forwarding
+# Critical: disable response buffering for SSE streaming in production
+# (e.g. Render/Railway: set CORS_ORIGINS from env; proxy must also set proxy_buffering off)
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

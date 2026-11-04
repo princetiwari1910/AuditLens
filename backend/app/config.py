@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # Provider mode: "mock", "meta", "record", or "replay"
     PROVIDER_MODE: str = "mock"
 
+    # Demo mode: "replay" (default), "live", or "gated"
+    DEMO_MODE: str = "replay"
+
+    # Live demo passcode (required when DEMO_MODE=gated)
+    LIVE_PASSCODE: str = ""
+
     # File storage root (defaults to <PROJECT_ROOT>/data)
     DATA_DIR: Path = DEFAULT_DATA_DIR
 
@@ -45,6 +51,13 @@ class Settings(BaseSettings):
 
     # CORS Allowed Origins (comma-separated or single string e.g. "http://localhost:5173,https://auditlens.app")
     CORS_ORIGINS: str = "*"
+
+    # Rate limiting per IP for live audits (default 3 per hour)
+    LIVE_AUDIT_RATE_LIMIT_PER_IP: int = 3
+
+    # Budget guards (default: $20 global, $1 per audit)
+    GLOBAL_BUDGET_USD: float = 20.0
+    MAX_BUDGET_PER_AUDIT_USD: float = 1.0
 
     # Target Meta Foundation Models:
     # - Segmentation: SAM 3.1

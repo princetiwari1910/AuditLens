@@ -43,12 +43,17 @@ def get_segmentation_provider() -> SegmentationProvider:
 
     if mode == "replay":
         base = MockSegmentationProvider()
-    elif mode == "meta":
-        base = MetaSegmentationProvider()
     elif mode == "mock":
         base = MockSegmentationProvider()
+    elif mode == "meta":
+        if not settings.MODEL_API_KEY:
+            raise ValueError(
+                "PROVIDER_MODE=meta requires MODEL_API_KEY environment variable. "
+                "Set MODEL_API_KEY to use the Meta Foundation Model segmentation API."
+            )
+        base = MetaSegmentationProvider()
     else:
-        base = MetaSegmentationProvider() if settings.MODEL_API_KEY else MockSegmentationProvider()
+        base = MockSegmentationProvider()
 
     wrap_mode = mode if mode in ("record", "replay") else "passthrough"
     return RecordReplaySegmenter(base, mode=wrap_mode)
@@ -60,12 +65,17 @@ def get_transcription_provider() -> TranscriptionProvider:
 
     if mode == "replay":
         base = MockTranscriptionProvider()
-    elif mode == "meta":
-        base = MetaTranscriptionProvider()
     elif mode == "mock":
         base = MockTranscriptionProvider()
+    elif mode == "meta":
+        if not settings.MODEL_API_KEY:
+            raise ValueError(
+                "PROVIDER_MODE=meta requires MODEL_API_KEY environment variable. "
+                "Set MODEL_API_KEY to use the Meta Foundation Model transcription API (Muse Voice)."
+            )
+        base = MetaTranscriptionProvider()
     else:
-        base = MetaTranscriptionProvider() if settings.MODEL_API_KEY else MockTranscriptionProvider()
+        base = MockTranscriptionProvider()
 
     wrap_mode = mode if mode in ("record", "replay") else "passthrough"
     return RecordReplayTranscriber(base, mode=wrap_mode)
@@ -78,6 +88,11 @@ def get_agent_provider() -> AgentProvider:
     if mode == "replay":
         return MockAgentProvider()
     elif mode == "meta":
+        if not settings.MODEL_API_KEY:
+            raise ValueError(
+                "PROVIDER_MODE=meta requires MODEL_API_KEY environment variable. "
+                "Set MODEL_API_KEY to use the Meta Foundation Model reasoning API (Muse Spark)."
+            )
         return MetaAgentProvider()
     return MockAgentProvider()
 
@@ -98,15 +113,17 @@ def get_reasoner() -> Reasoner:
 
     if mode == "replay":
         base = MockReasoner()
-    elif mode == "meta":
-        base = MetaReasoner()
     elif mode == "mock":
         base = MockReasoner()
+    elif mode == "meta":
+        if not settings.MODEL_API_KEY:
+            raise ValueError(
+                "PROVIDER_MODE=meta requires MODEL_API_KEY environment variable. "
+                "Set MODEL_API_KEY to use the Meta Foundation Model reasoning API (Muse Spark)."
+            )
+        base = MetaReasoner()
     else:
-        base = MetaReasoner() if settings.MODEL_API_KEY else MockReasoner()
-
-    wrap_mode = mode if mode in ("record", "replay") else "passthrough"
-    return RecordReplayReasoner(base, mode=wrap_mode)
+        base = MockReasoner()
 
     wrap_mode = mode if mode in ("record", "replay") else "passthrough"
     return RecordReplayReasoner(base, mode=wrap_mode)

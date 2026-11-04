@@ -1,43 +1,45 @@
 {
-  "recorded_at": "2026-10-31T10:35:33Z",
+  "recorded_at": "2026-11-04T09:42:26Z",
   "template_id": "fire_exit_safety",
-  "source_provider_mode": "mock",
-  "duration_s": 0.21,
+  "source_provider_mode": "meta",
+  "duration_s": 18.04,
   "summary": {
-    "score": 50,
-    "pass": 2,
-    "fail": 2,
-    "unsure": 1,
-    "frames_analyzed": 12,
-    "frames_considered": 25,
+    "score": 0,
+    "pass": 0,
+    "fail": 5,
+    "unsure": 0,
     "by_severity": {
       "high": 4,
       "medium": 1,
       "low": 0
-    }
+    },
+    "frames_analyzed": 12,
+    "frames_considered": 12
   },
   "events": [
     {
       "type": "audit_started",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_count": 5,
-        "frame_count": 25
+        "frame_count": 12
       }
     },
     {
       "type": "frames_sampled",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
-        "frame_count": 25
+        "frame_count": 12,
+        "considered": 12,
+        "analyzed": 12
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "list_rules",
         "args_summary": {}
@@ -45,8 +47,8 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "list_rules",
         "result_summary": "Loaded 5 rules",
@@ -55,8 +57,8 @@
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "extinguisher_visible",
         "tool": "find_objects",
@@ -67,44 +69,123 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 10 detections",
-        "duration_ms": 16
+        "result_summary": "Found 0 detections for 'fire extinguisher'",
+        "duration_ms": 3
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "rule_id": "extinguisher_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "extinguisher"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-11-04T09:42:08Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 0 detections for 'extinguisher'",
+        "duration_ms": 3
+      }
+    },
+    {
+      "type": "escalation_step",
+      "ts": "2026-11-04T09:42:10Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "step": "zoom_tiles",
+        "step_index": 1,
+        "reason": "Initial full-frame search inconclusive; inspecting 2x2 high-resolution tiles.",
+        "cost_usd": 0.01,
+        "latency_ms": 2314,
+        "result": "Found 0 candidates (Uncertain)",
+        "stopped_here": false
+      }
+    },
+    {
+      "type": "escalation_step",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "step": "neighbor_frames",
+        "step_index": 2,
+        "reason": "Checking temporal neighborhood within +-2s of 0.0s (1 frames).",
+        "cost_usd": 0.0025,
+        "latency_ms": 1409,
+        "result": "Inspected 1 neighbor frames (Uncertain)",
+        "stopped_here": false
       }
     },
     {
       "type": "finding_recorded",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
-        "id": "f_05a219b3",
-        "audit_id": "demo_rec_1793442932",
+        "id": "f_c0491dca",
+        "audit_id": "demo_rec_1793785327_d0a4b0",
         "rule_id": "extinguisher_visible",
-        "status": "pass",
-        "confidence": 0.92,
+        "status": "fail",
+        "confidence": 0.0,
         "frame_idx": 0,
         "timestamp_s": 0.0,
         "measurement": null,
-        "rationale": "Object confirmed present with 92% confidence at 0.0s.",
-        "fix_text": "",
+        "rationale": "No matching objects detected in any sampled walkthrough frame. (Item confirmed absent across 12 frames with active escalation verification.)",
+        "fix_text": "Install or relocate a certified fire extinguisher to an unobstructed, clearly marked wall mount.",
         "severity": "high",
         "sources": [
           "segmentation"
         ],
         "evidence_ids": [
-          "res_aa269b8be2c8",
-          "res_68bccfc0d898"
+          "res_774d4d3d059f",
+          "res_b11733f8bbe5",
+          "res_548eb1692274"
         ],
-        "overlay_url": "/api/audits/demo_rec_1793442932/overlays/f_05a219b3"
+        "evidence_ledger": [],
+        "strongest_evidence": null,
+        "decision_policy": "absence_escalated_consensus_fail",
+        "detector": "sam",
+        "support_count": 1,
+        "stability": 1.0,
+        "escalation_steps": [
+          {
+            "step": "zoom_tiles",
+            "step_index": 1,
+            "reason": "Initial full-frame search inconclusive; inspecting 2x2 high-resolution tiles.",
+            "cost_usd": 0.01,
+            "latency_ms": 2314,
+            "result": "Found 0 candidates (Uncertain)",
+            "stopped_here": false
+          },
+          {
+            "step": "neighbor_frames",
+            "step_index": 2,
+            "reason": "Checking temporal neighborhood within +-2s of 0.0s (1 frames).",
+            "cost_usd": 0.0025,
+            "latency_ms": 1409,
+            "result": "Inspected 1 neighbor frames (Uncertain)",
+            "stopped_here": false
+          }
+        ],
+        "ai_verdict": "fail",
+        "final_verdict": "fail",
+        "overlay_url": "/api/audits/demo_rec_1793785327_d0a4b0/overlays/f_c0491dca"
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_sign_visible",
         "tool": "find_objects",
@@ -115,44 +196,146 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 37 detections",
-        "duration_ms": 15
+        "result_summary": "Found 0 detections for 'emergency exit sign'",
+        "duration_ms": 3
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "rule_id": "exit_sign_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "exit sign"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 0 detections for 'exit sign'",
+        "duration_ms": 3
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "rule_id": "exit_sign_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "green running man sign"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-11-04T09:42:12Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 0 detections for 'green running man sign'",
+        "duration_ms": 2
+      }
+    },
+    {
+      "type": "escalation_step",
+      "ts": "2026-11-04T09:42:13Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "step": "zoom_tiles",
+        "step_index": 1,
+        "reason": "Initial full-frame search inconclusive; inspecting 2x2 high-resolution tiles.",
+        "cost_usd": 0.01,
+        "latency_ms": 1566,
+        "result": "Found 0 candidates (Uncertain)",
+        "stopped_here": false
+      }
+    },
+    {
+      "type": "escalation_step",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "step": "neighbor_frames",
+        "step_index": 2,
+        "reason": "Checking temporal neighborhood within +-2s of 0.0s (1 frames).",
+        "cost_usd": 0.0025,
+        "latency_ms": 1443,
+        "result": "Inspected 1 neighbor frames (Uncertain)",
+        "stopped_here": false
       }
     },
     {
       "type": "finding_recorded",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
-        "id": "f_ad95f873",
-        "audit_id": "demo_rec_1793442932",
+        "id": "f_fbfe8cdb",
+        "audit_id": "demo_rec_1793785327_d0a4b0",
         "rule_id": "exit_sign_visible",
-        "status": "pass",
-        "confidence": 0.95,
-        "frame_idx": 2,
-        "timestamp_s": 2.0,
+        "status": "fail",
+        "confidence": 0.0,
+        "frame_idx": 0,
+        "timestamp_s": 0.0,
         "measurement": null,
-        "rationale": "Object confirmed present with 95% confidence at 2.0s.",
-        "fix_text": "",
+        "rationale": "No matching objects detected in any sampled walkthrough frame. (Item confirmed absent across 12 frames with active escalation verification.)",
+        "fix_text": "Ensure emergency exit signs are illuminated, unobstructed, and positioned above all exit doors.",
         "severity": "high",
         "sources": [
           "segmentation"
         ],
         "evidence_ids": [
-          "res_aa269b8be2c8",
-          "res_95c75b978eb7"
+          "res_774d4d3d059f",
+          "res_71ad8fae11b3",
+          "res_67a49cc06630",
+          "res_2041797c9762"
         ],
-        "overlay_url": "/api/audits/demo_rec_1793442932/overlays/f_ad95f873"
+        "evidence_ledger": [],
+        "strongest_evidence": null,
+        "decision_policy": "absence_escalated_consensus_fail",
+        "detector": "sam",
+        "support_count": 1,
+        "stability": 1.0,
+        "escalation_steps": [
+          {
+            "step": "zoom_tiles",
+            "step_index": 1,
+            "reason": "Initial full-frame search inconclusive; inspecting 2x2 high-resolution tiles.",
+            "cost_usd": 0.01,
+            "latency_ms": 1566,
+            "result": "Found 0 candidates (Uncertain)",
+            "stopped_here": false
+          },
+          {
+            "step": "neighbor_frames",
+            "step_index": 2,
+            "reason": "Checking temporal neighborhood within +-2s of 0.0s (1 frames).",
+            "cost_usd": 0.0025,
+            "latency_ms": 1443,
+            "result": "Inspected 1 neighbor frames (Uncertain)",
+            "stopped_here": false
+          }
+        ],
+        "ai_verdict": "fail",
+        "final_verdict": "fail",
+        "overlay_url": "/api/audits/demo_rec_1793785327_d0a4b0/overlays/f_fbfe8cdb"
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "two_exits_visible",
         "tool": "find_objects",
@@ -163,45 +346,99 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 23 detections",
-        "duration_ms": 16
-      }
-    },
-    {
-      "type": "finding_recorded",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
-      "payload": {
-        "id": "f_9b6399cc",
-        "audit_id": "demo_rec_1793442932",
-        "rule_id": "two_exits_visible",
-        "status": "unsure",
-        "confidence": 0.5,
-        "frame_idx": 2,
-        "timestamp_s": 2.0,
-        "measurement": null,
-        "rationale": "Observed 2 candidate instances, but some have marginal confidence. [Auditor Note: (door, medium) \"Checking exit route near door, secondary exit signage unclear.\"]",
-        "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
-        "severity": "medium",
-        "sources": [
-          "segmentation",
-          "voice_note"
-        ],
-        "evidence_ids": [
-          "res_aa269b8be2c8",
-          "res_1ee90500ac35"
-        ],
-        "overlay_url": "/api/audits/demo_rec_1793442932/overlays/f_9b6399cc"
+        "result_summary": "Found 0 detections for 'exit door'",
+        "duration_ms": 3
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "rule_id": "two_exits_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "emergency exit"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 0 detections for 'emergency exit'",
+        "duration_ms": 2
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "rule_id": "two_exits_visible",
+        "tool": "find_objects",
+        "args_summary": {
+          "prompt": "fire door"
+        }
+      }
+    },
+    {
+      "type": "tool_result",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "tool": "find_objects",
+        "result_summary": "Found 0 detections for 'fire door'",
+        "duration_ms": 2
+      }
+    },
+    {
+      "type": "finding_recorded",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
+      "payload": {
+        "id": "f_8938e6f0",
+        "audit_id": "demo_rec_1793785327_d0a4b0",
+        "rule_id": "two_exits_visible",
+        "status": "fail",
+        "confidence": 0.3,
+        "frame_idx": 0,
+        "timestamp_s": 0.0,
+        "measurement": null,
+        "rationale": "Only 0 distinct instances detected (minimum required: 2).",
+        "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
+        "severity": "medium",
+        "sources": [
+          "segmentation"
+        ],
+        "evidence_ids": [
+          "res_774d4d3d059f",
+          "res_c22afcc07b2b",
+          "res_ab23df3b39c0",
+          "res_287b77016575"
+        ],
+        "evidence_ledger": [],
+        "strongest_evidence": null,
+        "decision_policy": "standard_eval",
+        "detector": "sam",
+        "support_count": 1,
+        "stability": 1.0,
+        "escalation_steps": [],
+        "ai_verdict": "fail",
+        "final_verdict": "fail",
+        "overlay_url": "/api/audits/demo_rec_1793785327_d0a4b0/overlays/f_8938e6f0"
+      }
+    },
+    {
+      "type": "tool_call",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_not_blocked",
         "tool": "find_objects",
@@ -212,18 +449,18 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 20 detections for 'box'",
-        "duration_ms": 16
+        "result_summary": "Found 12 detections for 'box'",
+        "duration_ms": 2
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_not_blocked",
         "tool": "find_objects",
@@ -234,18 +471,18 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 14 detections for 'pallet'",
-        "duration_ms": 15
+        "result_summary": "Found 0 detections for 'pallet'",
+        "duration_ms": 2
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:32Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_not_blocked",
         "tool": "find_objects",
@@ -256,18 +493,18 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 11 detections for 'trash bin'",
-        "duration_ms": 15
+        "result_summary": "Found 0 detections for 'trash bin'",
+        "duration_ms": 1
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_not_blocked",
         "tool": "find_objects",
@@ -278,18 +515,18 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 14 detections for 'furniture'",
-        "duration_ms": 15
+        "result_summary": "Found 0 detections for 'furniture'",
+        "duration_ms": 1
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_not_blocked",
         "tool": "find_objects",
@@ -300,48 +537,57 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "find_objects",
-        "result_summary": "Found 10 detections for 'ladder'",
-        "duration_ms": 16
+        "result_summary": "Found 0 detections for 'ladder'",
+        "duration_ms": 1
       }
     },
     {
       "type": "finding_recorded",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
-        "id": "f_8ea4ba94",
-        "audit_id": "demo_rec_1793442932",
+        "id": "f_c29d4f9f",
+        "audit_id": "demo_rec_1793785327_d0a4b0",
         "rule_id": "exit_path_not_blocked",
         "status": "fail",
-        "confidence": 0.95,
-        "frame_idx": 0,
-        "timestamp_s": 0.0,
+        "confidence": 0.68,
+        "frame_idx": 11,
+        "timestamp_s": 11.52,
         "measurement": null,
-        "rationale": "Blocking hazard detected at 0.0s (95% confidence).",
+        "rationale": "Blocking hazard detected at 11.5s (68% confidence). (Hazard or prohibited obstruction detected.)",
         "fix_text": "Immediately remove all boxes, pallets, and temporary storage from designated exit routes.",
         "severity": "high",
         "sources": [
           "segmentation"
         ],
         "evidence_ids": [
-          "res_aa269b8be2c8",
-          "res_5afc5fe50b9f",
-          "res_463f147af2f7",
-          "res_d8c363b50a71",
-          "res_191487b8e38d",
-          "res_6c74afc109f5"
+          "res_774d4d3d059f",
+          "res_b5b095e0a283",
+          "res_5f45162fc6c1",
+          "res_258aa478cf76",
+          "res_8f8bb11ed35f",
+          "res_6f8d66531699"
         ],
-        "overlay_url": "/api/audits/demo_rec_1793442932/overlays/f_8ea4ba94"
+        "evidence_ledger": [],
+        "strongest_evidence": null,
+        "decision_policy": "hazard_detected_fail",
+        "detector": "sam",
+        "support_count": 6,
+        "stability": 1.0,
+        "escalation_steps": [],
+        "ai_verdict": "fail",
+        "final_verdict": "fail",
+        "overlay_url": "/api/audits/demo_rec_1793785327_d0a4b0/overlays/f_c29d4f9f"
       }
     },
     {
       "type": "tool_call",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:15Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "rule_id": "exit_path_clear_width",
         "tool": "measure_clear_width",
@@ -357,37 +603,37 @@
     },
     {
       "type": "tool_result",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:26Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "tool": "measure_clear_width",
-        "result_summary": "Width: 0.00m (+/- 0.05m)",
-        "duration_ms": 67
+        "result_summary": "Width: 0.83m (+/- 0.08m)",
+        "duration_ms": 11137
       }
     },
     {
       "type": "finding_recorded",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:26Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
-        "id": "f_211f9166",
-        "audit_id": "demo_rec_1793442932",
+        "id": "f_b56f7290",
+        "audit_id": "demo_rec_1793785327_d0a4b0",
         "rule_id": "exit_path_clear_width",
         "status": "fail",
         "confidence": 0.88,
         "frame_idx": 0,
         "timestamp_s": 0.0,
         "measurement": {
-          "width_m": 0.0,
-          "uncertainty_m": 0.05,
-          "pixels_per_meter": 370.64,
-          "method": "A4 optical reference calibration (110.1px = 0.297m)",
+          "width_m": 0.832,
+          "uncertainty_m": 0.083,
+          "pixels_per_meter": 380.0,
+          "method": "Standard room perspective heuristic calibration (no visible reference detected)",
           "assumptions": "Linear gap projection at floor level between detected obstacle bounding boxes. Assumes reference object resides at comparable depth with minimal perspective foreshortening.",
           "reference_type": "optical_reference",
-          "raw_pixel_width": 0.0,
-          "result_id": "res_b9eacb442016"
+          "raw_pixel_width": 316.0,
+          "result_id": "res_ff438e7c42a8"
         },
-        "rationale": "Measured walkway clear width of 0.00 m (+/- 0.05 m) is below required 1.00 m.",
+        "rationale": "Measured walkway clear width of 0.83 m (+/- 0.08 m) is below required 1.00 m.",
         "fix_text": "Reorganize stored items and furniture so at least 1.0 m clear walkway width is continuously preserved.",
         "severity": "high",
         "sources": [
@@ -395,29 +641,38 @@
           "measurement"
         ],
         "evidence_ids": [
-          "res_aa269b8be2c8",
-          "res_b9eacb442016"
+          "res_774d4d3d059f",
+          "res_ff438e7c42a8"
         ],
-        "overlay_url": "/api/audits/demo_rec_1793442932/overlays/f_211f9166"
+        "evidence_ledger": [],
+        "strongest_evidence": null,
+        "decision_policy": "standard_eval",
+        "detector": "sam",
+        "support_count": 1,
+        "stability": 1.0,
+        "escalation_steps": [],
+        "ai_verdict": "fail",
+        "final_verdict": "fail",
+        "overlay_url": "/api/audits/demo_rec_1793785327_d0a4b0/overlays/f_b56f7290"
       }
     },
     {
       "type": "audit_completed",
-      "ts": "2026-10-31T10:35:33Z",
-      "audit_id": "demo_rec_1793442932",
+      "ts": "2026-11-04T09:42:26Z",
+      "audit_id": "demo_rec_1793785327_d0a4b0",
       "payload": {
         "summary": {
-          "score": 50,
-          "pass": 2,
-          "fail": 2,
-          "unsure": 1,
-          "frames_analyzed": 12,
-          "frames_considered": 25,
+          "score": 0,
+          "pass": 0,
+          "fail": 5,
+          "unsure": 0,
           "by_severity": {
             "high": 4,
             "medium": 1,
             "low": 0
-          }
+          },
+          "frames_analyzed": 12,
+          "frames_considered": 12
         },
         "findings_count": 5
       }
@@ -426,48 +681,48 @@
   "findings": [
     {
       "rule_id": "extinguisher_visible",
-      "status": "pass",
-      "confidence": 0.92,
+      "status": "fail",
+      "confidence": 0.0,
       "timestamp_s": 0.0,
       "frame_idx": 0,
       "measurement_json": null,
-      "rationale": "Object confirmed present with 92% confidence at 0.0s.",
-      "fix_text": "",
+      "rationale": "No matching objects detected in any sampled walkthrough frame. (Item confirmed absent across 12 frames with active escalation verification.)",
+      "fix_text": "Install or relocate a certified fire extinguisher to an unobstructed, clearly marked wall mount.",
       "severity": "high",
       "sources_json": "[\"segmentation\"]"
     },
     {
       "rule_id": "exit_sign_visible",
-      "status": "pass",
-      "confidence": 0.95,
-      "timestamp_s": 2.0,
-      "frame_idx": 2,
+      "status": "fail",
+      "confidence": 0.0,
+      "timestamp_s": 0.0,
+      "frame_idx": 0,
       "measurement_json": null,
-      "rationale": "Object confirmed present with 95% confidence at 2.0s.",
-      "fix_text": "",
+      "rationale": "No matching objects detected in any sampled walkthrough frame. (Item confirmed absent across 12 frames with active escalation verification.) [Auditor Note: (door, medium) \"Checking exit route near door, pathway clear.\"]",
+      "fix_text": "Ensure emergency exit signs are illuminated, unobstructed, and positioned above all exit doors.",
       "severity": "high",
-      "sources_json": "[\"segmentation\"]"
+      "sources_json": "[\"segmentation\", \"voice_note\"]"
     },
     {
       "rule_id": "two_exits_visible",
-      "status": "unsure",
-      "confidence": 0.5,
-      "timestamp_s": 2.0,
-      "frame_idx": 2,
+      "status": "fail",
+      "confidence": 0.3,
+      "timestamp_s": 0.0,
+      "frame_idx": 0,
       "measurement_json": null,
-      "rationale": "Observed 2 candidate instances, but some have marginal confidence. [Auditor Note: (door, medium) \"Checking exit route near door, secondary exit signage unclear.\"]",
+      "rationale": "Only 0 distinct instances detected (minimum required: 2).",
       "fix_text": "Designate and clearly mark a secondary emergency exit path conforming to occupant capacity requirements.",
       "severity": "medium",
-      "sources_json": "[\"segmentation\", \"voice_note\"]"
+      "sources_json": "[\"segmentation\"]"
     },
     {
       "rule_id": "exit_path_not_blocked",
       "status": "fail",
-      "confidence": 0.95,
-      "timestamp_s": 0.0,
-      "frame_idx": 0,
+      "confidence": 0.68,
+      "timestamp_s": 11.52,
+      "frame_idx": 11,
       "measurement_json": null,
-      "rationale": "Blocking hazard detected at 0.0s (95% confidence).",
+      "rationale": "Blocking hazard detected at 11.5s (68% confidence). (Hazard or prohibited obstruction detected.)",
       "fix_text": "Immediately remove all boxes, pallets, and temporary storage from designated exit routes.",
       "severity": "high",
       "sources_json": "[\"segmentation\"]"
@@ -478,8 +733,8 @@
       "confidence": 0.88,
       "timestamp_s": 0.0,
       "frame_idx": 0,
-      "measurement_json": "{\"width_m\": 0.0, \"uncertainty_m\": 0.05, \"pixels_per_meter\": 370.64, \"method\": \"A4 optical reference calibration (110.1px = 0.297m)\", \"assumptions\": \"Linear gap projection at floor level between detected obstacle bounding boxes. Assumes reference object resides at comparable depth with minimal perspective foreshortening.\", \"reference_type\": \"optical_reference\", \"raw_pixel_width\": 0.0, \"result_id\": \"res_b9eacb442016\"}",
-      "rationale": "Measured walkway clear width of 0.00 m (+/- 0.05 m) is below required 1.00 m.",
+      "measurement_json": "{\"width_m\": 0.832, \"uncertainty_m\": 0.083, \"pixels_per_meter\": 380.0, \"method\": \"Standard room perspective heuristic calibration (no visible reference detected)\", \"assumptions\": \"Linear gap projection at floor level between detected obstacle bounding boxes. Assumes reference object resides at comparable depth with minimal perspective foreshortening.\", \"reference_type\": \"optical_reference\", \"raw_pixel_width\": 316.0, \"result_id\": \"res_ff438e7c42a8\"}",
+      "rationale": "Measured walkway clear width of 0.83 m (+/- 0.08 m) is below required 1.00 m.",
       "fix_text": "Reorganize stored items and furniture so at least 1.0 m clear walkway width is continuously preserved.",
       "severity": "high",
       "sources_json": "[\"segmentation\", \"measurement\"]"
@@ -488,26 +743,26 @@
   "voice_notes": [
     {
       "timestamp_s": 2.0,
-      "transcript": "Checking exit route near door, secondary exit signage unclear.",
+      "transcript": "Checking exit route near door, pathway clear.",
       "language": "en"
     }
   ],
   "cost_summary": {
-    "audit_id": "demo_rec_1793442932",
-    "provider_mode": "mock",
-    "total_calls": 15,
-    "total_cost_usd": 0.6084,
+    "audit_id": "demo_rec_1793785327_d0a4b0",
+    "provider_mode": "meta",
+    "total_calls": 24,
+    "total_cost_usd": 0.0804,
     "by_provider": {
       "segmentation": {
         "name": "Segmentation",
         "model_id": "SAM 3.1",
         "role": "SAM 3.1: finds and measures items",
-        "calls": 13,
-        "cache_hits": 1,
-        "latency_ms": 61,
-        "units": 300.0,
-        "cost_usd": 0.6,
-        "simulated": true
+        "calls": 22,
+        "cache_hits": 15,
+        "latency_ms": 17782,
+        "units": 46.0,
+        "cost_usd": 0.072,
+        "simulated": false
       },
       "agent": {
         "name": "Agent / Reasoning",
@@ -518,18 +773,18 @@
         "latency_ms": 37,
         "units": 1.8,
         "cost_usd": 0.0083,
-        "simulated": true
+        "simulated": false
       },
       "transcription": {
         "name": "Voice Transcription",
         "model_id": "Muse Voice Transcribe",
         "role": "Muse Voice Transcribe: transcribes audio notes into searchable evidence",
-        "calls": 1,
+        "calls": 0,
         "cache_hits": 0,
-        "latency_ms": 28,
-        "units": 1.0,
-        "cost_usd": 0.001,
-        "simulated": true
+        "latency_ms": 0,
+        "units": 0.0,
+        "cost_usd": 0.0,
+        "simulated": false
       }
     },
     "models": {

@@ -46,7 +46,7 @@ def test_health_stamps_provider_mode_and_models(client):
     assert data["models"]["agent"] == "Muse Spark"
     assert data["models"]["transcription"] == "Muse Voice Transcribe"
     assert "data_dir" in data
-    assert "demo_replay" in data
+    assert "demo_mode" in data
 
 
 def test_audit_record_stamps_provider_and_models(client):

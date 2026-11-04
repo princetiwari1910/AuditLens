@@ -305,9 +305,16 @@ class RecordReplayReasoner:
 
         if self.mode == "replay":
             if not fixture_file.exists():
-                raise FileNotFoundError(
-                    f"[Replay Mode] Reasoner fixture '{fixture_hash}.json' missing in {fixtures_dir}."
+                logger.warning(
+                    "Replay mode: reasoner fixture '%s' missing. Returning UNSURE verdict.",
+                    fixture_hash,
                 )
+                return {
+                    "status": "unsure",
+                    "reason": f"[Replay Mode] Reasoner fixture '{fixture_hash}.json' missing. "
+                              "No recorded verdict available.",
+                    "cited_frame_ids": [],
+                }
             with open(fixture_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             return validate_verdict(data).to_dict()
@@ -355,12 +362,15 @@ class RecordReplayReasoner:
 
         if self.mode == "replay":
             if not fixture_file.exists():
-                if hasattr(self.inner, "verify_presence"):
-                    return self.inner.verify_presence(concept, frames)
+                logger.warning(
+                    "Replay mode: presence fixture '%s' missing. Returning present=False.",
+                    fixture_hash,
+                )
                 return {
                     "present": False,
                     "cited_frame_ids": [],
-                    "rationale": f"[Replay Mode] Presence fixture '{fixture_hash}.json' missing.",
+                    "rationale": f"[Replay Mode] Presence fixture '{fixture_hash}.json' missing. "
+                                 "No recorded verification available.",
                 }
             with open(fixture_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -401,8 +411,10 @@ class RecordReplayReasoner:
 
         if self.mode == "replay":
             if not fixture_file.exists():
-                if hasattr(self.inner, "plan_fixes"):
-                    return self.inner.plan_fixes(findings)
+                logger.warning(
+                    "Replay mode: fix plan fixture '%s' missing. Returning empty plan.",
+                    fixture_hash,
+                )
                 return []
             with open(fixture_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -436,8 +448,10 @@ class RecordReplayReasoner:
 
         if self.mode == "replay":
             if not fixture_file.exists():
-                if hasattr(self.inner, "compile_template"):
-                    return self.inner.compile_template(text)
+                logger.warning(
+                    "Replay mode: template fixture '%s' missing. Returning empty template.",
+                    fixture_hash,
+                )
                 return {}
             with open(fixture_file, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -471,8 +485,10 @@ class RecordReplayReasoner:
 
         if self.mode == "replay":
             if not fixture_file.exists():
-                if hasattr(self.inner, "extract_note"):
-                    return self.inner.extract_note(transcript)
+                logger.warning(
+                    "Replay mode: voice note fixture '%s' missing. Returning default struct.",
+                    fixture_hash,
+                )
                 return {
                     "location": "general",
                     "issue": transcript,
