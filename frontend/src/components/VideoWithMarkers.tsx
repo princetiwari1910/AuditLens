@@ -77,7 +77,22 @@ export default function VideoWithMarkers({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-black overflow-hidden shadow-md print:hidden">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl shadow-blue-950/20 print:hidden">
+      {/* Top Camera Status Header */}
+      <div className="flex items-center justify-between border-b border-slate-800/80 bg-slate-900/80 px-4 py-2 text-xs font-mono">
+        <div className="flex items-center gap-2 text-cyan-400">
+          <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="font-bold tracking-wider uppercase text-[11px]">WALKTHROUGH FOOTAGE</span>
+          <span className="text-slate-600">•</span>
+          <span className="text-slate-400 text-[11px]">SAM 3.1 RETICLES &amp; SEGMENTATION</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 font-mono">
+            {findings.length} visual markers
+          </span>
+        </div>
+      </div>
+
       {/* Video Display Area with Canvas Overlay */}
       <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center">
         {videoError && (

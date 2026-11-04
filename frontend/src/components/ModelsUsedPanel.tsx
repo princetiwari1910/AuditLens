@@ -1,4 +1,4 @@
-import { Cpu, Zap, Layers } from 'lucide-react';
+import { Cpu, Zap, Layers, Sparkles } from 'lucide-react';
 import type { CostSummary } from '../api/client';
 import ReplayBadge from './ReplayBadge';
 
@@ -62,101 +62,128 @@ export default function ModelsUsedPanel({
   };
 
   const providers = [
-    { key: 'segmentation', label: 'Segmentation', data: segData, icon: Layers },
-    { key: 'agent', label: 'Agent Planner', data: agentData, icon: Cpu },
-    { key: 'transcription', label: 'Voice Audio', data: transData, icon: Zap },
+    {
+      key: 'segmentation',
+      label: 'Vision & Segmentation',
+      data: segData,
+      icon: Layers,
+      color: 'text-indigo-400',
+      badgeBg: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300',
+      description: 'Zero-shot polygon object extraction with sub-pixel boundary geometry.'
+    },
+    {
+      key: 'agent',
+      label: 'Agent & Multimodal Reasoning',
+      data: agentData,
+      icon: Cpu,
+      color: 'text-cyan-400',
+      badgeBg: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300',
+      description: 'Multimodal safety reasoning, deterministic rule checklist dispatch & fix planning.'
+    },
+    {
+      key: 'transcription',
+      label: 'Walkthrough Audio Log',
+      data: transData,
+      icon: Zap,
+      color: 'text-purple-400',
+      badgeBg: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
+      description: 'Speech recognition correlating spoken hazard observations to visual keyframes.'
+    },
   ];
 
   return (
-    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm space-y-4 print:border-slate-300 print:bg-white print:p-4 print:my-4 print:break-inside-avoid">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
-            <Cpu className="h-4 w-4" />
+    <section className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5 sm:p-6 shadow-xl shadow-blue-950/20 space-y-4 print:border-slate-300 print:bg-white print:p-4 print:my-4 print:break-inside-avoid">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-600/30">
+            <Cpu className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <span>Models Used & Provider Evidence</span>
               <ReplayBadge
                 isReplay={isReplay}
                 sourceProviderMode={sourceProviderMode}
-                className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase text-amber-300 border border-amber-500/30"
               />
             </h3>
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              Auditable accounting of foundation model invocations, latency, and cache hits.
+            <p className="text-xs text-slate-400">
+              Auditable Meta AI foundation model invocations, latency accounting, and cache efficiency.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {isMock ? (
-            <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300 border border-amber-500/20 font-mono">
               Mock Mode: Simulated Detections
             </span>
           ) : providerMode === 'replay' ? (
-            <span className="rounded-md bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-400 border border-purple-500/20">
+            <span className="rounded-lg bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-300 border border-purple-500/20 font-mono">
               Replay Mode: Stored Fixtures
             </span>
           ) : providerMode === 'record' ? (
-            <span className="rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="rounded-lg bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/20 font-mono">
               Record Mode: Capturing Fixtures
             </span>
           ) : (
-            <span className="rounded-md bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-400 border border-blue-500/20">
-              Live Meta Models
+            <span className="rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-semibold text-cyan-300 border border-blue-500/20 font-mono">
+              Live Meta Models Active
             </span>
           )}
         </div>
       </div>
 
       {/* Provider Model Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {providers.map(({ key, label, data, icon: Icon }) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {providers.map(({ key, label, data, icon: Icon, color, description }) => (
           <div
             key={key}
-            className="flex flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 space-y-3 print:bg-slate-50 print:border-slate-200"
+            className="flex flex-col justify-between rounded-xl border border-slate-800/90 bg-slate-950/70 p-4 space-y-3.5 hover:border-slate-700 transition-colors print:bg-slate-50 print:border-slate-200"
           >
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] flex items-center gap-1.5">
-                  <Icon className="h-3 w-3 text-[var(--color-accent)]" />
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${color} flex items-center gap-1.5 font-mono`}>
+                  <Icon className="h-3.5 w-3.5" />
                   {label}
                 </span>
                 {data.simulated && (
-                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                  <span className="rounded bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 font-mono">
                     Simulated
                   </span>
                 )}
               </div>
 
-              <div className="font-mono text-sm font-bold text-[var(--color-text)]">
-                {data.model_id || 'Configured Model'}
+              <div className="font-mono text-base font-extrabold text-white flex items-center gap-2">
+                <span>{data.model_id || 'Configured Model'}</span>
               </div>
 
-              <p className="text-xs text-[var(--color-text-secondary)] leading-snug">
+              <p className="text-xs text-slate-300 leading-snug">
                 {data.role || `${data.model_id}: foundation AI model`}
+              </p>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                {description}
               </p>
             </div>
 
-            <div className="border-t border-[var(--color-border)] pt-2.5 grid grid-cols-2 gap-2 text-[11px] font-mono">
-              <div>
-                <span className="text-[var(--color-text-secondary)] block text-[10px]">Calls / Hits</span>
-                <span className="font-semibold text-[var(--color-text)]">
-                  {data.calls} calls <span className="text-slate-400">({data.cache_hits || 0} hit)</span>
+            <div className="border-t border-slate-800/80 pt-3 grid grid-cols-2 gap-2 text-[11px] font-mono">
+              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                <span className="text-slate-400 block text-[10px] uppercase">Calls / Hits</span>
+                <span className="font-semibold text-white">
+                  {data.calls} calls <span className="text-slate-500">({data.cache_hits || 0} hit)</span>
                 </span>
               </div>
 
-              <div>
-                <span className="text-[var(--color-text-secondary)] block text-[10px]">Total Latency</span>
-                <span className="font-semibold text-[var(--color-text)]">
+              <div className="bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
+                <span className="text-slate-400 block text-[10px] uppercase">Total Latency</span>
+                <span className="font-semibold text-cyan-300">
                   {data.latency_ms || 0} ms
                 </span>
               </div>
 
-              <div className="col-span-2 flex items-center justify-between pt-1 border-t border-[var(--color-border)]/60">
-                <span className="text-[var(--color-text-secondary)] text-[10px]">Est. Cost:</span>
-                <span className="font-bold text-green-700 dark:text-green-400">
+              <div className="col-span-2 flex items-center justify-between px-2 py-1.5 bg-slate-900/40 rounded border border-slate-800/40">
+                <span className="text-slate-400 text-[10px] uppercase">Est. Cost:</span>
+                <span className="font-bold text-emerald-400">
                   ${(data.cost_usd || 0).toFixed(4)} USD
                 </span>
               </div>
@@ -166,13 +193,13 @@ export default function ModelsUsedPanel({
       </div>
 
       {/* Aggregate metrics footer */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 text-xs text-[var(--color-text-secondary)] font-mono">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-1 text-xs text-slate-400 font-mono border-t border-slate-800/60">
         <div className="flex items-center gap-4">
           <span>
-            Total Invocations: <strong className="text-[var(--color-text)]">{costSummary?.total_calls || 0}</strong>
+            Total Invocations: <strong className="text-white">{costSummary?.total_calls || 0}</strong>
           </span>
           <span>
-            Total Est. Cost: <strong className="text-green-700 dark:text-green-400">${(costSummary?.total_cost_usd || 0).toFixed(4)} USD</strong>
+            Total Est. Cost: <strong className="text-emerald-400">${(costSummary?.total_cost_usd || 0).toFixed(4)} USD</strong>
           </span>
         </div>
         <span className="text-[10px] text-slate-500 italic">
@@ -181,22 +208,23 @@ export default function ModelsUsedPanel({
       </div>
 
       {/* Meta Stack Roles Table */}
-      <div className="mt-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-3 text-xs space-y-2">
-        <div className="font-semibold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider">
+      <div className="mt-2 rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 text-xs space-y-2">
+        <div className="font-semibold text-slate-300 text-[11px] uppercase tracking-wider font-mono flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
           Which Meta model does what, and why
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-[var(--color-text-secondary)]">
-          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-            <span className="font-bold text-[var(--color-text)] block">SAM 3.1 (sam-3.1)</span>
-            <span>Zero-shot object & region segmentation. Outputs tight polygon masks & bboxes for precise clearance measurements.</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] text-slate-300">
+          <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+            <span className="font-bold text-white block font-mono text-xs">SAM 3.1 (sam-3.1)</span>
+            <span className="text-slate-400">Zero-shot object & region segmentation. Outputs tight polygon masks & bboxes for precise clearance measurements.</span>
           </div>
-          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-            <span className="font-bold text-[var(--color-text)] block">Muse Spark (muse-spark-1.3)</span>
-            <span>Multimodal reasoning agent. Dispatches tool calls, evaluates visual evidence against rules, compiles checklists, and generates fix plans.</span>
+          <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+            <span className="font-bold text-white block font-mono text-xs">Muse Spark (muse-spark-1.3)</span>
+            <span className="text-slate-400">Multimodal reasoning agent. Dispatches tool calls, evaluates visual evidence against rules, compiles checklists, and generates fix plans.</span>
           </div>
-          <div className="p-2 rounded bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-            <span className="font-bold text-[var(--color-text)] block">Muse Voice (muse-voice-transcribe)</span>
-            <span>Walkthrough speech-to-text. Transcribes auditor field notes and associates observations to nearest keyframe timestamps.</span>
+          <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
+            <span className="font-bold text-white block font-mono text-xs">Muse Voice (muse-voice-transcribe)</span>
+            <span className="text-slate-400">Walkthrough speech-to-text. Transcribes auditor field notes and associates observations to nearest keyframe timestamps.</span>
           </div>
         </div>
       </div>
