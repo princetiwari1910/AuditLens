@@ -11,8 +11,8 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
-      "concepts": ["fire extinguisher", "red fire extinguisher cylinder", "wall mounted fire extinguisher"],
-      "sam_prompts": ["fire extinguisher", "red fire extinguisher cylinder", "wall mounted fire extinguisher"],
+      "concepts": ["fire extinguisher", "red fire extinguisher", "fire safety canister"],
+      "sam_prompts": ["fire extinguisher", "red fire extinguisher", "fire safety canister"],
       "min_confidence": 0.6,
       "params": {
         "min_score": 0.6
@@ -41,8 +41,8 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Absence of boxes, carts, furniture, or debris directly obstructing egress",
-      "concepts": ["blocking obstacle", "corridor blockage box", "obstruction in doorway"],
-      "sam_prompts": ["blocking obstacle", "corridor blockage box", "obstruction in doorway"],
+      "concepts": ["storage box", "wooden pallet", "rolling cart"],
+      "sam_prompts": ["storage box", "wooden pallet", "rolling cart"],
       "min_confidence": 0.6,
       "params": {
         "threshold": 0.6
@@ -56,8 +56,8 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Absence of obstructing storage or items directly in front of the extinguisher",
-      "concepts": ["blocking obstacle", "storage box blocking access", "clutter blocking extinguisher"],
-      "sam_prompts": ["blocking obstacle", "storage box blocking access", "clutter blocking extinguisher"],
+      "concepts": ["storage box", "trash can", "rolling cart"],
+      "sam_prompts": ["storage box", "trash can", "rolling cart"],
       "min_confidence": 0.6,
       "params": {
         "threshold": 0.6

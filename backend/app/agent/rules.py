@@ -201,12 +201,19 @@ def evaluate_presence_rule(
             f"Object confirmed present with {best_score:.0%} confidence at {best.get('timestamp_s', 0.0):.1f}s.",
             best,
         )
-    else:
+    elif best_score >= 0.30:
         # A detection below min_confidence is weak evidence and leads to unsure
         return (
             FindingStatus.UNSURE,
             best_score,
             f"Candidate object detected with weak confidence ({best_score:.0%} < {thresh:.0%}); requires physical verification.",
+            best,
+        )
+    else:
+        return (
+            FindingStatus.FAIL,
+            best_score,
+            f"Object not detected (highest detection signal {best_score:.0%} is below verification threshold).",
             best,
         )
 
