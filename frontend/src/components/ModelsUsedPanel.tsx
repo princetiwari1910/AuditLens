@@ -86,7 +86,7 @@ export default function ModelsUsedPanel({
       data: transData,
       icon: Zap,
       color: 'text-purple-400',
-      description: 'Speech recognition for spoken notes. (API currently returns 404 live; live transcription unavailable).'
+      description: 'Transcription unavailable — Meta API returned 404. Live transcription is not operational.'
     },
   ];
 
@@ -127,7 +127,7 @@ export default function ModelsUsedPanel({
             </span>
           ) : (
             <span className="rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-semibold text-cyan-300 border border-blue-500/20 font-mono">
-              Live Meta Models Active
+              Live Meta Models: SAM 3.1 &amp; Muse Spark (Voice 404)
             </span>
           )}
         </div>
@@ -182,8 +182,8 @@ export default function ModelsUsedPanel({
 
               <div className="col-span-2 flex items-center justify-between px-2 py-1.5 bg-slate-900/40 rounded border border-slate-800/40">
                 <span className="text-slate-400 text-[10px] uppercase">Est. Cost:</span>
-                <span className="font-bold text-emerald-400">
-                  ${(data.cost_usd || 0).toFixed(4)} USD
+                <span className="font-bold text-emerald-400 text-[11px]">
+                  ${(data.cost_usd || 0).toFixed(4)} USD <span className="text-slate-500 font-normal">({isSimulated ? 'simulated' : 'placeholder rate'})</span>
                 </span>
               </div>
             </div>
@@ -202,7 +202,7 @@ export default function ModelsUsedPanel({
           </span>
         </div>
         <span className="text-[10px] text-slate-500 italic">
-          * Source: cost_log table. {isSimulated ? 'Latencies and costs are simulated.' : 'Latencies and costs measured from local execution.'}
+          * Source: cost_log table. {isSimulated ? 'Latencies and costs are simulated. Costs reflect mock estimates, not actual billing.' : 'Latencies and costs measured from local execution. Costs use UNIT_PRICE_* placeholder rates, not provider billing.'}
         </span>
       </div>
 
