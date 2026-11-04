@@ -47,7 +47,10 @@ from app.providers.client import (
 )
 from app.providers.concept_validation import validate_concept
 from app.providers.schemas import (
+    SPARK_FIX_PLAN_JSON_SCHEMA,
+    SPARK_NOTE_EXTRACTION_JSON_SCHEMA,
     SPARK_PRESENCE_JSON_SCHEMA,
+    SPARK_TEMPLATE_DRAFT_JSON_SCHEMA,
     SPARK_VERDICT_JSON_SCHEMA,
     VerdictStatus,
     validate_presence_verdict,
@@ -717,11 +720,28 @@ class MetaAgentProvider:
                     },
                     {"role": "user", "content": json.dumps(summary)},
                 ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "fix_plan",
+                        "schema": SPARK_FIX_PLAN_JSON_SCHEMA,
+                        "strict": True,
+                    },
+                },
             )
             raw = ""
             if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
                 raw = resp.choices[0].message.content
-            return validate_fix_actions(raw, allowed_finding_ids=finding_ids)
+            # Schema wraps actions in {"actions": [...]}, unwrap for validation
+            parsed = raw
+            if isinstance(raw, str):
+                try:
+                    parsed_obj = json.loads(raw)
+                    if isinstance(parsed_obj, dict) and "actions" in parsed_obj:
+                        parsed = parsed_obj["actions"]
+                except Exception:
+                    pass
+            return validate_fix_actions(parsed, allowed_finding_ids=finding_ids)
 
         return execute_with_retry(
             _call_spark_plan,
@@ -753,7 +773,14 @@ class MetaAgentProvider:
                     },
                     {"role": "user", "content": text},
                 ],
-                response_format={"type": "json_object"},
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "template_draft",
+                        "schema": SPARK_TEMPLATE_DRAFT_JSON_SCHEMA,
+                        "strict": True,
+                    },
+                },
             )
             raw = ""
             if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
@@ -792,7 +819,14 @@ class MetaAgentProvider:
                     },
                     {"role": "user", "content": transcript},
                 ],
-                response_format={"type": "json_object"},
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "note_extraction",
+                        "schema": SPARK_NOTE_EXTRACTION_JSON_SCHEMA,
+                        "strict": True,
+                    },
+                },
             )
             raw = ""
             if resp.choices and resp.choices[0].message and resp.choices[0].message.content:
