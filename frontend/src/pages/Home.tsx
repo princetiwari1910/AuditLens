@@ -5,11 +5,9 @@ import {
   Upload,
   ArrowRight,
   Sparkles,
-  PlayCircle,
   Clock,
   History,
   FileCheck,
-  Loader2,
   BarChart3,
   Building2,
   AlertCircle,
@@ -21,6 +19,7 @@ import {
   Camera,
   Layers,
   ChevronRight,
+  PlusCircle,
 } from 'lucide-react';
 import {
   getAudits,
@@ -41,7 +40,6 @@ export default function Home() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [recentAudits, setRecentAudits] = useState<Audit[]>([]);
   const [customRuleText, setCustomRuleText] = useState('');
-  const [isStartingDemo, setIsStartingDemo] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [lastReplayMode, setLastReplayMode] = useState<boolean>(false);
 
@@ -81,13 +79,10 @@ export default function Home() {
     try {
       setDemoError(null);
       setLastReplayMode(replay);
-      setIsStartingDemo(true);
       const res = await createDemoAudit('campus_fire_exit_core', replay);
       navigate(`/audits/${res.id}/processing`);
     } catch (err: any) {
       setDemoError(err.message || 'Could not start demo audit');
-    } finally {
-      setIsStartingDemo(false);
     }
   }
 
@@ -209,18 +204,13 @@ export default function Home() {
               </span>
             )}
 
-            <button
-              onClick={() => handleLoadDemo(true)}
-              disabled={isStartingDemo}
-              className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-3 sm:px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-600/25 transition-all min-h-[36px] cursor-pointer"
+            <Link
+              to="/new/campus_fire_exit_core"
+              className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-3 sm:px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-blue-600/25 transition-all min-h-[36px]"
             >
-              {isStartingDemo ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <PlayCircle className="h-4 w-4 text-white" />
-              )}
-              <span>Load Demo</span>
-            </button>
+              <PlusCircle className="h-4 w-4 text-white" />
+              <span>New Live Audit</span>
+            </Link>
           </div>
         </div>
       </header>
@@ -247,19 +237,14 @@ export default function Home() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <button
-              onClick={() => handleLoadDemo(true)}
-              disabled={isStartingDemo}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-all min-h-[46px] cursor-pointer"
+            <Link
+              to="/new/campus_fire_exit_core"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-all min-h-[46px]"
             >
-              {isStartingDemo ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <PlayCircle className="h-4 w-4 text-white" />
-              )}
-              <span>Launch Guided Demo</span>
+              <Sparkles className="h-4 w-4 text-white" />
+              <span>Start Live Safety Audit</span>
               <ArrowRight className="h-4 w-4 text-cyan-200" />
-            </button>
+            </Link>
 
             <a
               href="#templates-section"
@@ -388,13 +373,12 @@ export default function Home() {
                     ) : (
                       <div className="text-center p-6 z-10 space-y-2">
                         <p className="text-xs text-slate-400 font-mono">No walkthrough footage loaded.</p>
-                        <button
-                          type="button"
-                          onClick={() => handleLoadDemo(true)}
-                          className="text-xs font-semibold text-cyan-400 hover:underline"
+                        <Link
+                          to="/new/campus_fire_exit_core"
+                          className="inline-block text-xs font-semibold text-cyan-400 hover:underline"
                         >
-                          Launch Guided Demo to stream footage & findings &rarr;
-                        </button>
+                          Start Live Safety Audit to process walkthrough footage &rarr;
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -467,14 +451,13 @@ export default function Home() {
                   </div>
 
                   <div className="pt-3">
-                    <button
-                      onClick={() => handleLoadDemo(true)}
-                      disabled={isStartingDemo}
-                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 py-2 px-3 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                    <Link
+                      to="/new/campus_fire_exit_core"
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 py-2 px-3 text-xs font-semibold text-slate-200 transition-colors"
                     >
-                      <span>{latestAudit ? 'Run New Guided Demo' : 'Explore Demo Walkthrough Report'}</span>
+                      <span>Start New Safety Inspection</span>
                       <ChevronRight className="h-4 w-4 text-cyan-400" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -553,15 +536,15 @@ export default function Home() {
                       <div className="flex flex-col gap-0.5 pt-0.5 text-[10px] text-slate-400 font-mono">
                         <span className="flex items-center gap-1 text-emerald-400">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          SAM 3.1: {health?.provider_mode === 'meta' ? 'Live Provider' : 'Simulated Detections'}
+                          SAM 3.1: {health?.provider_mode === 'meta' ? 'Live Segmentation' : 'Simulated Detections'}
                         </span>
                         <span className="flex items-center gap-1 text-cyan-400">
                           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                          Muse Spark: {health?.provider_mode === 'meta' ? 'Live Reasoning' : 'Simulated Verdicts'}
+                          Muse Spark: {health?.provider_mode === 'meta' ? 'Live Safety Reasoning' : 'Simulated Verdicts'}
                         </span>
-                        <span className="flex items-center gap-1 text-purple-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
-                          Muse Voice: {health?.provider_mode === 'meta' ? 'Live ASR (Transcribe)' : 'Simulated Audio'}
+                        <span className="flex items-center gap-1 text-slate-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400/80" />
+                          Muse Voice: Transcription unavailable — Meta API returned 404
                         </span>
                       </div>
                     </div>

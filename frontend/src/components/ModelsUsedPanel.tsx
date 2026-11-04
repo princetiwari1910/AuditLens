@@ -88,7 +88,7 @@ export default function ModelsUsedPanel({
       color: 'text-purple-400',
       description: transData.calls > 0
         ? 'Speech-to-text turns transcribed and linked to visual evidence.'
-        : 'Transcription unavailable — no audio notes processed or service unavailable.'
+        : 'Transcription unavailable — Meta API returned 404.'
     },
   ];
 
@@ -129,7 +129,7 @@ export default function ModelsUsedPanel({
             </span>
           ) : (
             <span className="rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-semibold text-cyan-300 border border-blue-500/20 font-mono">
-              Live Meta Models: SAM 3.1, Muse Spark &amp; Muse Voice
+              Live Meta Models: SAM 3.1 &amp; Muse Spark
             </span>
           )}
         </div>
@@ -229,10 +229,10 @@ export default function ModelsUsedPanel({
               {transData.calls > 0 ? (
                 <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">Operational</span>
               ) : (
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">Transcription Unavailable</span>
+                <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">Meta API 404 (Unavailable)</span>
               )}
             </div>
-            <span className="text-slate-400">Walkthrough speech-to-text. Transcribes auditor field notes via /v1/asr/transcribe and associates observations to nearest keyframe timestamps.</span>
+            <span className="text-slate-400">Walkthrough speech-to-text. Transcription unavailable (Meta API returned 404). Core visual inspection and safety reasoning operate independently.</span>
           </div>
         </div>
       </div>

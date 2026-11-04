@@ -18,10 +18,10 @@ class Settings(BaseSettings):
     """Central configuration – every value has a safe default for local dev."""
 
     # Provider mode: "mock", "meta", "record", or "replay"
-    PROVIDER_MODE: str = "mock"
+    PROVIDER_MODE: str = "meta"
 
-    # Demo mode: "replay" (default), "live", or "gated"
-    DEMO_MODE: str = "replay"
+    # Demo mode: "replay", "live" (default), or "gated"
+    DEMO_MODE: str = "live"
 
     # Live demo passcode (required when DEMO_MODE=gated)
     LIVE_PASSCODE: str = ""

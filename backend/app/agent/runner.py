@@ -474,8 +474,8 @@ class AgentRunner:
                                 try:
                                     extract_reasoner = self.reasoner
                                     if extract_reasoner is None:
-                                        from app.providers.mock import MockReasoner
-                                        extract_reasoner = MockReasoner()
+                                        from app.providers import get_reasoner
+                                        extract_reasoner = get_reasoner()
                                     if hasattr(extract_reasoner, "extract_note"):
                                         structured_note = extract_reasoner.extract_note(raw_transcript)
                                 except Exception:
@@ -765,8 +765,8 @@ class AgentRunner:
             try:
                 plan_reasoner = self.reasoner
                 if plan_reasoner is None:
-                    from app.providers.mock import MockReasoner
-                    plan_reasoner = MockReasoner()
+                    from app.providers import get_reasoner
+                    plan_reasoner = get_reasoner()
                 if hasattr(plan_reasoner, "plan_fixes"):
                     res = plan_reasoner.plan_fixes(findings)
                     fix_plan = res if isinstance(res, list) else []

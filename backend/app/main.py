@@ -105,6 +105,7 @@ async def health() -> dict[str, Any]:
             "agent": settings.MODEL_ID_AGENT,
             "transcription": settings.MODEL_ID_TRANSCRIPTION,
         },
+        "meta_configured": bool(settings.MODEL_API_KEY or settings.META_API_KEY),
     }
 
 
@@ -243,6 +244,15 @@ async def create_demo_audit(
     If replay=True or DEMO_REPLAY=1, replays recorded fixtures with realistic event timing.
     """
     settings = get_settings()
+    if settings.PROVIDER_MODE.lower() == "meta" and not (settings.MODEL_API_KEY or settings.META_API_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Meta API key not configured: PROVIDER_MODE=meta requires MODEL_API_KEY in backend environment. "
+                "Configure MODEL_API_KEY to execute live Meta AI Foundation Model inspections."
+            ),
+        )
+
     sample_path = settings.DATA_DIR / "sample_walkthrough.mp4"
     if not sample_path.exists() or sample_path.stat().st_size == 0:
         logger.info("Sample walkthrough video missing at %s; generating synthetic H.264 walkthrough video...", sample_path)
@@ -265,7 +275,8 @@ async def create_demo_audit(
         else:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown template: '{template_id}'")
 
-    is_replay = bool(replay or settings.DEMO_REPLAY)
+    # In live meta mode, ensure is_replay is False (no fake fixtures)
+    is_replay = False if settings.PROVIDER_MODE.lower() == "meta" else bool(replay or settings.DEMO_REPLAY)
     audit = Audit(
         site_id="site_demo_building_a",
         template_id=template_id,
@@ -363,6 +374,16 @@ async def create_audit(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=str(e),
             )
+
+    settings = get_settings()
+    if settings.PROVIDER_MODE.lower() == "meta" and not (settings.MODEL_API_KEY or settings.META_API_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Meta API key not configured: PROVIDER_MODE=meta requires MODEL_API_KEY in backend environment. "
+                "Configure MODEL_API_KEY to execute live Meta AI Foundation Model inspections."
+            ),
+        )
 
     # Create new audit record
     audit = Audit(
