@@ -82,7 +82,7 @@ export default function SummaryCard({
         {/* Right: Score Ring & Compliance Counts */}
         <div className="flex items-center gap-6 self-start md:self-center">
           {/* Circular Score Gauge */}
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center shrink-0">
             <svg className="h-28 w-28 -rotate-90 transform" viewBox="0 0 100 100">
               {/* Background circle */}
               <circle
@@ -112,7 +112,7 @@ export default function SummaryCard({
               <span className="font-mono text-2xl font-black text-[var(--color-text)]">
                 {score}
               </span>
-              <span className="text-[10px] uppercase font-semibold text-[var(--color-text-secondary)]">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--color-text-secondary)]">
                 Score
               </span>
             </div>
@@ -120,25 +120,25 @@ export default function SummaryCard({
 
           {/* Breakdown Counts */}
           {summary && (
-            <div className="space-y-1.5 border-l border-[var(--color-border)] pl-6 text-xs">
+            <div className="space-y-2 border-l border-[var(--color-border)] pl-5 sm:pl-6 text-xs">
               <div className="flex items-center gap-2 font-mono">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span className="font-semibold text-[var(--color-text)]">{summary.pass}</span>
+                <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                <span className="font-bold text-[var(--color-text)]">{summary.pass}</span>
                 <span className="text-[var(--color-text-secondary)]">Passed</span>
               </div>
               <div className="flex items-center gap-2 font-mono">
-                <XCircle className="h-4 w-4 text-red-600" />
-                <span className="font-semibold text-[var(--color-text)]">{summary.fail}</span>
-                <span className="text-[var(--color-text-secondary)]">Violations</span>
+                <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <span className="font-bold text-[var(--color-text)]">{summary.fail}</span>
+                <span className="text-[var(--color-text-secondary)]">Needing Attention</span>
               </div>
               <div className="flex items-center gap-2 font-mono">
-                <HelpCircle className="h-4 w-4 text-amber-600" />
-                <span className="font-semibold text-[var(--color-text)]">{summary.unsure}</span>
+                <HelpCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="font-bold text-[var(--color-text)]">{summary.unsure}</span>
                 <span className="text-[var(--color-text-secondary)]">Needs Review</span>
               </div>
-              <div className="pt-1">
-                <span className={`text-[11px] font-semibold ${grade.colorClass}`}>
-                  {grade.label}
+              <div className="pt-1 border-t border-[var(--color-border)]">
+                <span className={`text-[11px] font-bold ${grade.colorClass}`}>
+                  Grade: {grade.label}
                 </span>
               </div>
             </div>

@@ -74,17 +74,22 @@ export default function Home() {
       {/* Provider Mode Alert Banner */}
       {health?.provider_mode === 'mock' && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-800 dark:text-amber-200">
-          <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against deterministic scenarios.</span>
+          <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against deterministic scenarios. All findings stamped MOCK.</span>
         </div>
       )}
-      {health?.provider_mode === 'replay' && (
+      {health?.demo_replay && health?.provider_mode !== 'mock' && (
         <div className="bg-purple-500/10 border-b border-purple-500/20 px-4 py-2 text-center text-xs font-medium text-purple-800 dark:text-purple-200">
-          <span>📼 <strong>Replay Mode:</strong> Serving exclusively from recorded fixtures in data/fixtures/ with zero network calls.</span>
+          <span>📼 <strong>Replay Mode:</strong> Serving exclusively from recorded fixtures in data/fixtures/ with zero network calls. Audit is a replayed run.</span>
         </div>
       )}
-      {health?.provider_mode === 'record' && (
+      {!health?.demo_replay && health?.provider_mode === 'record' && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 text-center text-xs font-medium text-emerald-800 dark:text-emerald-200">
-          <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for deterministic replay.</span>
+          <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for deterministic replay. Live external AI provider active.</span>
+        </div>
+      )}
+      {health?.provider_mode === 'meta' && (
+        <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 text-center text-xs font-medium text-blue-800 dark:text-blue-200">
+          <span>🔴 <strong>LIVE Mode:</strong> External Meta Foundation Model API active. SAM 3.1 segmentation, Muse Spark reasoning, Muse Voice Transcribe processing live walkthrough.</span>
         </div>
       )}
 
@@ -178,53 +183,93 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-5xl px-6 py-10 space-y-12">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-10 sm:space-y-12">
         {/* Hero */}
-        <section className="text-center space-y-3 pt-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/70 px-3.5 py-1 text-xs font-medium text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
+        <section className="text-center space-y-4 pt-2 sm:pt-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3.5 py-1 text-xs font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200 shadow-sm">
             <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            Assistive Safety Pre-Audit
+            Evidence-First Safety Pre-Audit Platform
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[var(--color-text)]">
-            Walk through. Get proof. Fix what matters.
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[var(--color-text)] leading-tight">
+            Walk through. Get proof. <br className="hidden sm:inline" />
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Fix what matters.
+            </span>
           </h1>
-          <p className="mx-auto max-w-2xl text-base sm:text-lg text-[var(--color-text-secondary)]">
-            Upload phone walkthrough video of your room, workshop, or lab.
-            Receive an evidence-backed report with bounding-box overlays, optical measurements, and plain-language fixes.
+          <p className="mx-auto max-w-2xl text-sm sm:text-base text-[var(--color-text-secondary)] leading-relaxed">
+            Upload phone walkthrough video or photos of your room, workshop, or corridor.
+            AuditLens delivers an evidence-backed pre-inspection report with pixel-level segmentation masks, optical measurements, and plain-language corrective fixes.
           </p>
+
+          {/* 3-Step Process Strip for Judges */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 max-w-3xl mx-auto text-left">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">1</span>
+                <span className="text-xs font-bold text-[var(--color-text)]">Walkthrough Capture</span>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
+                Standard smartphone video or photo keyframes (up to 90s, no special hardware).
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">2</span>
+                <span className="text-xs font-bold text-[var(--color-text)]">Foundation Vision</span>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
+                SAM 3.1 mask segmentation + Muse Spark tool-calling agent with strict confidence floors.
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold font-mono">3</span>
+                <span className="text-xs font-bold text-[var(--color-text)]">Verified Report & Fixes</span>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
+                Pass/Fail pre-audit score, bounding-box overlays, optical scale and corrective fix plan.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Disclaimer Banner */}
         <Disclaimer compact />
 
-        {/* Guided Demo Walkthrough Card */}
-        <section className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50/70 to-blue-50/70 dark:from-indigo-950/30 dark:to-blue-950/30 p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 border border-amber-500/30">
-                  Recorded run / MOCK
+        {/* Guided Demo Walkthrough Card (Judge Priority) */}
+        <section className="relative overflow-hidden rounded-2xl border-2 border-indigo-300 dark:border-indigo-800 bg-gradient-to-br from-indigo-50/90 via-blue-50/60 to-purple-50/50 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-purple-950/30 p-5 sm:p-6 shadow-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2 max-w-xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm">
+                  ⚡ JUDGE QUICKSTART
                 </span>
-                <h3 className="font-semibold text-sm text-[var(--color-text)]">
-                  Try Guided Demo (Recorded Walkthrough)
-                </h3>
+                <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                  Recorded Run / MOCK
+                </span>
               </div>
-              <p className="text-xs text-[var(--color-text-secondary)] max-w-xl">
-                Experience AuditLens immediately without recording video. Launches a pre-recorded campus safety walkthrough in replay mode with realistic timeline event streaming and verified evidence.
+              <h3 className="font-bold text-base sm:text-lg text-[var(--color-text)]">
+                Launch Interactive Guided Demo Walkthrough
+              </h3>
+              <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                Experience the full end-to-end pipeline in seconds with zero upload needed. Replays an authentic campus safety inspection walkthrough with real-time agent event streaming, interactive video timeline, mask-backed detections, and automated fix recommendations.
               </p>
             </div>
-            <button
-              onClick={() => handleLoadDemo(true)}
-              disabled={isStartingDemo}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0"
-            >
-              {isStartingDemo ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
-              ) : (
-                <PlayCircle className="h-4 w-4 text-white" />
-              )}
-              <span>Launch Guided Demo</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+              <button
+                onClick={() => handleLoadDemo(true)}
+                disabled={isStartingDemo}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:shadow-lg disabled:opacity-50 transition-all cursor-pointer min-h-[44px]"
+              >
+                {isStartingDemo ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <PlayCircle className="h-4 w-4 text-white" />
+                )}
+                <span>Launch Guided Demo</span>
+                <ArrowRight className="h-3.5 w-3.5 text-indigo-200" />
+              </button>
+            </div>
           </div>
         </section>
 

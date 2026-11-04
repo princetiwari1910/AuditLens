@@ -89,15 +89,29 @@ export default function FindingCard({
             </div>
 
             <div className="flex items-center gap-2 text-xs font-mono">
-              <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${severityMeta.badge}`}>
+              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${severityMeta.badge}`}>
                 {severityMeta.label}
               </span>
               <span className="text-[var(--color-text-secondary)]">·</span>
-              <span className="font-medium text-[var(--color-text)]">
-                {Math.round(finding.confidence * 100)}% conf
-              </span>
+              <div className="flex items-center gap-1.5" title={`Model Confidence: ${Math.round(finding.confidence * 100)}%`}>
+                <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      finding.confidence >= 0.75
+                        ? 'bg-emerald-500'
+                        : finding.confidence >= 0.5
+                        ? 'bg-amber-500'
+                        : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.round(finding.confidence * 100)}%` }}
+                  />
+                </div>
+                <span className="font-bold text-[var(--color-text)]">
+                  {Math.round(finding.confidence * 100)}%
+                </span>
+              </div>
               <span className="text-[var(--color-text-secondary)]">·</span>
-              <span className="inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
+              <span className="inline-flex items-center gap-1 text-[var(--color-text-secondary)] font-medium">
                 <Clock className="h-3 w-3" />
                 {formatTimestamp(finding.timestamp_s)}
               </span>
@@ -167,25 +181,38 @@ export default function FindingCard({
           {/* Evidence Image Thumbnail and Evidence Source Badges */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-[var(--color-border)]">
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect?.();
-                }}
-                className="group relative flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 hover:border-[var(--color-accent)] transition-colors"
-              >
-                <img
-                  src={overlaySrc}
-                  alt={`Evidence overlay for ${finding.rule_id}`}
-                  loading="lazy"
-                  className="h-10 w-16 rounded object-cover bg-black"
-                />
-                <span className="text-xs text-[var(--color-text-secondary)] font-medium group-hover:text-[var(--color-accent)] pr-1 flex items-center gap-1">
-                  <Maximize2 className="h-3 w-3" />
-                  View Evidence
-                </span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect?.();
+                  }}
+                  className="group relative flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-1.5 hover:border-[var(--color-accent)] transition-colors cursor-pointer"
+                  title="Jump video timeline to this finding"
+                >
+                  <img
+                    src={overlaySrc}
+                    alt={`Evidence overlay for ${finding.rule_id}`}
+                    loading="lazy"
+                    className="h-10 w-16 rounded object-cover bg-black"
+                  />
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium group-hover:text-[var(--color-accent)] pr-1 flex items-center gap-1">
+                    Sync Video
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsModalOpen(true);
+                  }}
+                  className="p-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-colors cursor-pointer"
+                  title="Enlarge evidence keyframe overlay"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
 
               {onToggleReview && (
                 <button

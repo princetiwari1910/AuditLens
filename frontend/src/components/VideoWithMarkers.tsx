@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, AlertCircle } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Finding } from '../api/types';
 import OverlayCanvas from './OverlayCanvas';
 import { formatTimestamp, getStatusMeta } from '../utils/formatters';
@@ -65,6 +65,15 @@ export default function VideoWithMarkers({
       setCurrentTime(finding.timestamp_s);
     }
     onSelectFinding(finding.id);
+  }
+
+  const sortedFindings = [...findings].sort((a, b) => a.timestamp_s - b.timestamp_s);
+  const currentFindingIdx = sortedFindings.findIndex((f) => f.id === selectedFindingId);
+
+  function jumpToFinding(idx: number) {
+    if (idx >= 0 && idx < sortedFindings.length) {
+      handleMarkerClick(sortedFindings[idx]);
+    }
   }
 
   return (
@@ -226,14 +235,44 @@ export default function VideoWithMarkers({
             <span className="font-mono text-slate-300">
               {formatTimestamp(currentTime)} / {formatTimestamp(duration)}
             </span>
+
+            {/* Jump to Findings */}
+            {sortedFindings.length > 0 && (
+              <div className="hidden md:flex items-center gap-1 border-l border-slate-700 pl-3">
+                <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider mr-1">
+                  Findings:
+                </span>
+                <button
+                  onClick={() => jumpToFinding(currentFindingIdx - 1)}
+                  disabled={currentFindingIdx <= 0}
+                  className="rounded px-1.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors text-[10px] flex items-center gap-0.5"
+                  title="Jump to previous finding"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  Prev
+                </button>
+                <span className="text-[10px] font-mono text-slate-300 px-1">
+                  {currentFindingIdx >= 0 ? `${currentFindingIdx + 1}/${sortedFindings.length}` : `-/${sortedFindings.length}`}
+                </span>
+                <button
+                  onClick={() => jumpToFinding(currentFindingIdx + 1)}
+                  disabled={currentFindingIdx >= sortedFindings.length - 1}
+                  className="rounded px-1.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors text-[10px] flex items-center gap-0.5"
+                  title="Jump to next finding"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="hidden sm:flex items-center gap-3 text-[11px] font-medium text-slate-400">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-green-500" /> Pass
+              <span className="h-2 w-2 rounded-full bg-green-500" /> Passed
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500" /> Fail
+              <span className="h-2 w-2 rounded-full bg-red-500" /> Attention
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-amber-500" /> Needs Review

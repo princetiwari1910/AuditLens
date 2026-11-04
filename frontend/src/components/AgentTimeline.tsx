@@ -26,16 +26,20 @@ export default function AgentTimeline({
   isCompleted,
   error,
 }: AgentTimelineProps) {
-  function getToolIcon(toolName: string) {
+  function getToolMeta(toolName: string) {
     switch (toolName) {
       case 'find_objects':
-        return <Search className="h-4 w-4 text-blue-500" />;
+        return { icon: <Search className="h-4 w-4 text-blue-500" />, model: 'SAM 3.1' };
+      case 'verify_presence':
+        return { icon: <Sparkles className="h-4 w-4 text-purple-500" />, model: 'Muse Spark Vision' };
       case 'measure_clear_width':
-        return <Ruler className="h-4 w-4 text-emerald-500" />;
+        return { icon: <Ruler className="h-4 w-4 text-emerald-500" />, model: 'Optical Scale' };
       case 'check_colocation':
-        return <Layers className="h-4 w-4 text-amber-500" />;
+        return { icon: <Layers className="h-4 w-4 text-amber-500" />, model: 'Geometry' };
+      case 'plan_fixes':
+        return { icon: <Wrench className="h-4 w-4 text-indigo-500" />, model: 'Muse Spark' };
       default:
-        return <Wrench className="h-4 w-4 text-slate-500" />;
+        return { icon: <Wrench className="h-4 w-4 text-slate-500" />, model: 'Agent Tool' };
     }
   }
 
@@ -96,14 +100,20 @@ export default function AgentTimeline({
 
           if (evt.type === 'tool_call') {
             const tool = String(p.tool || 'tool');
+            const meta = getToolMeta(tool);
             return (
-              <div key={idx} className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] p-3 text-xs">
-                {getToolIcon(tool)}
+              <div key={idx} className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] p-3 text-xs bg-[var(--color-surface)]">
+                {meta.icon}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-medium text-[var(--color-text)]">
-                      call: {tool}()
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-medium text-[var(--color-text)]">
+                        call: {tool}()
+                      </span>
+                      <span className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 text-[9px] font-mono text-[var(--color-text-secondary)]">
+                        {meta.model}
+                      </span>
+                    </div>
                     <span className="text-[10px] text-[var(--color-text-secondary)] font-mono">
                       {p.rule_id ? String(p.rule_id) : ''}
                     </span>
