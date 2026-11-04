@@ -86,7 +86,9 @@ export default function ModelsUsedPanel({
       data: transData,
       icon: Zap,
       color: 'text-purple-400',
-      description: 'Transcription unavailable — Meta API returned 404. Live transcription is not operational.'
+      description: transData.calls > 0
+        ? 'Speech-to-text turns transcribed and linked to visual evidence.'
+        : 'Transcription unavailable — no audio notes processed or service unavailable.'
     },
   ];
 
@@ -127,7 +129,7 @@ export default function ModelsUsedPanel({
             </span>
           ) : (
             <span className="rounded-lg bg-blue-500/10 px-3 py-1 text-xs font-semibold text-cyan-300 border border-blue-500/20 font-mono">
-              Live Meta Models: SAM 3.1 &amp; Muse Spark (Voice 404)
+              Live Meta Models: SAM 3.1, Muse Spark &amp; Muse Voice
             </span>
           )}
         </div>
@@ -224,9 +226,13 @@ export default function ModelsUsedPanel({
           <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
             <div className="flex items-center justify-between">
               <span className="font-bold text-white block font-mono text-xs">Muse Voice (muse-voice-transcribe)</span>
-              <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">API 404 (Unavailable)</span>
+              {transData.calls > 0 ? (
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">Operational</span>
+              ) : (
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">Transcription Unavailable</span>
+              )}
             </div>
-            <span className="text-slate-400">Walkthrough speech-to-text. (The live Meta Voice endpoint currently returns 404; live transcription is unavailable. Offline stub only). Transcribes auditor field notes and associates observations to nearest keyframe timestamps when available.</span>
+            <span className="text-slate-400">Walkthrough speech-to-text. Transcribes auditor field notes via /v1/asr/transcribe and associates observations to nearest keyframe timestamps.</span>
           </div>
         </div>
       </div>

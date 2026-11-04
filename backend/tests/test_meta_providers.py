@@ -9,6 +9,10 @@ No live network calls are made:
 from __future__ import annotations
 
 import base64
+import json
+from pathlib import Path
+import shutil
+import subprocess
 import time
 from unittest.mock import MagicMock
 import numpy as np
@@ -457,32 +461,157 @@ def test_meta_reasoner_downgrades_invented_cited_frames():
     assert "no valid cited keyframe evidence" in verdict["reason"]
 
 
-def test_meta_transcriber_with_mocked_client(tmp_path):
-    """Verify MetaTranscriber parses turn-level timestamps only."""
-    audio_file = tmp_path / "audio.wav"
-    audio_file.write_bytes(b"RIFF" + b"\x00" * 100)
+def test_meta_transcriber_http_multipart_and_response_parsing(tmp_path, monkeypatch):
+    """Verify MetaTranscriber converts audio via ffmpeg and sends multipart POST to /asr/transcribe."""
+    audio_file = tmp_path / "walkthrough.m4a"
+    audio_file.write_bytes(b"dummy-m4a-data")
 
+    # Mock ffmpeg conversion
+    ffmpeg_called = []
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        ffmpeg_called.append(cmd)
+        out_wav = Path(cmd[-1])
+        out_wav.write_bytes(b"RIFF" + b"\x00" * 44)
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/ffmpeg")
+
+    # Mock HTTP client
     mock_client = MagicMock()
     mock_resp = MagicMock()
-    mock_resp.text = "Checking the emergency exit."
-    mock_resp.language = "en"
-    seg = MagicMock()
-    seg.start = 0.5
-    seg.end = 2.8
-    seg.text = "Checking the emergency exit."
-    seg.speaker = "auditor"
-    mock_resp.segments = [seg]
-    mock_client.audio.transcriptions.create.return_value = mock_resp
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "transcript": "Checking the emergency exit.",
+        "language": "en",
+        "audioDurationMs": 3000,
+        "turns": [
+            {
+                "speaker": "auditor",
+                "startMs": 500,
+                "endMs": 2800,
+                "transcript": "Checking the emergency exit.",
+            }
+        ],
+    }
+    mock_client.post.return_value = mock_resp
 
     transcriber = MetaTranscriber(client=mock_client)
     transcript = transcriber.transcribe(audio_file)
 
+    # 1. Verify ffmpeg command shape
+    assert len(ffmpeg_called) == 1
+    cmd = ffmpeg_called[0]
+    assert cmd[0] == "ffmpeg"
+    assert "-ac" in cmd and cmd[cmd.index("-ac") + 1] == "1"
+    assert "-ar" in cmd and cmd[cmd.index("-ar") + 1] == "16000"
+    assert "-c:a" in cmd and cmd[cmd.index("-c:a") + 1] == "pcm_s16le"
+
+    # 2. Verify multipart request shape
+    assert mock_client.post.call_count == 1
+    call_args, call_kwargs = mock_client.post.call_args
+    assert "/asr/transcribe" in call_args[0]
+    files = call_kwargs["files"]
+    assert "request" in files
+    assert "audio" in files
+    req_json = json.loads(files["request"][1])
+    assert req_json["model"] == "muse-voice-transcribe-1.0"
+    assert req_json["audioEncoding"] == "WAV"
+    assert req_json["mode"] == "PUSH_TO_TALK"
+
+    # 3. Verify parsed transcript and turns
     assert isinstance(transcript, Transcript)
     assert transcript.text == "Checking the emergency exit."
     assert len(transcript.turns) == 1
     assert transcript.turns[0].start_s == 0.5
     assert transcript.turns[0].end_s == 2.8
     assert transcript.turns[0].speaker == "auditor"
+
+
+def test_meta_transcriber_missing_ffmpeg_error(tmp_path, monkeypatch):
+    """Verify MetaTranscriber raises clear error when ffmpeg is missing."""
+    audio_file = tmp_path / "walkthrough.mp3"
+    audio_file.write_bytes(b"dummy-mp3-data")
+
+    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+
+    mock_client = MagicMock()
+    transcriber = MetaTranscriber(client=mock_client)
+
+    with pytest.raises(RuntimeError, match="ffmpeg is required"):
+        transcriber.transcribe(audio_file)
+
+
+def test_meta_transcriber_429_retry_and_backoff(tmp_path, monkeypatch):
+    """Verify MetaTranscriber retries on 429 rate limit."""
+    audio_file = tmp_path / "audio.wav"
+    audio_file.write_bytes(b"RIFF" + b"\x00" * 44)
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        Path(cmd[-1]).write_bytes(b"RIFF" + b"\x00" * 44)
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/ffmpeg")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    attempts = 0
+    mock_client = MagicMock()
+
+    def mock_post(url, headers, files, timeout):
+        nonlocal attempts
+        attempts += 1
+        resp = MagicMock()
+        if attempts == 1:
+            resp.status_code = 429
+            resp.text = "Rate limit exceeded"
+            return resp
+        resp.status_code = 200
+        resp.json.return_value = {
+            "transcript": "Success on retry",
+            "turns": [{"startMs": 0, "endMs": 1000, "transcript": "Success on retry"}],
+        }
+        return resp
+
+    mock_client.post.side_effect = mock_post
+
+    transcriber = MetaTranscriber(client=mock_client)
+    res = transcriber.transcribe(audio_file)
+
+    assert res.text == "Success on retry"
+    assert attempts == 2
+
+
+def test_meta_transcriber_error_redaction(tmp_path, monkeypatch):
+    """Verify sensitive tokens and keys are redacted from error messages."""
+    audio_file = tmp_path / "audio.wav"
+    audio_file.write_bytes(b"RIFF" + b"\x00" * 44)
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        Path(cmd[-1]).write_bytes(b"RIFF" + b"\x00" * 44)
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/ffmpeg")
+
+    secret_key = "LLM_12345678_abcdefghij123"
+    settings = get_settings()
+    monkeypatch.setattr(settings, "MODEL_API_KEY", secret_key)
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 400
+    mock_resp.text = f"Invalid token Bearer {secret_key} for request"
+    mock_client.post.return_value = mock_resp
+
+    transcriber = MetaTranscriber(client=mock_client)
+
+    with pytest.raises(ProviderAPIError) as exc_info:
+        transcriber.transcribe(audio_file)
+
+    err_str = str(exc_info.value)
+    assert secret_key not in err_str
+    assert "[REDACTED]" in err_str
 
 
 # ── Pricing and Budget Constants ──────────────────────────────────────────────

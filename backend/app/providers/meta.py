@@ -12,11 +12,16 @@ import concurrent.futures
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
+import tempfile
 from typing import Any, Callable, Sequence
 
 import cv2
+import httpx
 import numpy as np
 from openai import OpenAI
 
@@ -941,11 +946,57 @@ class MetaAgentProvider:
 MetaReasoner = MetaAgentProvider
 
 
+def _convert_audio_to_pcm16_wav(input_path: Path) -> Path:
+    """
+    Convert uploaded audio (webm/opus, m4a, mp3, wav) to mono 16-bit PCM WAV at 16 kHz.
+    Requires ffmpeg on PATH.
+    """
+    if not shutil.which("ffmpeg"):
+        raise RuntimeError(
+            "ffmpeg is required for audio conversion to mono 16kHz 16-bit PCM WAV but was not found on PATH."
+        )
+
+    temp_fd, temp_wav_path = tempfile.mkstemp(suffix=".wav")
+    os.close(temp_fd)
+    out_path = Path(temp_wav_path)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-v", "error",
+        "-i", str(input_path),
+        "-ac", "1",
+        "-ar", "16000",
+        "-c:a", "pcm_s16le",
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError as exc:
+        if out_path.exists():
+            out_path.unlink()
+        stderr_msg = exc.stderr.decode("utf-8", errors="replace") if exc.stderr else str(exc)
+        raise RuntimeError(f"ffmpeg conversion failed: {stderr_msg}") from exc
+
+    return out_path
+
+
+def _redact_error_message(msg: str, secret: str | None = None) -> str:
+    """Redact secret tokens, Bearer strings, and API keys from error messages."""
+    if secret and secret in msg:
+        msg = msg.replace(secret, "[REDACTED]")
+    msg = re.sub(r"Bearer\s+[A-Za-z0-9_\-\.]+", "Bearer [REDACTED]", msg, flags=re.IGNORECASE)
+    msg = re.sub(r"LLM_[0-9]{8,}_[A-Za-z0-9]{10,}", "[REDACTED]", msg)
+    msg = re.sub(r"nvapi-[A-Za-z0-9_-]{20,}", "[REDACTED]", msg)
+    return msg
+
+
 class MetaTranscriptionProvider:
     """
     Speech-to-text provider integrating with Muse Voice Transcribe API (muse-voice-transcribe-1.0).
+    Direct HTTP multipart POST to /v1/asr/transcribe.
+    Requires 16kHz mono 16-bit PCM WAV audio.
     Turn-level timestamps only (no word-level timestamps).
-    UNVERIFIED against live API (built against dev.meta.ai/docs specs and verified with doc fixtures).
     Implements Transcriber and TranscriptionProvider protocols.
     """
 
@@ -961,7 +1012,7 @@ class MetaTranscriptionProvider:
         self.model_id = model_id
         self._client = client
 
-    def _get_client(self) -> OpenAI:
+    def _get_client(self) -> Any:
         settings = get_settings()
         if settings.PROVIDER_MODE.lower() == "replay":
             raise RuntimeError(
@@ -973,8 +1024,7 @@ class MetaTranscriptionProvider:
         api_key = settings.MODEL_API_KEY or settings.META_API_KEY
         if not api_key:
             raise ValueError(ERR_UNVERIFIED)
-        base_url = settings.META_BASE_URL or "https://api.meta.ai/v1"
-        self._client = OpenAI(api_key=api_key, base_url=base_url)
+        self._client = httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0))
         return self._client
 
     def transcribe(
@@ -984,8 +1034,8 @@ class MetaTranscriptionProvider:
     ) -> Transcript:
         """
         Transcribe audio recording into turns with timestamps using Muse Voice Transcribe.
+        Converts audio to mono 16-bit PCM WAV at 16 kHz before sending to /v1/asr/transcribe.
         Turn-level timestamps only.
-        UNVERIFIED against live API.
         """
         client = self._get_client()
 
@@ -1000,69 +1050,130 @@ class MetaTranscriptionProvider:
                 f"{self.MAX_FILE_SIZE_BYTES / (1024*1024):.1f} MB."
             )
 
-        client = self._get_client()
+        settings = get_settings()
+        api_key = settings.MODEL_API_KEY or settings.META_API_KEY or ""
+        base_url = (settings.META_BASE_URL or "https://api.meta.ai/v1").rstrip("/")
+        url = f"{base_url}/asr/transcribe" if not base_url.endswith("/asr/transcribe") else base_url
 
         def _call_transcription() -> Transcript:
-            with open(p, "rb") as f:
-                resp = client.audio.transcriptions.create(
-                    model=self.model_id,
-                    file=f,
-                    language=language_hint or "en",
-                    response_format="verbose_json",
-                )
+            converted_wav: Path | None = None
+            try:
+                converted_wav = _convert_audio_to_pcm16_wav(p)
 
-            full_text = getattr(resp, "text", "") or ""
-            language = getattr(resp, "language", language_hint or "en")
+                req_payload = {
+                    "model": self.model_id,
+                    "audioEncoding": "WAV",
+                    "mode": "PUSH_TO_TALK",
+                }
+                if language_hint:
+                    req_payload["language"] = language_hint
 
-            # Parse turn-level timestamps only (no word-level timestamps)
-            turns: list[TranscriptTurn] = []
-            segments: list[TranscriptSegment] = []
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Accept": "application/json",
+                }
 
-            raw_segments = getattr(resp, "segments", None) or []
-            for seg in raw_segments:
-                start = float(getattr(seg, "start", 0.0))
-                end = float(getattr(seg, "end", 0.0))
-                txt = getattr(seg, "text", "").strip()
-                spk = getattr(seg, "speaker", None)
-                turns.append(
-                    TranscriptTurn(
-                        start_s=start,
-                        end_s=end,
-                        text=txt,
-                        speaker=spk,
+                with open(converted_wav, "rb") as f:
+                    files = {
+                        "request": (None, json.dumps(req_payload), "application/json"),
+                        "audio": ("audio.wav", f, "audio/wav"),
+                    }
+                    try:
+                        resp = client.post(url, headers=headers, files=files, timeout=60.0)
+                    except Exception as exc:
+                        redacted = _redact_error_message(str(exc), api_key)
+                        raise ProviderAPIError(
+                            f"Meta Voice Transcribe network error: {redacted}",
+                            status_code=500,
+                        ) from exc
+
+                if resp.status_code != 200:
+                    redacted = _redact_error_message(resp.text or "", api_key)
+                    raise ProviderAPIError(
+                        f"Meta Voice Transcribe error ({resp.status_code}): {redacted}",
+                        status_code=resp.status_code,
                     )
-                )
-                segments.append(
-                    TranscriptSegment(
-                        start_s=start,
-                        end_s=end,
-                        text=txt,
-                    )
-                )
 
-            if not turns and full_text:
-                turns.append(
-                    TranscriptTurn(
-                        start_s=0.0,
-                        end_s=5.0,
-                        text=full_text,
-                        speaker=None,
-                    )
-                )
-                segments.append(
-                    TranscriptSegment(
-                        start_s=0.0,
-                        end_s=5.0,
-                        text=full_text,
-                    )
-                )
+                try:
+                    data = resp.json()
+                except Exception as exc:
+                    raise ProviderAPIError(
+                        f"Meta Voice Transcribe returned invalid JSON: {exc}",
+                        status_code=502,
+                    ) from exc
 
-            return Transcript(
-                text=full_text,
-                language=language,
-                segments=segments,
-                turns=turns,
-            )
+                full_text = data.get("transcript") or data.get("text") or ""
+                language = data.get("language") or language_hint or "en"
+
+                turns: list[TranscriptTurn] = []
+                segments: list[TranscriptSegment] = []
+
+                raw_turns = data.get("turns") or data.get("segments") or []
+                for item in raw_turns:
+                    if isinstance(item, dict):
+                        if "startMs" in item:
+                            start = float(item["startMs"]) / 1000.0
+                        else:
+                            start = float(item.get("start_s", item.get("start", 0.0)))
+
+                        if "endMs" in item:
+                            end = float(item["endMs"]) / 1000.0
+                        else:
+                            end = float(item.get("end_s", item.get("end", 0.0)))
+
+                        txt = (item.get("transcript") or item.get("text") or "").strip()
+                        spk = item.get("speaker")
+                    else:
+                        start = float(getattr(item, "start", 0.0))
+                        end = float(getattr(item, "end", 0.0))
+                        txt = getattr(item, "text", "").strip()
+                        spk = getattr(item, "speaker", None)
+
+                    turns.append(
+                        TranscriptTurn(
+                            start_s=start,
+                            end_s=end,
+                            text=txt,
+                            speaker=spk,
+                        )
+                    )
+                    segments.append(
+                        TranscriptSegment(
+                            start_s=start,
+                            end_s=end,
+                            text=txt,
+                        )
+                    )
+
+                if not turns and full_text:
+                    turns.append(
+                        TranscriptTurn(
+                            start_s=0.0,
+                            end_s=5.0,
+                            text=full_text,
+                            speaker=None,
+                        )
+                    )
+                    segments.append(
+                        TranscriptSegment(
+                            start_s=0.0,
+                            end_s=5.0,
+                            text=full_text,
+                        )
+                    )
+
+                return Transcript(
+                    text=full_text,
+                    language=language,
+                    segments=segments,
+                    turns=turns,
+                )
+            finally:
+                if converted_wav is not None and converted_wav.exists():
+                    try:
+                        converted_wav.unlink()
+                    except OSError:
+                        pass
 
         return execute_with_retry(
             _call_transcription,

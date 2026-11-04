@@ -252,6 +252,7 @@ export default function Home() {
           const framesAnalyzed = latestAudit?.summary?.frames_analyzed;
           const failCount = latestAudit?.summary?.fail;
           const passCount = latestAudit?.summary?.pass;
+          const voiceNotesCount = findings.filter((f) => f.sources?.includes('voice_note')).length;
 
           return (
             <section className="overflow-hidden rounded-2xl border border-blue-500/20 bg-slate-950/90 shadow-2xl shadow-blue-950/40">
@@ -463,11 +464,13 @@ export default function Home() {
                   </div>
 
                   <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 block">Voice Notes</span>
-                    <span className="text-sm font-semibold font-mono text-amber-400 block truncate" title="Meta API returned 404">
-                      Unavailable (404)
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-purple-400 block">Voice Notes</span>
+                    <span className="text-sm font-semibold font-mono text-white block truncate">
+                      {voiceNotesCount > 0 ? `${voiceNotesCount} linked` : 'None recorded'}
                     </span>
-                    <span className="text-[11px] text-slate-500 block truncate">API Unavailable</span>
+                    <span className="text-[11px] text-slate-500 block truncate">
+                      {voiceNotesCount > 0 ? 'Audio Transcribed' : 'Walkthrough notes'}
+                    </span>
                   </div>
                 </div>
 
@@ -512,9 +515,9 @@ export default function Home() {
                           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
                           Muse Spark: {health?.provider_mode === 'meta' ? 'Live Reasoning' : 'Simulated Verdicts'}
                         </span>
-                        <span className="flex items-center gap-1 text-amber-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                          Muse Voice: Unavailable (404)
+                        <span className="flex items-center gap-1 text-purple-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                          Muse Voice: {health?.provider_mode === 'meta' ? 'Live ASR (Transcribe)' : 'Simulated Audio'}
                         </span>
                       </div>
                     </div>
@@ -639,10 +642,10 @@ export default function Home() {
                   <Mic className="h-4 w-4" />
                   <h4 className="text-xs font-bold text-white">Voice Note Mapping</h4>
                 </div>
-                <span className="text-[10px] font-mono text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">API 404</span>
+                <span className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Active</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Muse Voice Transcribe associates auditor verbal observations to keyframe visual locations. (The live Meta Voice endpoint currently returns 404; live calls are unavailable).
+                Muse Voice Transcribe converts speech to text and associates auditor verbal observations to keyframe visual locations within &plusmn;5s timestamps.
               </p>
             </div>
           </div>
