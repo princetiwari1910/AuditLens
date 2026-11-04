@@ -111,21 +111,79 @@ def parse_custom_rule(text: str, rule_idx: int = 1) -> RuleModel:
 
 # ── Rule Type Evaluators ──────────────────────────────────────────────────────
 
+def merge_concept_detections(
+    detections: list[dict[str, Any]],
+    iou_thresh: float = 0.5,
+) -> list[dict[str, Any]]:
+    """
+    Merge detections across concept variants using Non-Maximum Suppression (IoU >= 0.5).
+    Keeps the detection with maximum confidence when bounding boxes overlap on the same frame.
+    """
+    if not detections:
+        return []
+
+    from app.agent.tracking import compute_iou
+
+    # Group by frame_id
+    by_frame: dict[int, list[dict[str, Any]]] = {}
+    for d in detections:
+        fid = int(d.get("frame_id", 0))
+        by_frame.setdefault(fid, []).append(d)
+
+    merged: list[dict[str, Any]] = []
+
+    for fid, frame_dets in by_frame.items():
+        # Sort descending by score
+        sorted_dets = sorted(
+            frame_dets,
+            key=lambda d: float(d.get("score", 0.0)),
+            reverse=True,
+        )
+        kept: list[dict[str, Any]] = []
+        for d in sorted_dets:
+            d_box = d.get("bbox")
+            suppressed = False
+            for k in kept:
+                k_box = k.get("bbox")
+                if compute_iou(d_box, k_box) >= iou_thresh:
+                    suppressed = True
+                    break
+            if not suppressed:
+                kept.append(d)
+        merged.extend(kept)
+
+    # Sort merged results by frame_id and score descending
+    merged.sort(key=lambda d: (int(d.get("frame_id", 0)), -float(d.get("score", 0.0))))
+    return merged
+
+
 def evaluate_presence_rule(
     detections: list[dict[str, Any]],
     threshold: float | None = None,
+    frames_count: int | None = None,
+    min_usable_frames: int | None = None,
 ) -> tuple[FindingStatus, float, str, dict[str, Any] | None]:
     """
     Evaluate presence rule:
     - PASS: best score >= threshold (default 0.6)
-    - UNSURE: 0.3 <= best score < threshold
-    - FAIL: best score < 0.3 (or no detections)
+    - UNSURE: detection below threshold (weak evidence)
+    - FAIL: no detection if frames_count >= min_usable_frames (default 6)
+    - UNSURE: no detection if frames_count < min_usable_frames ("not enough footage")
     Returns: (status, confidence, rationale, best_detection)
     """
     settings = get_settings()
     thresh = threshold if threshold is not None else settings.MIN_CONFIDENCE_PASS
+    n_min = min_usable_frames if min_usable_frames is not None else getattr(settings, "MIN_USABLE_FRAMES_PRESENCE", 6)
 
     if not detections:
+        total_frames = frames_count if frames_count is not None else n_min
+        if total_frames < n_min:
+            return (
+                FindingStatus.UNSURE,
+                0.0,
+                f"Candidate object not observed, but not enough footage was analyzed ({total_frames}/{n_min} frames); physical verification required.",
+                None,
+            )
         return (
             FindingStatus.FAIL,
             0.0,
@@ -143,18 +201,12 @@ def evaluate_presence_rule(
             f"Object confirmed present with {best_score:.0%} confidence at {best.get('timestamp_s', 0.0):.1f}s.",
             best,
         )
-    elif best_score >= 0.30:
+    else:
+        # A detection below min_confidence is weak evidence and leads to unsure
         return (
             FindingStatus.UNSURE,
             best_score,
-            f"Candidate object observed with marginal confidence ({best_score:.0%}); requires physical verification.",
-            best,
-        )
-    else:
-        return (
-            FindingStatus.FAIL,
-            best_score,
-            f"Object not detected (highest detection signal {best_score:.0%} is below verification threshold).",
+            f"Candidate object detected with weak confidence ({best_score:.0%} < {thresh:.0%}); requires physical verification.",
             best,
         )
 

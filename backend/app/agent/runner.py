@@ -25,6 +25,7 @@ from app.agent.rules import (
     evaluate_count_rule,
     evaluate_measurement_rule,
     evaluate_presence_rule,
+    merge_concept_detections,
     select_strongest_evidence,
 )
 from app.agent.tools import ExecutionContext, ToolRegistry
@@ -267,7 +268,7 @@ class AgentRunner:
             for rule in rules:
                 try:
                     r_type = rule.type
-                    prompts = rule.sam_prompts or [rule.title]
+                    prompts = rule.concepts if rule.concepts else (rule.sam_prompts or [rule.title])
                     primary_prompt = prompts[0]
                     detector = getattr(rule, "detector", "sam") or "sam"
 
@@ -305,26 +306,37 @@ class AgentRunner:
                             })
 
                     elif r_type == "presence":
-                        emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "find_objects", "args_summary": {"prompt": primary_prompt}}))
-                        t0 = time.time()
-                        find_res = registry.execute("find_objects", prompt=primary_prompt)
-                        emit(_make_event("tool_result", audit_id, {"tool": "find_objects", "result_summary": f"Found {find_res['count']} detections", "duration_ms": int((time.time() - t0) * 1000)}))
-                        evidence_ids.append(find_res["result_id"])
+                        all_variant_dets = []
+                        for p in prompts:
+                            emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "find_objects", "args_summary": {"prompt": p}}))
+                            t0 = time.time()
+                            f_res = registry.execute("find_objects", prompt=p)
+                            emit(_make_event("tool_result", audit_id, {"tool": "find_objects", "result_summary": f"Found {f_res['count']} detections for '{p}'", "duration_ms": int((time.time() - t0) * 1000)}))
+                            evidence_ids.append(f_res["result_id"])
+                            all_variant_dets.extend(f_res.get("detections", []))
+
+                        # Merge detections across variants with NMS at IoU 0.5, keeping max confidence
+                        merged_dets = merge_concept_detections(all_variant_dets, iou_thresh=0.5)
+
+                        rule_thresh = getattr(rule, "min_confidence", None)
+                        if rule_thresh is None:
+                            rule_thresh = rule.params.get("min_score")
 
                         status, conf, rationale, best_det = evaluate_presence_rule(
-                            find_res["detections"],
-                            threshold=rule.params.get("min_score"),
+                            merged_dets,
+                            threshold=rule_thresh,
+                            frames_count=len(frames),
                         )
                         best_rep_detection = best_det
 
-                        for d in find_res.get("detections", []):
+                        for d in merged_dets:
                             has_mask = bool(d.get("polygon") or d.get("mask"))
                             evidence_ledger.append({
                                 "id": f"ev_{uuid.uuid4().hex[:8]}",
                                 "frame_id": int(d.get("frame_id", 0)),
                                 "ts": float(d.get("timestamp_s", 0.0)),
                                 "source": "sam",
-                                "concept": primary_prompt,
+                                "concept": d.get("prompt", primary_prompt),
                                 "box": d.get("bbox"),
                                 "mask_ref": d.get("polygon") or d.get("mask"),
                                 "score": float(d.get("score", 0.0)),
@@ -332,7 +344,7 @@ class AgentRunner:
                             })
 
                         # If hybrid sam_then_spark and initial pass is not confirmed
-                        if detector == "sam_then_spark" and (status == FindingStatus.UNSURE or not find_res.get("detections")):
+                        if detector == "sam_then_spark" and (status == FindingStatus.UNSURE or not merged_dets):
                             emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "verify_presence", "args_summary": {"concept": primary_prompt, "escalation": True}}))
                             t0 = time.time()
                             v_res = registry.execute("verify_presence", concept=primary_prompt)
@@ -366,23 +378,36 @@ class AgentRunner:
                             evidence_ids.append(f_res["result_id"])
                             all_dets.extend(f_res["detections"])
 
+                        merged_dets = merge_concept_detections(all_dets, iou_thresh=0.5)
+                        rule_thresh = getattr(rule, "min_confidence", None)
+                        if rule_thresh is None:
+                            rule_thresh = rule.params.get("threshold")
+
                         status, conf, rationale, best_det = evaluate_absence_rule(
-                            all_dets,
-                            threshold=rule.params.get("threshold"),
+                            merged_dets,
+                            threshold=rule_thresh,
                         )
                         best_rep_detection = best_det
 
                     elif r_type == "count":
-                        emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "find_objects", "args_summary": {"prompt": primary_prompt}}))
-                        t0 = time.time()
-                        find_res = registry.execute("find_objects", prompt=primary_prompt)
-                        emit(_make_event("tool_result", audit_id, {"tool": "find_objects", "result_summary": f"Found {find_res['count']} detections", "duration_ms": int((time.time() - t0) * 1000)}))
-                        evidence_ids.append(find_res["result_id"])
+                        all_count_dets = []
+                        for p in prompts:
+                            emit(_make_event("tool_call", audit_id, {"rule_id": rule.id, "tool": "find_objects", "args_summary": {"prompt": p}}))
+                            t0 = time.time()
+                            find_res = registry.execute("find_objects", prompt=p)
+                            emit(_make_event("tool_result", audit_id, {"tool": "find_objects", "result_summary": f"Found {find_res['count']} detections for '{p}'", "duration_ms": int((time.time() - t0) * 1000)}))
+                            evidence_ids.append(find_res["result_id"])
+                            all_count_dets.extend(find_res["detections"])
+
+                        merged_dets = merge_concept_detections(all_count_dets, iou_thresh=0.5)
+                        rule_thresh = getattr(rule, "min_confidence", None)
+                        if rule_thresh is None:
+                            rule_thresh = rule.params.get("min_score")
 
                         status, conf, rationale, best_det = evaluate_count_rule(
-                            find_res["detections"],
+                            merged_dets,
                             min_count=int(rule.params.get("min_count", 2)),
-                            threshold=rule.params.get("min_score"),
+                            threshold=rule_thresh,
                         )
                         best_rep_detection = best_det
 

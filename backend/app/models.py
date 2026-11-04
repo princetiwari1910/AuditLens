@@ -81,10 +81,38 @@ class RuleModel(BaseModel):
     type: RuleType
     severity: Severity = Severity.MEDIUM
     sam_prompts: list[str] = PydanticField(default_factory=list)
+    concepts: list[str] = PydanticField(default_factory=list)
+    min_confidence: float | None = None
     params: dict[str, Any] = PydanticField(default_factory=dict)
     fix_text: str = ""
     detector: str = "sam"
     evidence_needed: str = "Bounding box detection and confidence score"
+
+    @field_validator("concepts", mode="before")
+    @classmethod
+    def validate_concepts_list(cls, v: Any) -> list[str]:
+        if not v:
+            return []
+        if isinstance(v, str):
+            v = [v]
+        res = []
+        for c in v:
+            c_str = str(c).strip()
+            if not c_str:
+                continue
+            words = c_str.split()
+            if len(words) > 5:
+                raise ValueError(
+                    f"Concept '{c_str}' exceeds maximum 5 words ({len(words)} words)."
+                )
+            res.append(c_str)
+        return res
+
+    @model_validator(mode="after")
+    def sync_concepts_and_prompts(self) -> Self:
+        if self.concepts and not self.sam_prompts:
+            self.sam_prompts = list(self.concepts)
+        return self
 
     @field_validator("detector", mode="before")
     @classmethod
@@ -117,6 +145,8 @@ class TemplateModel(BaseModel):
         for rule in self.rules:
             for prompt in rule.sam_prompts:
                 validate_concept(prompt, rule_id=rule.id)
+            for c in rule.concepts:
+                validate_concept(c, rule_id=rule.id)
         return self
 
 

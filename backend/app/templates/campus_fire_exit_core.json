@@ -11,7 +11,9 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Visual segmentation mask, confidence >= 0.60, timestamp citation",
-      "sam_prompts": ["fire extinguisher", "extinguisher"],
+      "concepts": ["fire extinguisher", "red fire extinguisher cylinder", "wall mounted fire extinguisher"],
+      "sam_prompts": ["fire extinguisher", "red fire extinguisher cylinder", "wall mounted fire extinguisher"],
+      "min_confidence": 0.6,
       "params": {
         "min_score": 0.6
       },
@@ -24,7 +26,9 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Illuminated green/red exit signage detected above egress doorways",
-      "sam_prompts": ["emergency exit sign", "exit sign", "green running man sign"],
+      "concepts": ["emergency exit sign", "illuminated exit sign", "green exit sign"],
+      "sam_prompts": ["emergency exit sign", "illuminated exit sign", "green exit sign"],
+      "min_confidence": 0.6,
       "params": {
         "min_score": 0.6
       },
@@ -37,7 +41,9 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Absence of boxes, carts, furniture, or debris directly obstructing egress",
-      "sam_prompts": ["box", "cart", "chair", "trash can", "furniture", "obstacle", "pallet"],
+      "concepts": ["blocking obstacle", "corridor blockage box", "obstruction in doorway"],
+      "sam_prompts": ["blocking obstacle", "corridor blockage box", "obstruction in doorway"],
+      "min_confidence": 0.6,
       "params": {
         "threshold": 0.6
       },
@@ -50,7 +56,9 @@
       "severity": "high",
       "detector": "SAM 3.1 (Segmenter)",
       "evidence_needed": "Absence of obstructing storage or items directly in front of the extinguisher",
-      "sam_prompts": ["box", "cart", "chair", "trash can", "furniture", "luggage", "pallet"],
+      "concepts": ["blocking obstacle", "storage box blocking access", "clutter blocking extinguisher"],
+      "sam_prompts": ["blocking obstacle", "storage box blocking access", "clutter blocking extinguisher"],
+      "min_confidence": 0.6,
       "params": {
         "threshold": 0.6
       },
