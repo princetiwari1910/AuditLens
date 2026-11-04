@@ -1,293 +1,172 @@
 # AuditLens
 
-> **Walk through. Get proof. Fix what matters.**  
-> An assistive safety pre-audit tool powered by foundation models.
+**Evidence-backed safety pre-audit from walkthrough videos.**
 
-Upload a phone walkthrough video or photos of a room, workshop, or lab. Choose a safety checklist or type your own rule. Receive an evidence-backed audit report with synchronized bounding-box overlays, optical clearance width measurements, confidence scores, and plain-language fixes.
+Upload a phone walkthrough video or photos of a room, workshop, or lab. Choose a safety checklist or type your own rule. Receive an evidence-backed audit report with bounding-box overlays, optical measurements, confidence scores, and plain-language fixes.
 
-**⚠️ Disclaimer:** AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Always verify against local regulations and a qualified inspector.
+**Disclaimer:** AuditLens is an assistive pre-audit tool. It does not certify legal compliance. Always verify against local regulations and a qualified inspector.
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- `ffmpeg` (`brew install ffmpeg` on macOS, or `apt-get install ffmpeg` on Linux)
+### Mock mode (no API key required — recommended for first run)
 
 ```bash
-# 1. Setup Python venv and install frontend dependencies
 make setup
-
-# 2. Start backend (:8000) and frontend (:5173) concurrently
 make dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open [http://localhost:5173](http://localhost:5173). Click **Launch Guided Demo** for an instant replay audit with realistic timeline events, bounding-box overlays, and verified evidence.
 
-- Click **"Launch Guided Demo"** on Home to experience an instant walkthrough in replay mode with realistic timeline events, bounding box overlays, and verified evidence.
-- Or click **"Load Demo Audit (Demo Data)"** to run an end-to-end audit with the synthetic video under mock mode in 1 click.
-
----
-
-## 🛠️ CLI Runner & Evaluation Benchmark
-
-AuditLens can run completely headless from the command line:
+### Live mode (with Meta API key)
 
 ```bash
-# Generate the synthetic 25-second walkthrough video
-make sample-video
-
-# Run full audit from terminal with live event timeline & findings table
-backend/.venv/bin/python backend/scripts/run_audit_cli.py --video data/sample_walkthrough.mp4 --template fire_exit_safety
-
-# Run the Precision & Recall evaluation benchmark suite (comparing baseline vs full pipeline)
-backend/.venv/bin/python eval/run_eval.py --mode both
+export MODEL_API_KEY="your_key"
+export PROVIDER_MODE=meta
+make dev
 ```
 
 ---
 
-## 🧪 Testing
+## 📦 How Meta Models Are Used
 
-```bash
-# Run all backend pytest unit, smoke, replay, and calibration tests
-make test
+| Model | Job | Input | Output |
+|---|---|---|---|
+| **SAM 3.1** | Object detection & segmentation (bounding boxes + masks) | Frame image + noun-phrase prompt (max 5 words) | Normalized box `[x,y,w,h]`, binary mask (one-bit RLE), confidence score |
+| **Muse Spark** | Rule verdicts, fix-action plans, template compilation, voice-note structuring | Rule description + keyframe images + cited frame IDs | `{status: "pass"\|"fail"\|"unsure", reason, cited_frame_ids[], confidence}`, structured fix plan or template JSON |
+| **Muse Voice Transcribe** | Audio transcription, turn-level timestamps | Audio file (up to 25 MB) | Full text, language, segments with start/end times, turns with speaker labels |
 
-# Run frontend unit tests (letterbox coordinate projection, formatters, models used panel)
-cd frontend && npm test
+All model calls go through the **BudgetGuard** (`$5 per audit, $100 global cap`) with retry logic (429/5xx with Retry-After, 400 never retried) and concurrency limits (1 video, 4 images).
 
-# TypeScript typecheck & production build
-make lint
-cd frontend && npm run build
+---
+
+## 🏠 Architecture
+
+```
+┌──────────────────────────── Browser (React + TypeScript) ────────────────────────────┐
+│ Home → Capture (Voice + Video) → Processing (SSE stream) → Report → Compare / Sites   │
+│  OverlayCanvas: bounding boxes/masks synced to video currentTime                     │
+│  EvidenceViewerModal: cited keyframe strip, keyboard navigation, best-frame overlays │
+│  ReviewQueuePanel: auditor human-in-the-loop overrides & audit log verification       │
+│  TracePage: execution waterfall, model latencies, token costs, cache savings         │
+└────────────────────────▲──────────────────────────────┬──────────────────────────────┘
+                          │ JSON / SSE                   │ multipart video/audio upload
+┌────────────────────────┴──────────────────────────────▼──────────────────────────────┐
+│ FastAPI Backend (Python 3.11 + OpenCV + FFmpeg)                                      │
+│  API Layer ──► Background Job Runner (per audit)                                     │
+│                   │                                                                  │
+│                   ├─ keyframes.py     Laplacian sharpness + perceptual deduplication │
+│                   ├─ privacy.py       best-effort person blurring on stored frames │
+│                   ├─ cache.py         hash = sha256(frame)+prompt+provider           │
+│                   ├─ Providers (Contract-isolated)                                   │
+│                   │    ├─ Segmenter   (MockSegmenter, MetaSegmenter)                   │
+│                   │    ├─ Reasoner    (MockReasoner, MetaReasoner)                     │
+│                   │    └─ Transcriber (MockTranscriber, MetaTranscriber)                   │
+│                   ├─ tracking.py      IoU object tracker & temporal consensus        │
+│                   ├─ escalation.py    active evidence gathering (2x2 tiles → spark) │
+│                   ├─ concept_val.py   rejects conjunctions, negation, spatial words  │
+│                   ├─ trace.py         observability spans (latency, cost, cache hit) │
+│                   ├─ bundle.py        integrity check bundle (manifest hashes)       │
+│                   └─ costlog.py       cost tracking & model telemetry                │
+│  Storage: SQLite (SQLModel) + persistent files under ./data/audits/{id}/             │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🐳 Production Deployment & Hosting
+## 🎛️ Modes
 
-### Option A: Docker Compose (Quickest)
+| Mode | Env | Description |
+|---|---|---|
+| **Mock** | `PROVIDER_MODE=mock` (default) | Deterministic scenarios from `demo_room.json`. All findings stamped `MOCK`. Zero network calls. |
+| **Recorded** | `DEMO_REPLAY=1` | Replays recorded fixture replays with realistic timing. Zero network calls. Prominent **RECORDED RUN** badge. |
+| **Live** | `PROVIDER_MODE=meta` + `MODEL_API_KEY` | Calls real Meta Foundation Model APIs (SAM 3.1, Muse Spark, Muse Voice). Full production mode. |
 
-```bash
-docker compose up --build
-```
-Mounts `./data` to `/data` with persistent SQLite and file uploads, and configures `CORS_ORIGINS=*`.
-
-### Option B: Docker Container
-
-AuditLens includes a production-ready `Dockerfile` with `ffmpeg` and OpenCV native libraries pre-installed.
-
-```bash
-# Build Docker container
-docker build -t auditlens-backend -f backend/Dockerfile backend/
-
-# Run container with persistent data volume mounted
-docker run -d \
-  -p 8000:8000 \
-  -v $(pwd)/data:/data \
-  -e CORS_ORIGINS="https://yourdomain.com,http://localhost:5173" \
-  -e PROVIDER_MODE=mock \
-  --name auditlens-api \
-  auditlens-backend
-```
-
-### Option C: Demo Recording & Offline Replay Fallback
-
-For reliable offline demonstrations or environments where live AI APIs cannot be reached:
-
-```bash
-# Record an audit run to data/fixtures/demo_recording.json
-make record-demo
-
-# Run backend with DEMO_REPLAY=1 to replay recorded events with realistic timing
-DEMO_REPLAY=1 make backend
-```
-> [!IMPORTANT]
-> The UI explicitly tags replayed executions with a prominent **"Recorded run"** badge. Replay is strictly a fallback and is never presented as live.
-
-### Option B: Reverse Proxy Configuration (Nginx & SSE)
-
-When running behind an Nginx or Cloudflare reverse proxy, disable response buffering so Server-Sent Events (SSE) stream in real time without lag:
-
-```nginx
-location /api/audits/ {
-    proxy_pass http://127.0.0.1:8000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-
-    # Critical SSE proxy directives
-    proxy_set_header Connection '';
-    proxy_http_version 1.1;
-    chunked_transfer_encoding off;
-    proxy_buffering off;
-    proxy_cache off;
-    proxy_read_timeout 300s;
-}
-```
+**Health endpoint** `/api/health` shows `provider_mode` and `demo_mode` — never any key material.
 
 ---
 
-## 🏆 Hackathon Build History and Architecture (Started Oct 27, 2026)
+## 📊 Evaluation
 
-AuditLens was architected and built from scratch starting on **October 27, 2026** during the hackathon window as a complete end-to-end safety pre-audit system:
+Run the benchmark harness to compare Full Pipeline vs Vision-Chat Baseline:
 
-1. **Provider Discipline & Foundation Model Contracts** (`backend/app/providers/`):
-   - Strict typed abstract base classes: `Segmenter` (`SAM 3.1`), `Reasoner` (`Muse Spark`), and `Transcriber` (`Muse Voice Transcribe`).
-   - Drop-in `Meta` provider stubs raising clear `NotImplementedError("TODO(meta)...")` pointing to `docs/META_INTEGRATION.md` for live API enablement without changing business logic.
-   - Built-in Record/Replay proxy: records live model responses to `data/fixtures/<hash>.json` and replays them deterministically with zero network calls and realistic timing.
-   - Provider client hardening: budget guard ($5 per audit, $100 global cap), exponential backoff and jitter retry on 429/5xx, concurrency semaphores (1 video, 4 images), and strict Pydantic JSON schema validation for verdicts.
-   - Secure config: `MODEL_API_KEY` read strictly from the environment; never logged, exposed via health endpoints, or checked into git.
-2. **Deterministic Evidence-First Rule Engine** (`backend/app/rules/`):
-   - 5 core rule evaluators: Presence, Absence, Count, Colocation, and Optical Measurement.
-   - **Evidence First Contract:** All findings must originate from measured tool evidence with recorded uncertainty; ungrounded assertions strictly default to `unsure` ("Needs Review").
-   - Default phone-ready template `campus_fire_exit_core.json` (4 rules that can be shot on a phone, no measurement required), alongside experimental templates.
-3. **Upload Normalization & Quality-Aware Keyframe Selection**:
-   - `ffprobe` inspection of uploaded `.mp4` and `.mov` videos.
-   - Automatic `ffmpeg` transcode to H.264 mp4 (yuv420p, +faststart, autorotate applied, long edge <= 960px).
-   - Quality-aware keyframe selection filtering blurry frames via Laplacian variance, removing near-duplicates, enforcing minimum gap, and capping at 24 keyframes.
-4. **Voice Notes & Audio Grounding**:
-   - MediaRecorder voice note recording in browser and audio upload endpoint.
-   - Synchronized transcription timestamp matching findings within ±5 seconds with audio playback.
-5. **Interactive Review & Verification UI** (`frontend/`):
-   - Synchronized HTML5 video player with canvas bounding box overlays, letterbox coordinate transformation, and timestamp markers.
-   - Before/after audit comparison view (`/compare`) tracking resolved vs new violations.
-   - Transparent "Models Used" panel exposing model IDs, provider mode, cost, call count, and uncertainty disclaimers.
-   - Exportable print & PDF report.
-6. **Evaluation, Calibration & Ground-Truth Tooling** (`eval/` & `/eval`):
-   - Keyframe ground-truth labeling CLI (`backend/scripts/label_keyframes.py`) with unified per-frame/per-rule schema (`data/labels/<video_id>.json`).
-   - Benchmark evaluation harness (`eval/run_eval.py`) comparing Full Pipeline vs Direct Chat Vision Baseline.
-   - Empirical Precision, Recall, F1, Confusion Matrices, and "Needs Review" Abstain Calibration curves.
-   - Interactive `/eval` calibration dashboard displaying Reliability (confidence vs accuracy) and Abstain vs Accuracy tradeoff curves.
-   - Honest mock mode stamping: prominent "MOCK, NOT A RESULT" banner with comparison deltas hidden until real foundation models are connected.
+```bash
+# Both modes (default)
+eval/run_eval.py
+
+# Pipeline only
+eval/run_eval.py --mode pipeline
+
+# Baseline only
+eval/run_eval.py --mode baseline
+
+# Abort if cost exceeds $X
+eval/run_eval.py --max-cost 5.0
+```
+
+Results are written to `eval/results.md` with:
+
+- Precision, recall and F1 per rule
+- Unsure rate (needs review)
+- Cost and latency per clip
+- Stamped with provider mode, model IDs and date
+
+**Mock mode guard:** evaluation refuses to run unless `--allow-mock` is passed, and stamps `"SIMULATED, NOT A RESULT"`.
 
 ---
 
 ## ⚠️ System Limitations
 
-AuditLens is designed for fast, assistive walkthrough pre-audits. To ensure reliable and safe operation:
-
-1. **Assistive Pre-Audit Only:** AuditLens highlights potential violations and points inspectors to specific video timestamps; it does not constitute a certified regulatory sign-off or replace licensed safety inspectors.
-2. **Field-of-View & Occlusion:** The system only assesses visible evidence captured in the walkthrough video. Items concealed behind closed doors, inside cabinets, or blocked by passing personnel cannot be analyzed.
-3. **Lighting & Motion Blur:** Low-light environments or rapid phone panning introduce motion blur. While the quality-aware frame selector filters blurry frames, severe blur will result in an `unsure` ("Needs Review") status.
-4. **Scale Calibration for Measurement:** Distance and clearance measurements require an optical scale reference (e.g., standard A4 paper placed on the floor) to calibrate pixel-to-meter ratios.
-5. **Audio-Visual Temporal Window:** Auditor voice notes are associated with visual findings within a ±5-second window of the recorded timestamp.
-6. **Redaction & Privacy Notice:** Stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model before blurring. AuditLens is **never** described as privacy-safe.
-7. **Evidence Bundle Integrity:** The downloaded evidence bundle (`/api/audits/{id}/bundle`) is an **integrity check (hashes in a manifest), not a digital signature and not legal evidence**.
+1. **Assistive pre-audit only** — highlights potential violations and points inspectors to video timestamps; does not constitute certified regulatory sign-off or replace licensed safety inspectors.
+2. **Field-of-view & occlusion** — only assesses visible evidence captured in the walkthrough video; items concealed behind doors, cabinets, or passing personnel cannot be analyzed.
+3. **Lighting & motion blur** — low-light or rapid phone panning introduces motion blur; severe blur results in `unsure` ("Needs Review") status.
+4. **Scale calibration for measurement** — distance/clearance measurements require an optical scale reference (e.g., A4 paper on floor) to calibrate pixel-to-meter ratios.
+5. **Audio-visual temporal window** — voice notes associated with visual findings within ±5 seconds of recorded timestamp.
+6. **Redaction & privacy** — stored frames and exported evidence are blurred (best effort). The original upload is kept for playback and frames are sent to the model API before blurring. **AuditLens is never described as privacy-safe.**
+7. **Evidence bundle integrity** — downloaded bundle is an integrity check (hashes in a manifest), not a digital signature or legal evidence.
 
 ---
 
-## 🔌 How to Connect Real Meta Providers
+## 🔌 Connecting Real Meta Providers
 
-AuditLens is prepared for seamless drop-in integration with Meta's developer APIs once credentials are provided:
-
-1. **Obtain API Credentials:**
-   Sign up at [dev.meta.ai](https://dev.meta.ai) and obtain your Meta Model API key.
-
-2. **Configure `.env`:**
-   Add your key to `.env` (gitignored and never logged):
+1. Sign up at [dev.meta.ai](https://dev.meta.ai) and obtain your API key.
+2. Add to `.env` (gitignored):
    ```bash
-   MODEL_API_KEY="your_meta_api_key_here"
-   PROVIDER_MODE="meta"
+   MODEL_API_KEY="your_key"
+   PROVIDER_MODE=meta
    ```
-
-3. **Supported Models:**
-   - **Visual Grounding & Segmentation:** SAM 3.1 (`MODEL_ID_SEGMENTATION="SAM 3.1"`)
-   - **Reasoning & Tool Execution:** Muse Spark (`MODEL_ID_AGENT="Muse Spark"`)
-   - **Multilingual Speech-to-Text:** Muse Voice Transcribe (`MODEL_ID_TRANSCRIPTION="Muse Voice Transcribe"`)
-
-4. **Detailed Integration Guide:**
-   See [`docs/META_INTEGRATION.md`](file:///Users/princetiwari19/Documents/AuditLens/docs/META_INTEGRATION.md) for endpoint contracts, token budgets, request schemas, and migration steps from mock to production mode. Provider calls automatically inherit client hardening (request timeouts, exponential backoff with jitter on 429/5xx, semaphores, and budget guards).
+3. Supported models:
+   - **SAM 3.1** — visual grounding & segmentation
+   - **Muse Spark** — reasoning & tool execution
+   - **Muse Voice Transcribe** — speech-to-text
+4. See [`docs/META_INTEGRATION.md`](docs/META_INTEGRATION.md) for endpoint contracts, token budgets, request schemas, and migration steps from mock to production mode.
 
 ---
 
-## 🏛️ System Architecture
+## 📦 Installation & Development
 
-```mermaid
-flowchart TD
-    subgraph Input ["1. Multimodal Capture"]
-        Video["Phone Walkthrough Video (.mp4)"]
-        Audio["Inspector Voice Memos (.wav/.webm)"]
-    end
-
-    subgraph Sampling ["2. Extraction & Caching"]
-        Frames["Keyframe Extraction (OpenCV / ffmpeg)"]
-        Cache["Scenario & Prompt Hash Cache (SQLite)"]
-    end
-
-    subgraph Providers ["3. Foundation Model Layer (Provider Contract)"]
-        SAM["SAM 3.1 Segmenter\n(Masks, Boxes & Clear Width)"]
-        Spark["Muse Spark Reasoner\n(Tool Calling & Evidence Assembly)"]
-        Voice["Muse Voice Transcriber\n(Hinglish & Multilingual ASR)"]
-    end
-
-    subgraph CoreEngine ["4. Evidence-First Rule Engine"]
-        Rules["Rule Evaluators\n• Presence & Absence\n• Count & Colocation\n• Optical Measurement"]
-        Evidence["Evidence First Guard\n(No Evidence -> 'unsure' / Needs Review)"]
-    end
-
-    subgraph Output ["5. Human-in-the-Loop Delivery"]
-        SSE["Live SSE Timeline (/api/audits/{id}/events)"]
-        Report["Interactive Report & PDF (/audits/{id})"]
-        EvalDash["Calibration & Benchmark Dashboard (/eval)"]
-    end
-
-    Video --> Frames
-    Audio --> Voice
-    Frames --> Cache
-    Cache --> SAM
-    SAM --> Rules
-    Voice --> Rules
-    Spark --> Rules
-    Rules --> Evidence
-    Evidence --> SSE
-    SSE --> Report
-    Evidence --> EvalDash
+```bash
+make setup          # Python venv + frontend deps
+make dev            # Start backend (:8000) + frontend (:5173)
+make sample-video   # Generate synthetic walkthrough video (25 s)
+make test           # Run all 254 backend + frontend tests
+make lint           # Typecheck + production build
 ```
 
-```
-+---------------------------------------------------------------------------------------------------+
-|                                      AUDITLENS ARCHITECTURE                                       |
-+---------------------------------------------------------------------------------------------------+
-|  [Phone Video / Voice Memos] ---> [Keyframe Sampling (1 fps)] + [Scenario Cache (SQLite)]         |
-|                                                     |                                             |
-|                                                     v                                             |
-|  [FOUNDATION MODEL CONTRACTS]                                                                     |
-|    - SAM 3.1: Segmenter (prompts -> bounding boxes, masks, optical width)                         |
-|    - Muse Spark: Reasoner (rule + visual evidence -> structured verdict)                          |
-|    - Muse Voice: Transcriber (voice notes -> timestamped transcript turns)                        |
-|                                                     |                                             |
-|                                                     v                                             |
-|  [EVIDENCE-FIRST RULE ENGINE]                                                                     |
-|    - Five Rule Evaluators (Presence, Absence, Count, Colocation, Measurement)                     |
-|    - Evidence Guard: Findings require tool measurements; missing evidence -> "unsure"            |
-|                                                     |                                             |
-|                                                     v                                             |
-|  [DELIVERY & CALIBRATION]                                                                         |
-|    - Real-time Server-Sent Events (SSE) Agent Timeline                                            |
-|    - Interactive Video Player with Responsive Letterbox Overlays & PDF Export                     |
-|    - Evaluation Harness: Precision/Recall/F1 + Reliability & Abstain Calibration (/eval)          |
-+---------------------------------------------------------------------------------------------------+
-```
+**Test counts:** 254 backend tests (all milestones WP1–WP16), 49 frontend unit tests.
 
 ---
 
+## 📂 Repository Structure
 
-
-## 📄 Makefile Commands
-
-| Command | Description |
-|---|---|
-| `make setup` | Create virtualenv, install pip & npm packages, setup `.env` |
-| `make dev` | Start backend (:8000) and frontend (:5173) concurrently |
-| `make test` | Run all 61 backend pytest unit, smoke, replay, and calibration tests |
-| `make lint` | Run TypeScript typecheck (`tsc --noEmit`) |
-| `make sample-video` | Generate the 25-second synthetic walkthrough video |
-| `make record-demo` | Capture completed audit events & findings to fixtures |
-| `make clean` | Remove `.venv`, `node_modules`, and local build artifacts |
-
----
-
-## ⚖️ License & Hackathon Context
-
-Built for the **Meta Global AI Developer Hackathon**.
-Assisting workplace facility managers and lab technicians perform rapid pre-audits between official inspections.
+```
+auditlens/
+├── backend/          # FastAPI application (Python 3.11)
+├── frontend/         # React + TypeScript + Vite + Tailwind
+├── eval/             # Evaluation harness & benchmark tooling
+├── data/             # Persistent SQLite + uploaded audit files
+├── docs/             # Architecture, decisions, meta integration
+├── scripts/          # CLI utilities (make_sample_video, record_demo, etc.)
+└── README.md         # You are here
+```
