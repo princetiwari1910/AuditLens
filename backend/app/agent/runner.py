@@ -37,15 +37,21 @@ from app.storage import get_overlays_dir
 
 
 def redact_error(err: Exception | str) -> str:
-    """Redact secret tokens, API keys, and bearer tokens from error strings."""
+    """Redact secret tokens, API keys, headers, and base64 image data from error strings."""
     msg = str(err)
     msg = re.sub(r'Bearer\s+[A-Za-z0-9_\-\.]+', 'Bearer [REDACTED]', msg)
+    msg = re.sub(r'sk-[A-Za-z0-9_\-\.]+', 'sk-[REDACTED]', msg)
     msg = re.sub(
-        r'(api[_-]?key|model[_-]?api[_-]?key|key)["\']?\s*[:=]\s*["\']?[A-Za-z0-9_\-\.]+',
+        r'(api[_-]?key|model[_-]?api[_-]?key|authorization|token)["\']?\s*[:=]\s*["\']?[A-Za-z0-9_\-\.]+',
         r'\1=[REDACTED]',
         msg,
         flags=re.IGNORECASE,
     )
+    # Redact base64 image data URLs and raw base64 payloads
+    msg = re.sub(r'data:image/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+', 'data:image/...[base64 redacted]', msg)
+    msg = re.sub(r'[A-Za-z0-9+/]{80,}={0,2}', '[base64 redacted]', msg)
+    # Redact request headers blocks
+    msg = re.sub(r'(\'headers\'|"headers")\s*:\s*\{[^}]+\}', r'\1: [REDACTED]', msg, flags=re.IGNORECASE)
     return msg
 
 

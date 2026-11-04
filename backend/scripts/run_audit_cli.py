@@ -23,7 +23,7 @@ from app.costlog import get_audit_cost_summary
 from app.db import engine, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
-from app.models import Audit, AuditSpan, CostLogEntry, Finding
+from app.models import Audit, AuditSpan, CostLog, Finding
 from app.template_loader import get_template, list_templates
 from scripts.make_sample_video import generate_sample_video
 
@@ -61,35 +61,63 @@ def print_cli_event(event: dict) -> None:
 
 
 def run_cli_audit(
-    video_path: str,
+    video_path: str | None = None,
+    images: list[str] | str | None = None,
     template_id: str = "fire_exit_safety",
     custom_rules: list[str] | None = None,
 ) -> None:
+    import shutil
+
     settings = get_settings()
     settings.ensure_dirs()
     init_db()
 
-    v_path = Path(video_path)
-    if not v_path.exists():
-        if "sample_walkthrough.mp4" in str(video_path):
-            print(f"Sample video '{video_path}' not found. Generating now...")
-            generate_sample_video(v_path, duration_s=25)
+    image_paths: list[Path] = []
+    if images:
+        if isinstance(images, str):
+            raw_list = [p.strip() for p in images.split(",") if p.strip()]
         else:
-            print(f"Error: video file '{video_path}' does not exist.")
-            sys.exit(1)
+            raw_list = [str(p).strip() for p in images if str(p).strip()]
+        for p_str in raw_list:
+            p = Path(p_str)
+            if not p.exists():
+                print(f"Error: image file '{p_str}' does not exist.")
+                sys.exit(1)
+            image_paths.append(p)
+
+    v_path: Path | None = None
+    if not image_paths:
+        if not video_path:
+            video_path = "./data/sample_walkthrough.mp4"
+        v_path = Path(video_path)
+        if not v_path.exists():
+            if "sample_walkthrough.mp4" in str(video_path):
+                print(f"Sample video '{video_path}' not found. Generating now...")
+                generate_sample_video(v_path, duration_s=25)
+            else:
+                print(f"Error: video file '{video_path}' does not exist.")
+                sys.exit(1)
 
     eng = engine()
     with Session(eng) as session:
         audit = Audit(
             template_id=template_id,
             custom_rules_json=json.dumps(custom_rules) if custom_rules else None,
-            video_path=str(v_path.resolve()),
+            video_path=str(v_path.resolve()) if v_path else None,
             status="queued",
         )
         session.add(audit)
         session.commit()
         session.refresh(audit)
         audit_id = audit.id
+
+    # If photo inputs provided, copy them directly into audit folder as keyframes
+    if image_paths:
+        audit_dir = settings.DATA_DIR / "audits" / audit_id
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        for idx, imp in enumerate(image_paths):
+            dest = audit_dir / f"photo_{idx:04d}{imp.suffix}"
+            shutil.copy2(imp, dest)
 
     # Subscribe stdout listener to events
     old_emit = event_manager.emit
@@ -102,7 +130,10 @@ def run_cli_audit(
 
     print("=" * 80)
     print(f"  AuditLens CLI Runner | Audit ID: {audit_id}")
-    print(f"  Video: {v_path.name} | Checklist: {template_id}")
+    if image_paths:
+        print(f"  Input: {len(image_paths)} Photos (keyframes, no transcode) | Checklist: {template_id}")
+    else:
+        print(f"  Video: {v_path.name if v_path else 'None'} | Checklist: {template_id}")
     print("=" * 80)
 
     t0 = time.time()
@@ -115,26 +146,42 @@ def run_cli_audit(
         findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
         cost_summary = get_audit_cost_summary(session, audit_id)
         trace_spans = session.exec(select(AuditSpan).where(AuditSpan.audit_id == audit_id)).all()
-        cost_entries = session.exec(select(CostLogEntry).where(CostLogEntry.audit_id == audit_id)).all()
+        cost_entries = session.exec(select(CostLog).where(CostLog.audit_id == audit_id)).all()
 
     summary = json.loads(audit_row.summary_json) if audit_row.summary_json else {}
 
-    # Print Findings Table
-    print("\n" + "=" * 90)
-    print(f"{'RULE ID':<26} | {'STATUS':<8} | {'CONF':<6} | {'TIME':<6} | {'MEASUREMENT':<16} | {'FIX'}")
-    print("-" * 90)
+    # Print Findings Table (rule, status, confidence, evidence frame, concept, latency)
+    print("\n" + "=" * 96)
+    print(f"{'RULE':<24} | {'STATUS':<8} | {'CONFIDENCE':<10} | {'EVIDENCE FRAME':<14} | {'CONCEPT':<22} | {'LATENCY'}")
+    print("-" * 96)
 
     for f in findings:
-        meas_txt = "-"
-        if f.measurement_json:
-            m = json.loads(f.measurement_json)
-            meas_txt = f"{m.get('width_m', 0.0):.2f}m +/- {m.get('uncertainty_m', 0.0):.2f}m"
+        concept = "-"
+        if f.strongest_evidence_json:
+            try:
+                ev = json.loads(f.strongest_evidence_json)
+                concept = ev.get("concept", "-")
+            except Exception:
+                pass
+        if concept == "-" and trace_spans:
+            for s in trace_spans:
+                if s.concept and (s.stage == f.rule_id or s.concept in (f.rationale or "")):
+                    concept = s.concept
+                    break
 
-        fix_snippet = (f.fix_text[:28] + "...") if len(f.fix_text) > 30 else (f.fix_text or "-")
-        stat_color = f.status.upper()
-        print(f"{f.rule_id:<26} | {stat_color:<8} | {f.confidence:<6.0%} | {f.timestamp_s:<5.1f}s | {meas_txt:<16} | {fix_snippet}")
+        matching_latencies = [
+            s.latency_ms for s in trace_spans
+            if (s.concept and s.concept == concept) or s.stage == f.rule_id
+        ]
+        rule_latency = sum(matching_latencies) if matching_latencies else 0
+        latency_str = f"{rule_latency}ms" if rule_latency > 0 else "-"
+        frame_str = f"frame_{f.frame_idx:04d}"
 
-    print("=" * 90)
+        stat_str = f.status.upper()
+        conf_str = f"{f.confidence:.0%}"
+        print(f"{f.rule_id:<24} | {stat_str:<8} | {conf_str:<10} | {frame_str:<14} | {concept[:22]:<22} | {latency_str}")
+
+    print("=" * 96)
 
     # Frame counts: N of M frames analyzed
     analyzed = summary.get("frames_analyzed", len(findings))
@@ -161,7 +208,7 @@ def run_cli_audit(
     total_calls = len(cost_entries)
     cache_hits = sum(1 for c in cost_entries if c.cache_hit)
     cache_hit_pct = (cache_hits / total_calls * 100) if total_calls else 0.0
-    total_cost_usd = sum(c.cost_usd for c in cost_entries)
+    total_cost_usd = sum(getattr(c, "est_cost_usd", getattr(c, "cost_usd", 0.0)) for c in cost_entries)
     print(f"\n💰 Provider Usage, Cache Hits & Cost:")
     print(f"   Total Calls:    {total_calls}")
     print(f"   Cache Hits:     {cache_hits} ({cache_hit_pct:.1f}%)")
@@ -179,14 +226,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--video",
         "-v",
-        default="./data/sample_walkthrough.mp4",
+        default=None,
         help="Path to walkthrough video file",
+    )
+    parser.add_argument(
+        "--images",
+        "-i",
+        default=None,
+        help="Comma-separated image file paths (keyframes, no video transcode)",
     )
     parser.add_argument(
         "--template",
         "-t",
         default="fire_exit_safety",
-        choices=["fire_exit_safety", "workshop_ppe"],
+        choices=["fire_exit_safety", "workshop_ppe", "campus_fire_exit_core"],
         help="Template checklist ID",
     )
     parser.add_argument(
@@ -201,4 +254,4 @@ if __name__ == "__main__":
         os.environ["PROVIDER_MODE"] = "record"
         get_settings.cache_clear()
 
-    run_cli_audit(args.video, template_id=args.template)
+    run_cli_audit(video_path=args.video, images=args.images, template_id=args.template)
