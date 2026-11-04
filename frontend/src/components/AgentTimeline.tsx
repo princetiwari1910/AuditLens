@@ -51,7 +51,7 @@ export default function AgentTimeline({
           <div>
             <h3 className="font-semibold text-[var(--color-text)] flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[var(--color-accent)] animate-pulse" />
-              Autonomous Agent Execution
+              Safety Agent Execution
             </h3>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
               Evidence-First planning over registered visual & geometric tools

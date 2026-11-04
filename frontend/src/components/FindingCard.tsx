@@ -14,7 +14,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { Finding } from '../api/types';
-import { API_BASE_URL } from '../api/config';
+import { buildApiUrl } from '../api/config';
 import { formatTimestamp, getSeverityMeta, getStatusMeta } from '../utils/formatters';
 
 interface FindingCardProps {
@@ -38,7 +38,7 @@ export default function FindingCard({
 
   const rawMeas = finding.measurement as any;
   const overlaySrc = finding.overlay_url
-    ? (finding.overlay_url.startsWith('http') ? finding.overlay_url : `${API_BASE_URL}${finding.overlay_url}`)
+    ? (finding.overlay_url.startsWith('http') ? finding.overlay_url : buildApiUrl(finding.overlay_url))
     : '';
 
   function renderStatusIcon() {

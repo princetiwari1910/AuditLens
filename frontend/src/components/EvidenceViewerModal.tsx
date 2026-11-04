@@ -12,7 +12,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import type { Finding } from '../api/types';
-import { API_BASE_URL } from '../api/config';
+import { buildApiUrl } from '../api/config';
 import { formatTimestamp, getSeverityMeta, getStatusMeta } from '../utils/formatters';
 
 interface EvidenceViewerModalProps {
@@ -65,9 +65,9 @@ export default function EvidenceViewerModal({
   const severityMeta = getSeverityMeta(finding.severity);
 
   const overlaySrc = finding.overlay_url
-    ? finding.overlay_url.startsWith('http')
+    ? (finding.overlay_url.startsWith('http')
       ? finding.overlay_url
-      : `${API_BASE_URL}${finding.overlay_url}`
+      : buildApiUrl(finding.overlay_url))
     : '';
 
   const strongest = finding.strongest_evidence;

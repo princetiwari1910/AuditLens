@@ -15,7 +15,6 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
-  Ruler,
   Flame,
   Mic,
   Maximize2,
@@ -103,7 +102,7 @@ export default function Home() {
       {/* Provider Mode Alert Banner */}
       {health?.provider_mode === 'mock' && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs font-medium text-amber-300">
-          <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against deterministic scenarios. All findings stamped MOCK.</span>
+          <span>⚠️ <strong>Mock Mode:</strong> Simulated Detections active. Foundation models (SAM 3.1, Muse Spark, Muse Voice Transcribe) run against reproducible mock scenarios. All findings stamped MOCK.</span>
         </div>
       )}
       {health?.demo_replay && health?.provider_mode !== 'mock' && (
@@ -113,7 +112,7 @@ export default function Home() {
       )}
       {!health?.demo_replay && health?.provider_mode === 'record' && (
         <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 text-center text-xs font-medium text-emerald-300">
-          <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for deterministic replay. Live external AI provider active.</span>
+          <span>⏺️ <strong>Record Mode:</strong> Saving live model responses to data/fixtures/ for offline replay. Live external AI provider active.</span>
         </div>
       )}
       {health?.provider_mode === 'meta' && (
@@ -200,7 +199,13 @@ export default function Home() {
             {health && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-950/60 border border-blue-500/20 px-2.5 sm:px-3 py-1 text-xs font-mono font-medium text-blue-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                {health.provider_mode} mode
+                {health.provider_mode === 'record'
+                  ? 'RECORD MODE'
+                  : health.provider_mode === 'meta'
+                  ? 'LIVE MODE'
+                  : health.provider_mode === 'replay'
+                  ? 'REPLAY MODE'
+                  : 'MOCK MODE'}
               </span>
             )}
 
@@ -297,10 +302,20 @@ export default function Home() {
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                       LIVE META PROVIDER
                     </span>
+                  ) : health?.provider_mode === 'record' ? (
+                    <span className="inline-flex items-center gap-1.5 rounded bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      RECORD MODE
+                    </span>
+                  ) : health?.provider_mode === 'replay' ? (
+                    <span className="inline-flex items-center gap-1.5 rounded bg-purple-500/20 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold text-purple-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                      REPLAY FIXTURE
+                    </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 rounded bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                      {health?.provider_mode === 'replay' ? 'REPLAY FIXTURE' : 'SIMULATED MOCK'}
+                      MOCK MODE
                     </span>
                   )}
                 </div>
@@ -563,7 +578,7 @@ export default function Home() {
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 font-mono">
               The 5-Stage Verification Pipeline
             </h2>
-            <span className="text-xs text-slate-500 font-mono">Autonomous • Auditable • Deterministic</span>
+            <span className="text-xs text-slate-500 font-mono">Evidence-first • Auditable • Human-in-the-loop</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-left">
@@ -583,17 +598,17 @@ export default function Home() {
                 <span className="text-xs font-bold text-white truncate">SAM 3.1 Vision</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Sub-pixel polygon segmentation with strict confidence floors.
+                Pixel-level masks with strict confidence floors.
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5 space-y-1.5 shadow-sm">
               <div className="flex items-center gap-1.5">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 text-[11px] font-bold font-mono">03</span>
-                <span className="text-xs font-bold text-white truncate">Geometry & Code</span>
+                <span className="text-xs font-bold text-white truncate">Geometry & Rules</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Optical clear width depth scaling and clearance calculations.
+                Optical depth scaling and rule-based threshold evaluation.
               </p>
             </div>
 
@@ -613,7 +628,7 @@ export default function Home() {
                 <span className="text-xs font-bold text-white truncate">Re-Audit Compare</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Differential proof certifying resolved versus persistent hazards.
+                Before/after comparison of resolved and persistent findings.
               </p>
             </div>
           </div>
@@ -630,21 +645,11 @@ export default function Home() {
               <span>What AuditLens Inspects (Evidence-Backed Rules)</span>
             </h2>
             <span className="text-xs text-slate-400 hidden sm:inline font-mono">
-              Evidence-first • No hallucinated findings
+              Evidence-first • Abstains when unsure
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 shadow-sm">
-              <div className="flex items-center gap-2 text-cyan-400">
-                <Ruler className="h-4 w-4" />
-                <h4 className="text-xs font-bold text-white">Clear Egress Width</h4>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Measures passage clearance against physical thresholds (≥ 36 in / 0.91 m) using optical depth scaling and corridor boundary planes.
-              </p>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 shadow-sm">
               <div className="flex items-center gap-2 text-rose-400">
                 <Flame className="h-4 w-4" />
@@ -671,7 +676,7 @@ export default function Home() {
                   <Mic className="h-4 w-4" />
                   <h4 className="text-xs font-bold text-white">Voice Note Mapping</h4>
                 </div>
-                <span className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Active</span>
+                <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">Beta</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Muse Voice Transcribe converts speech to text and associates auditor verbal observations to keyframe visual locations within &plusmn;5s timestamps.
@@ -687,7 +692,7 @@ export default function Home() {
               Choose an Inspection Checklist
             </h2>
             <span className="text-xs text-slate-400 font-mono">
-              {templates.length} verified templates available
+              {templates.length} templates available
             </span>
           </div>
 
@@ -707,7 +712,7 @@ export default function Home() {
             </h2>
           </div>
           <p className="text-xs text-slate-400">
-            Type any plain-language inspection requirement. AuditLens compiles it into deterministic absence, presence, or count checks.
+            Type any plain-language inspection requirement. AuditLens compiles it into structured absence, presence, or count checks.
           </p>
           <form onSubmit={handleStartCustomRule} className="flex flex-col sm:flex-row gap-2.5 pt-1">
             <input

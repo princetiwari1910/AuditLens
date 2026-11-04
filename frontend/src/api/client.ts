@@ -1,10 +1,8 @@
 /** Typed API client for AuditLens backend. */
 
 import type { Audit, Template } from './types';
-import { API_BASE_URL } from './config';
+import { buildApiUrl } from './config';
 import { DEFAULT_TEMPLATES } from '../data/defaultTemplates';
-
-const BASE = `${API_BASE_URL}/api`;
 
 export class ApiError extends Error {
   status: number;
@@ -17,7 +15,8 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const targetUrl = buildApiUrl(path);
+  const res = await fetch(targetUrl, {
     ...init,
   });
 

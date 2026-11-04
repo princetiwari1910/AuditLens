@@ -69,7 +69,7 @@ export default function ModelsUsedPanel({
       icon: Layers,
       color: 'text-indigo-400',
       badgeBg: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300',
-      description: 'Zero-shot polygon object extraction with sub-pixel boundary geometry.'
+      description: 'Zero-shot polygon object extraction with pixel-level mask geometry.'
     },
     {
       key: 'agent',
@@ -78,7 +78,7 @@ export default function ModelsUsedPanel({
       icon: Cpu,
       color: 'text-cyan-400',
       badgeBg: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300',
-      description: 'Multimodal safety reasoning, deterministic rule checklist dispatch & fix planning.'
+      description: 'Multimodal safety reasoning, structured rule checklist dispatch & fix planning.'
     },
     {
       key: 'transcription',

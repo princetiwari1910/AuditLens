@@ -34,7 +34,7 @@ import {
   type HealthResponse,
   type AuditLogEntry,
 } from '../api/client';
-import { API_BASE_URL } from '../api/config';
+import { buildApiUrl } from '../api/config';
 import type { Audit } from '../api/types';
 import SummaryCard from '../components/SummaryCard';
 import VideoWithMarkers from '../components/VideoWithMarkers';
@@ -380,8 +380,8 @@ export default function Report({ isShared = false, initialAudit = null }: Report
   };
 
   const videoUrl = audit.video_url
-    ? (audit.video_url.startsWith('http') ? audit.video_url : `${API_BASE_URL}${audit.video_url}`)
-    : `${API_BASE_URL}/api/audits/${id}/video`;
+    ? (audit.video_url.startsWith('http') ? audit.video_url : buildApiUrl(audit.video_url))
+    : buildApiUrl(`/audits/${id}/video`);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
@@ -445,7 +445,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             )}
 
             <a
-              href={`${API_BASE_URL}/api/audits/${audit.id}/bundle`}
+              href={buildApiUrl(`/audits/${audit.id}/bundle`)}
               download={`audit-${audit.id}-evidence.zip`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors whitespace-nowrap"
               title="Download SHA-256 verified evidence bundle"

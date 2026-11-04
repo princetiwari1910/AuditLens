@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SSEEvent } from './types';
-import { API_BASE_URL } from './config';
+import { buildApiUrl } from './config';
 import { getAudit } from './client';
 
 export interface UseAuditEventsReturn {
@@ -134,7 +134,7 @@ export function useAuditEvents(auditId: string | undefined): UseAuditEventsRetur
       eventSourceRef.current = null;
     }
 
-    const sseUrl = `${API_BASE_URL}/api/audits/${auditId}/events`;
+    const sseUrl = buildApiUrl(`/audits/${auditId}/events`);
     const es = new EventSource(sseUrl);
     eventSourceRef.current = es;
 
