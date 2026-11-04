@@ -8,6 +8,7 @@ Default PROVIDER_MODE remains 'mock'.
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -152,6 +153,18 @@ def encode_image_to_base64_data_url(
         raise ValueError("Failed to decode image with OpenCV.")
 
     h, w = img_bgr.shape[:2]
+    settings = get_settings()
+    max_long_side = getattr(settings, "IMAGE_MAX_LONG_SIDE", 960)
+    if max(w, h) > max_long_side:
+        scale = float(max_long_side) / float(max(w, h))
+        new_w = max(1, int(round(w * scale)))
+        new_h = max(1, int(round(h * scale)))
+        img_bgr = cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        h, w = img_bgr.shape[:2]
+        success, enc = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        if success:
+            raw_bytes = enc.tobytes()
+
     b64_str = base64.b64encode(raw_bytes).decode("utf-8")
     data_url = f"data:image/jpeg;base64,{b64_str}"
     return data_url, w, h, raw_bytes
@@ -411,18 +424,18 @@ class MetaSegmentationProvider:
     ) -> list[Detection]:
         """
         Backward-compatible detection across a list of frames.
-        Supports SAM_VIDEO_MODE flag for multi-frame video format.
-        UNVERIFIED against live API.
+        Supports concurrent execution bounded by SAM_CONCURRENCY.
         """
         concept = validate_concept(prompt)
         settings = get_settings()
         results: list[Detection] = []
 
-        for idx, fpath in enumerate(frame_paths):
+        def _process_single_frame(idx: int, fpath: str) -> list[Detection]:
             ts = timestamps_s[idx] if timestamps_s and idx < len(timestamps_s) else float(idx)
             seg_dets = self.segment(fpath, [concept])
+            frame_dets = []
             for sd in seg_dets:
-                results.append(
+                frame_dets.append(
                     Detection(
                         frame_id=idx,
                         timestamp_s=ts,
@@ -432,7 +445,23 @@ class MetaSegmentationProvider:
                         polygon=sd.mask if isinstance(sd.mask, list) else None,
                     )
                 )
+            return frame_dets
 
+        if len(frame_paths) <= 1:
+            for idx, fpath in enumerate(frame_paths):
+                results.extend(_process_single_frame(idx, fpath))
+        else:
+            max_workers = getattr(settings, "SAM_CONCURRENCY", 8)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(_process_single_frame, idx, fpath)
+                    for idx, fpath in enumerate(frame_paths)
+                ]
+                for fut in futures:
+                    results.extend(fut.result())
+
+        # Sort results by frame_id, timestamp_s for determinism
+        results.sort(key=lambda d: (d.frame_id, d.timestamp_s))
         return results
 
 

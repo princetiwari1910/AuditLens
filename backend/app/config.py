@@ -102,6 +102,10 @@ class Settings(BaseSettings):
     PROVIDER_MAX_RETRIES: int = 3
     VIDEO_CONCURRENCY_LIMIT: int = 1
     IMAGE_CONCURRENCY_LIMIT: int = 4
+    SAM_CONCURRENCY: int = 8
+    LIVE_MAX_KEYFRAMES: int = 12
+    IMAGE_MAX_LONG_SIDE: int = 960
+    MIN_USABLE_FRAMES_PRESENCE: int = 6
 
     # ── Feature Flags (default ON unless stated, env overridable) ──────────────
     ENABLE_EVIDENCE_MODEL: bool = True

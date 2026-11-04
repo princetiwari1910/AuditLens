@@ -76,6 +76,12 @@ def sample_frames_from_video(
     if sample_fps <= 0:
         sample_fps = 1.0
 
+    # Live defaults: max 12 keyframes in live/record/meta modes (or capped by LIVE_MAX_KEYFRAMES)
+    if settings.PROVIDER_MODE in ("meta", "record"):
+        effective_max_frames = min(max_frames, getattr(settings, "LIVE_MAX_KEYFRAMES", 12))
+    else:
+        effective_max_frames = max_frames
+
     video_str = str(video_path)
     if not os.path.exists(video_str):
         raise VideoProcessingError(f"Video file does not exist: {video_str}")
@@ -137,7 +143,7 @@ def sample_frames_from_video(
                     best_candidate = (mat.copy(), timestamp_s, sharpness)
 
                 # 1. max_frames limit
-                if len(frames) >= max_frames:
+                if len(frames) >= effective_max_frames:
                     current_frame_pos += 1
                     continue
 

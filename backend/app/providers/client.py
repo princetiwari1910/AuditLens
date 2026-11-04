@@ -121,7 +121,8 @@ def get_image_semaphore() -> threading.Semaphore:
     with _sem_lock:
         if _image_semaphore is None:
             settings = get_settings()
-            _image_semaphore = threading.Semaphore(settings.IMAGE_CONCURRENCY_LIMIT)
+            concurrency = getattr(settings, "SAM_CONCURRENCY", settings.IMAGE_CONCURRENCY_LIMIT)
+            _image_semaphore = threading.Semaphore(concurrency)
         return _image_semaphore
 
 
