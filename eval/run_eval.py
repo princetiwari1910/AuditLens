@@ -620,6 +620,7 @@ def run_evaluation(
     mode: str = "both",
     allow_mock: bool = False,
     output_dir: Path | str | None = None,
+    max_cost: float | None = None,
 ) -> Path:
     """Execute evaluation benchmark according to configuration and CLI arguments."""
     settings = get_settings()
@@ -666,6 +667,7 @@ def run_evaluation(
     pipeline_metrics_list = []
     pipeline_latencies = []
     pipeline_costs = []
+    total_cost_usd = 0.0
     pipeline_failure_cases: list[FailureCase] = []
 
     baseline_metrics_list = []
@@ -712,6 +714,12 @@ def run_evaluation(
             pipeline_metrics_list.append(p_metrics)
             pipeline_latencies.append(p_lat)
             pipeline_costs.append(p_cost)
+            total_cost_usd += p_cost
+            if max_cost is not None and total_cost_usd > max_cost:
+                print(f"⚠️ Cost limit exceeded (${total_cost_usd:.4f} > ${max_cost:.4f}). Aborting evaluation.")
+                # Save what we have and exit
+                # Generate partial results before exiting
+                raise SystemExit(0)
 
             # Record failure cases
             findings_map = {f["rule_id"]: f for f in findings}
@@ -741,6 +749,10 @@ def run_evaluation(
             baseline_metrics_list.append(b_metrics)
             baseline_latencies.append(b_lat)
             baseline_costs.append(b_cost)
+            total_cost_usd += b_cost
+            if max_cost is not None and total_cost_usd > max_cost:
+                print(f"⚠️ Cost limit exceeded (${total_cost_usd:.4f} > ${max_cost:.4f}). Aborting evaluation.")
+                raise SystemExit(0)
 
             for r_id, m in b_metrics.items():
                 if not m.is_correct:
@@ -821,7 +833,9 @@ def run_evaluation(
 def main():
     parser = argparse.ArgumentParser(description="AuditLens Evaluation Benchmark Harness")
     parser.add_argument("--labels", default="data/labels/sample_walkthrough.json", help="Path to data/labels/<video_id>.json file or directory")
+    parser.add_argument("--clips-dir", default=None, help="Directory containing video clips to evaluate")
     parser.add_argument("--mode", choices=["both", "pipeline", "baseline"], default="both", help="Evaluation mode")
+    parser.add_argument("--max-cost", type=float, default=None, help="Abort evaluation when total cost exceeds this amount (USD)")
     parser.add_argument("--allow-mock", action="store_true", help="Allow running evaluation in mock mode (simulated)")
     parser.add_argument("--output-dir", default=None, help="Directory to save evaluation results")
     args = parser.parse_args()
