@@ -92,6 +92,7 @@ def init_db(engine_instance=None) -> None:
             ]:
                 if col_name not in span_cols:
                     conn.exec_driver_sql(f"ALTER TABLE audit_span ADD COLUMN {col_name} {col_type}")
+            conn.exec_driver_sql("UPDATE finding SET final_verdict = status WHERE (final_verdict IS NULL OR final_verdict = 'unsure') AND status IN ('pass', 'fail')")
             conn.commit()
     except Exception:
         pass

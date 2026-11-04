@@ -1118,6 +1118,16 @@ async def list_site_audits(
     return results
 
 
+def get_effective_verdict(f: Finding) -> str:
+    """Return definitive verdict: pass/fail takes precedence over unreviewed 'unsure' defaults."""
+    final_v = getattr(f, "final_verdict", None)
+    if final_v and final_v in ("pass", "fail"):
+        return final_v
+    if f.status in ("pass", "fail"):
+        return f.status
+    return final_v or f.status or "unsure"
+
+
 @app.get("/api/sites/{site_id}/trends")
 async def get_site_trends(
     site_id: str,
@@ -1148,9 +1158,9 @@ async def get_site_trends(
         summ = json.loads(a.summary_json) if a.summary_json else {}
         f_list = audit_findings.get(a.id, [])
         if f_list:
-            pass_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) == "pass")
-            fail_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) == "fail")
-            unsure_cnt = sum(1 for f in f_list if (getattr(f, "final_verdict", f.status) or f.status) in ["unsure", "needs_review"])
+            pass_cnt = sum(1 for f in f_list if get_effective_verdict(f) == "pass")
+            fail_cnt = sum(1 for f in f_list if get_effective_verdict(f) == "fail")
+            unsure_cnt = sum(1 for f in f_list if get_effective_verdict(f) in ["unsure", "needs_review"])
         else:
             pass_cnt = summ.get("pass", summ.get("pass_count", 0))
             fail_cnt = summ.get("fail", summ.get("fail_count", 0))
@@ -1170,7 +1180,7 @@ async def get_site_trends(
     latest_audit = audits[-1] if audits else None
     if latest_audit:
         for f in audit_findings.get(latest_audit.id, []):
-            st = getattr(f, "final_verdict", f.status) or f.status
+            st = get_effective_verdict(f)
             if st != "pass":
                 open_issues.append({
                     "finding_id": f.id,
@@ -1186,7 +1196,7 @@ async def get_site_trends(
     for a in audits:
         failed_rules_in_audit = set()
         for f in audit_findings.get(a.id, []):
-            st = getattr(f, "final_verdict", f.status) or f.status
+            st = get_effective_verdict(f)
             if st == "fail":
                 failed_rules_in_audit.add(f.rule_id)
         for r_id in failed_rules_in_audit:
@@ -1212,7 +1222,7 @@ async def get_site_trends(
             r_findings = [f for f in audit_findings.get(a.id, []) if f.rule_id == r_id]
             if not r_findings:
                 continue
-            st = getattr(r_findings[0], "final_verdict", r_findings[0].status) or r_findings[0].status
+            st = get_effective_verdict(r_findings[0])
             if st == "fail":
                 earlier_failed = True
             elif st == "pass" and earlier_failed:
