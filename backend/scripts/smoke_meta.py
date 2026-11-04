@@ -194,6 +194,20 @@ def run_sam_step(
         result.latency_ms = (time.perf_counter() - t0) * 1000
         result.status = "FAIL"
         result.error = f"{type(exc).__name__}: {exc}"
+        # On any 400 or error, print the request SHAPE with image bytes redacted for diffing
+        try:
+            from app.providers.meta import (
+                build_sam_request_input,
+                encode_image_to_base64_data_url,
+                redact_sam_input_shape,
+            )
+            data_url, _, _, _ = encode_image_to_base64_data_url(image_path)
+            sample_input = build_sam_request_input(concepts[0] if concepts else "fire extinguisher", data_url)
+            redacted_shape = redact_sam_input_shape(sample_input)
+            result.details.append("SAM Request Shape (image bytes redacted):")
+            result.details.append(json.dumps(redacted_shape, indent=2))
+        except Exception as shape_err:
+            result.details.append(f"Could not build redacted request shape: {shape_err}")
 
     return result
 

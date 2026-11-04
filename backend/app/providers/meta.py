@@ -87,6 +87,40 @@ def sanitize_concept(prompt: str) -> str:
     return validate_concept(prompt)
 
 
+def build_sam_request_input(concept: str, image_data_url: str) -> list[dict[str, Any]]:
+    """
+    Build SAM 3.1 input payload matching dev.meta.ai Responses API spec byte-for-byte:
+    input[0] must have type "message", role "user", content as a list with exactly
+    the two parts shown (no extra keys):
+      1. {"type": "input_text", "text": "<ONE noun phrase>"}
+      2. {"type": "input_image", "image_url": "data:image/jpeg;base64,<...>"}
+    """
+    return [
+        {
+            "type": "message",
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": concept},
+                {"type": "input_image", "image_url": image_data_url},
+            ],
+        }
+    ]
+
+
+def redact_sam_input_shape(input_payload: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return a deep copy of SAM input payload with image data URLs redacted for diffing/logging."""
+    import copy
+    redacted = copy.deepcopy(input_payload)
+    for msg in redacted:
+        for part in msg.get("content", []):
+            if part.get("type") == "input_image" and "image_url" in part:
+                url = str(part.get("image_url", ""))
+                if len(url) > 60:
+                    prefix = url[:30]
+                    part["image_url"] = f"{prefix}...<redacted {len(url)-30} bytes>"
+    return redacted
+
+
 def encode_image_to_base64_data_url(
     image: str | bytes | Path,
 ) -> tuple[str, int, int, bytes]:
@@ -225,18 +259,20 @@ class MetaSegmentationProvider:
             chunk_text = ""
             if isinstance(chunk, str):
                 chunk_text = chunk
-            elif hasattr(chunk, "delta") and hasattr(chunk.delta, "text") and chunk.delta.text:
+            elif hasattr(chunk, "delta") and isinstance(chunk.delta, str):
+                chunk_text = chunk.delta
+            elif hasattr(chunk, "delta") and hasattr(chunk.delta, "text") and isinstance(chunk.delta.text, str):
                 chunk_text = chunk.delta.text
-            elif hasattr(chunk, "output_text") and chunk.output_text:
+            elif hasattr(chunk, "output_text") and isinstance(chunk.output_text, str):
                 chunk_text = chunk.output_text
-            elif hasattr(chunk, "text") and chunk.text:
+            elif hasattr(chunk, "text") and isinstance(chunk.text, str):
                 chunk_text = chunk.text
-            elif hasattr(chunk, "choices") and chunk.choices:
+            elif hasattr(chunk, "choices") and chunk.choices and hasattr(chunk.choices[0], "delta"):
                 delta = chunk.choices[0].delta
-                if hasattr(delta, "content") and delta.content:
+                if hasattr(delta, "content") and isinstance(delta.content, str):
                     chunk_text = delta.content
 
-            if chunk_text:
+            if chunk_text and isinstance(chunk_text, str):
                 parser.push(chunk_text)
 
         finish = parser.finish(CompletedOutcome())
@@ -281,13 +317,10 @@ class MetaSegmentationProvider:
             client = self._get_client()
 
             def _call_sam() -> list[SegmentDetection]:
-                input_parts = [
-                    {"type": "input_text", "text": concept},
-                    {"type": "input_image", "image_url": data_url},
-                ]
+                input_payload = build_sam_request_input(concept, data_url)
                 stream = client.responses.create(
                     model="sam-3.1",
-                    input=input_parts,
+                    input=input_payload,
                     stream=True,
                     metadata={"mask_encoding": "one_bit", "include_confidence": "true"},
                 )
