@@ -143,6 +143,44 @@ def run_spark_step(fixtures_dir: Path, record: bool) -> StepResult:
     return result
 
 
+def run_spark_vision_step(
+    image_path: Path,
+    concept: str,
+    fixtures_dir: Path,
+    record: bool,
+) -> StepResult:
+    """Test Muse Spark 1.3 Vision (Image understanding & Presence Verification)."""
+    from app.providers.meta import MetaAgentProvider
+
+    result = StepResult(name="Spark vision")
+    t0 = time.perf_counter()
+    try:
+        spark = MetaAgentProvider()
+        presence = spark.verify_presence(
+            concept=concept,
+            frames=[{"idx": 0, "path": str(image_path)}],
+        )
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.cost_usd = estimate_reasoner_cost(0.5, 0.1)
+        result.status = "PASS"
+        result.details.append(f"concept='{concept}'")
+        result.details.append(f"present={presence.get('present')}")
+        result.details.append(f"cited_frame_ids={presence.get('cited_frame_ids')}")
+        result.details.append(f"rationale={presence.get('rationale')}")
+
+        if record:
+            fixtures_dir.mkdir(parents=True, exist_ok=True)
+            (fixtures_dir / "spark_vision_smoke_fixture.json").write_text(
+                json.dumps(presence, indent=2), encoding="utf-8"
+            )
+    except Exception as exc:
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.status = "FAIL"
+        result.error = f"{type(exc).__name__}: {exc}"
+
+    return result
+
+
 def run_sam_step(
     image_path: Path,
     concepts: list[str],
@@ -339,8 +377,18 @@ def main() -> int:
         print(f"  ERROR: {spark_result.error}")
     results.append(spark_result)
 
-    # 2. SAM
-    print("\n--- 2. SAM 3.1 (Segmentation) ---")
+    # 2. Spark vision (Presence Verification via verify_presence)
+    first_concept = concepts[0] if concepts else "fire extinguisher"
+    print(f"\n--- 2. Muse Spark Vision (Presence Verification: '{first_concept}') ---")
+    spark_vision_result = run_spark_vision_step(img_path, first_concept, fixtures_dir, args.record)
+    for d in spark_vision_result.details:
+        print(f"  {d}")
+    if spark_vision_result.error:
+        print(f"  ERROR: {spark_vision_result.error}")
+    results.append(spark_vision_result)
+
+    # 3. SAM
+    print("\n--- 3. SAM 3.1 (Segmentation) ---")
     sam_result = run_sam_step(img_path, concepts, fixtures_dir, photos_dir, args.record)
     for d in sam_result.details:
         print(f"  {d}")
@@ -348,11 +396,11 @@ def main() -> int:
         print(f"  ERROR: {sam_result.error}")
     results.append(sam_result)
 
-    # 3. Voice (only if --audio provided)
+    # 4. Voice (only if --audio provided)
     if args.audio:
         audio_path = Path(args.audio)
         if audio_path.exists():
-            print(f"\n--- 3. Muse Voice Transcribe ({audio_path.name}) ---")
+            print(f"\n--- 4. Muse Voice Transcribe ({audio_path.name}) ---")
             voice_result = run_voice_step(audio_path, fixtures_dir, args.record)
             for d in voice_result.details:
                 print(f"  {d}")
@@ -360,11 +408,11 @@ def main() -> int:
                 print(f"  ERROR: {voice_result.error}")
             results.append(voice_result)
         else:
-            print(f"\n--- 3. Muse Voice Transcribe ---")
+            print(f"\n--- 4. Muse Voice Transcribe ---")
             print(f"  SKIP: audio file not found: {audio_path}")
             results.append(StepResult(name="Voice (transcribe)", status="SKIP", error=f"File not found: {audio_path}"))
     else:
-        print("\n--- 3. Muse Voice Transcribe ---")
+        print("\n--- 4. Muse Voice Transcribe ---")
         print("  SKIP: no --audio flag provided")
         results.append(StepResult(name="Voice (transcribe)", status="SKIP"))
 
