@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { ApiError, getHealth, createDemoAudit } from './client';
+import { ApiError, getHealth, createDemoAudit, getTemplates, getAudits } from './client';
 
 describe('API client body stream handling', () => {
   const originalFetch = globalThis.fetch;
@@ -65,5 +65,28 @@ describe('API client body stream handling', () => {
 
     const res = await getHealth();
     expect(res).toEqual({});
+  });
+
+  it('rejects HTML body returned with 200 OK from SPA rewrite and falls back gracefully', async () => {
+    const htmlBody = '<!doctype html><html><head><title>AuditLens</title></head><body><div id="root"></div></body></html>';
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'text/html; charset=utf-8' },
+      text: async () => htmlBody,
+    } as any);
+
+    // getHealth should throw ApiError when receiving HTML
+    await expect(getHealth()).rejects.toThrow(/Expected JSON/);
+
+    // getTemplates falls back to bundled default templates
+    const templates = await getTemplates();
+    expect(Array.isArray(templates)).toBe(true);
+    expect(templates.length).toBeGreaterThan(0);
+    expect(templates[0].id).toBe('campus_fire_exit_core');
+
+    // getAudits returns empty array instead of crashing
+    const audits = await getAudits();
+    expect(audits).toEqual([]);
   });
 });

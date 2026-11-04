@@ -18,7 +18,9 @@ export interface Rule {
   condition?: string;
   type: RuleType;
   severity: 'high' | 'medium' | 'low';
+  concepts?: string[];
   sam_prompts: string[];
+  min_confidence?: number;
   params: Record<string, unknown>;
   fix_text: string;
   detector?: string;

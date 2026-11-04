@@ -405,7 +405,7 @@ export default function SitesPage({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-xs text-[var(--color-text)]">
-                          {a.template_id}
+                          {a?.template_id || 'General Safety'}
                         </span>
                         <ReplayBadge
                           isReplay={a.is_replay}
@@ -415,7 +415,7 @@ export default function SitesPage({
                         />
                       </div>
                       <p className="text-[11px] text-[var(--color-text-secondary)] font-mono">
-                        {a.id.slice(0, 16)} · {a.created_at ? new Date(a.created_at).toLocaleString() : 'Recent'}
+                        {a?.id ? a.id.slice(0, 16) : 'audit'} · {a?.created_at ? new Date(a.created_at).toLocaleString() : 'Recent'}
                       </p>
                     </div>
 

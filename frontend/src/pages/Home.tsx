@@ -22,7 +22,6 @@ import {
   Camera,
   Layers,
   ChevronRight,
-  AlertTriangle,
 } from 'lucide-react';
 import {
   getAudits,
@@ -39,6 +38,7 @@ import { getScoreGrade } from '../utils/formatters';
 export default function Home() {
   const navigate = useNavigate();
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [backendOffline, setBackendOffline] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [recentAudits, setRecentAudits] = useState<Audit[]>([]);
   const [customRuleText, setCustomRuleText] = useState('');
@@ -47,14 +47,35 @@ export default function Home() {
   const [lastReplayMode, setLastReplayMode] = useState<boolean>(false);
 
   useEffect(() => {
-    getHealth().then(setHealth).catch(console.error);
+    getHealth()
+      .then((h) => {
+        setHealth(h);
+        setBackendOffline(false);
+      })
+      .catch((err) => {
+        console.warn('Backend service offline or unreachable:', err);
+        setBackendOffline(true);
+      });
+
     getTemplates()
       .then((tmpls) => {
-        const sorted = [...tmpls].sort((a, b) => (a.id === 'campus_fire_exit_core' ? -1 : b.id === 'campus_fire_exit_core' ? 1 : 0));
+        const list = Array.isArray(tmpls) ? tmpls : [];
+        const sorted = [...list].sort((a, b) => (a?.id === 'campus_fire_exit_core' ? -1 : b?.id === 'campus_fire_exit_core' ? 1 : 0));
         setTemplates(sorted);
       })
-      .catch(console.error);
-    getAudits().then(setRecentAudits).catch(console.error);
+      .catch((err) => {
+        console.warn('Failed to load templates:', err);
+        setTemplates([]);
+      });
+
+    getAudits()
+      .then((audits) => {
+        setRecentAudits(Array.isArray(audits) ? audits : []);
+      })
+      .catch((err) => {
+        console.warn('Failed to load audits:', err);
+        setRecentAudits([]);
+      });
   }, []);
 
   async function handleLoadDemo(replay: boolean = false) {
@@ -98,6 +119,12 @@ export default function Home() {
       {health?.provider_mode === 'meta' && (
         <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 text-center text-xs font-medium text-blue-300">
           <span>🔴 <strong>LIVE Mode:</strong> External Meta Foundation Model API active. SAM 3.1 segmentation, Muse Spark reasoning, Muse Voice Transcribe processing live walkthrough.</span>
+        </div>
+      )}
+      {backendOffline && (
+        <div className="bg-cyan-950/40 border-b border-cyan-800/40 px-4 py-2 text-center text-xs font-mono text-cyan-300 flex items-center justify-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span>Standalone Mode: Backend initializing or deploying. Local inspection checklists and offline demonstration workflows are active.</span>
         </div>
       )}
 
@@ -241,10 +268,10 @@ export default function Home() {
 
         {/* Walkthrough Footage Analysis Console (Evidence-Backed AI Evaluation) */}
         {(() => {
-          const latestAudit = recentAudits.length > 0 ? recentAudits[0] : null;
-          const findings = latestAudit?.findings || [];
+          const latestAudit = Array.isArray(recentAudits) && recentAudits.length > 0 && typeof recentAudits[0] === 'object' && recentAudits[0] !== null ? recentAudits[0] : null;
+          const findings = Array.isArray(latestAudit?.findings) ? latestAudit.findings : [];
           const confList = findings
-            .map((f) => f.confidence)
+            .map((f) => f?.confidence)
             .filter((c): c is number => typeof c === 'number' && !isNaN(c));
           const avgConfidence = confList.length > 0
             ? Math.round((confList.reduce((a, b) => a + b, 0) / confList.length) * 100)
@@ -252,7 +279,7 @@ export default function Home() {
           const framesAnalyzed = latestAudit?.summary?.frames_analyzed;
           const failCount = latestAudit?.summary?.fail;
           const passCount = latestAudit?.summary?.pass;
-          const voiceNotesCount = findings.filter((f) => f.sources?.includes('voice_note')).length;
+          const voiceNotesCount = findings.filter((f) => Array.isArray(f?.sources) && f.sources.includes('voice_note')).length;
 
           return (
             <section className="overflow-hidden rounded-2xl border border-blue-500/20 bg-slate-950/90 shadow-2xl shadow-blue-950/40">
@@ -287,7 +314,7 @@ export default function Home() {
                   <div className="flex items-center justify-between z-10">
                     <div className="inline-flex items-center gap-2 rounded-md bg-black/60 backdrop-blur border border-slate-800 px-2.5 py-1 text-xs font-mono text-emerald-400">
                       <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      <span>{latestAudit ? `WALKTHROUGH FOOTAGE · ${latestAudit.template_id.toUpperCase()}` : 'WALKTHROUGH FOOTAGE STANDBY'}</span>
+                      <span>{latestAudit?.template_id ? `WALKTHROUGH FOOTAGE · ${String(latestAudit.template_id).toUpperCase()}` : 'WALKTHROUGH FOOTAGE STANDBY'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-400">
                       <button type="button" className="p-1 rounded hover:bg-white/10" aria-label="Camera feed view">
@@ -316,7 +343,7 @@ export default function Home() {
                           <div className="flex items-center justify-between">
                             <div className="inline-flex items-center gap-1.5 rounded-md bg-purple-950/90 border border-purple-400/40 px-2 py-0.5 text-[10px] font-mono font-bold text-purple-300">
                               <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
-                              {findings[0].rule_id} ({findings[0].confidence != null ? `${Math.round(findings[0].confidence * 100)}%` : 'Not available'})
+                              {findings[0]?.rule_id || 'Inspection Rule'} ({findings[0]?.confidence != null ? `${Math.round(findings[0].confidence * 100)}%` : 'Not available'})
                             </div>
                           </div>
                           <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-purple-400" />
@@ -332,14 +359,14 @@ export default function Home() {
                             <div className="flex items-center justify-between">
                               <div className="inline-flex items-center gap-1.5 rounded-md bg-rose-950/90 border border-rose-400/50 px-2 py-0.5 text-[10px] font-mono font-bold text-rose-300">
                                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                                {findings[1].rule_id} ({findings[1].confidence != null ? `${Math.round(findings[1].confidence * 100)}%` : 'Not available'})
+                                {findings[1]?.rule_id || 'Inspection Rule'} ({findings[1]?.confidence != null ? `${Math.round(findings[1].confidence * 100)}%` : 'Not available'})
                               </div>
                             </div>
                             <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-rose-400" />
                             <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-rose-400" />
                             <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-rose-400" />
                             <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-rose-400" />
-                            <span className="text-[10px] font-mono text-rose-300/90 self-end">Status: {findings[1].status.toUpperCase()}</span>
+                            <span className="text-[10px] font-mono text-rose-300/90 self-end">Status: {String(findings[1]?.status || 'UNSURE').toUpperCase()}</span>
                           </div>
                         )}
                       </>
@@ -383,34 +410,36 @@ export default function Home() {
 
                     <div className="space-y-2.5">
                       {findings.length > 0 ? (
-                        findings.slice(0, 4).map((f) => (
+                        findings.slice(0, 4).map((f, idx) => (
                           <div
-                            key={f.id}
+                            key={f?.id || idx}
                             className={`rounded-xl border p-3 space-y-1 ${
-                              f.status === 'fail'
+                              f?.status === 'fail'
                                 ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
-                                : f.status === 'pass'
+                                : f?.status === 'pass'
                                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                                 : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
                             }`}
                           >
                             <div className="flex items-center justify-between text-xs font-bold">
-                              <span className="flex items-center gap-1.5">
-                                {f.status === 'fail' ? (
-                                  <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
-                                ) : f.status === 'pass' ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                                ) : (
-                                  <Flame className="h-3.5 w-3.5 text-amber-400" />
+                              <span className="font-mono flex items-center gap-1.5 truncate">
+                                {f?.status === 'pass' && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                                 )}
-                                {f.rule_id.replace(/_/g, ' ')}
+                                {f?.status === 'fail' && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-400 shrink-0" />
+                                )}
+                                {f?.status !== 'pass' && f?.status !== 'fail' && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                                )}
+                                {String(f?.rule_id || 'Safety Rule').replace(/_/g, ' ')}
                               </span>
                               <span className="text-[10px] font-mono opacity-80">
-                                {f.timestamp_s != null ? `${f.timestamp_s.toFixed(1)}s` : '0.0s'}
+                                {f?.timestamp_s != null ? `${f.timestamp_s.toFixed(1)}s` : '0.0s'}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-300 leading-tight">
-                              {f.rationale || 'Rule status evaluated from walkthrough footage.'}
+                              {f?.rationale || 'Rule status evaluated from walkthrough footage.'}
                             </p>
                           </div>
                         ))
@@ -740,7 +769,7 @@ export default function Home() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5">
                         <span className="font-semibold text-sm text-white">
-                          {a.template_id.replace(/_/g, ' ').toUpperCase()}
+                          {String(a?.template_id || 'General Safety').replace(/_/g, ' ').toUpperCase()}
                         </span>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-mono font-medium ${
                           a.status === 'completed' ? 'bg-emerald-950 border border-emerald-500/30 text-emerald-300' :

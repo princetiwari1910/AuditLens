@@ -71,7 +71,7 @@ export default function EvidenceViewerModal({
     : '';
 
   const strongest = finding.strongest_evidence;
-  const strength = strongest?.strength || (finding.sources.includes('voice_note') ? 'voice_note' : 'mask_backed');
+  const strength = strongest?.strength || (Array.isArray(finding.sources) && finding.sources.includes('voice_note') ? 'voice_note' : 'mask_backed');
 
   function renderStrengthBadge() {
     switch (strength) {

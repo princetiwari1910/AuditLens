@@ -158,7 +158,7 @@ export default function Compare() {
                 <option value="">Select Baseline Audit</option>
                 {audits.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.template_id} ({a.id.slice(0, 8)}) · Score: {a.summary?.score ?? 0}
+                    {a.template_id || 'General'} ({a.id ? a.id.slice(0, 8) : ''}) · Score: {a.summary?.score ?? 0}
                   </option>
                 ))}
               </select>
@@ -177,7 +177,7 @@ export default function Compare() {
                 <option value="">Select Re-Audit</option>
                 {audits.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.template_id} ({a.id.slice(0, 8)}) · Score: {a.summary?.score ?? 0}
+                    {a.template_id || 'General'} ({a.id ? a.id.slice(0, 8) : ''}) · Score: {a.summary?.score ?? 0}
                   </option>
                 ))}
               </select>

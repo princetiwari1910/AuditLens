@@ -8,9 +8,15 @@ interface TemplateCardProps {
 }
 
 export default function TemplateCard({ template }: TemplateCardProps) {
-  const isFire = template.id.includes('fire');
-  const isDefault = template.id === 'campus_fire_exit_core';
+  if (!template || typeof template !== 'object') return null;
+
+  const templateId = String(template.id || 'unknown_template');
+  const isFire = templateId.includes('fire');
+  const isDefault = templateId === 'campus_fire_exit_core';
   const Icon = isFire ? ShieldCheck : HardHat;
+  const rules = Array.isArray(template.rules) ? template.rules : [];
+  const name = template.name || 'Inspection Checklist';
+  const description = template.description || 'Pre-audit safety verification checklist.';
 
   return (
     <div className={`flex flex-col justify-between rounded-2xl border ${isDefault ? 'border-emerald-500/50 bg-gradient-to-b from-emerald-50/20 to-[var(--color-surface)] dark:from-emerald-950/10 ring-1 ring-emerald-500/30' : 'border-[var(--color-border)] bg-[var(--color-surface)]'} p-5 sm:p-6 shadow-sm transition-all duration-200 hover:border-[var(--color-accent)] hover:shadow-md`}>
@@ -23,7 +29,7 @@ export default function TemplateCard({ template }: TemplateCardProps) {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-[var(--color-text)] text-base">
-                  {template.name}
+                  {name}
                 </h3>
                 {isDefault ? (
                   <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -36,24 +42,24 @@ export default function TemplateCard({ template }: TemplateCardProps) {
                 )}
               </div>
               <span className="text-xs text-[var(--color-text-secondary)]">
-                {template.rules.length} verification rules · Evidence-First
+                {rules.length} verification rules · Evidence-First
               </span>
             </div>
           </div>
         </div>
 
         <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed mb-4">
-          {template.description}
+          {description}
         </p>
 
         {/* Rule tags preview */}
         <div className="flex flex-wrap items-center gap-1.5 mb-5">
-          {template.rules.slice(0, 3).map((r) => (
-            <RuleChip key={r.id} type={r.type} showIcon={false} />
+          {rules.slice(0, 3).map((r, idx) => (
+            <RuleChip key={r?.id || `rule-${idx}`} type={r?.type || 'presence'} showIcon={false} />
           ))}
-          {template.rules.length > 3 && (
+          {rules.length > 3 && (
             <span className="text-[11px] text-[var(--color-text-secondary)] self-center ml-1 font-mono">
-              +{template.rules.length - 3} more
+              +{rules.length - 3} more
             </span>
           )}
         </div>
@@ -61,10 +67,10 @@ export default function TemplateCard({ template }: TemplateCardProps) {
 
       <div className="pt-3.5 border-t border-[var(--color-border)] flex items-center justify-between gap-3">
         <span className="text-[11px] font-mono text-[var(--color-text-secondary)] truncate">
-          {template.id}
+          {templateId}
         </span>
         <Link
-          to={`/new/${template.id}`}
+          to={`/new/${templateId}`}
           className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all shrink-0 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2"
         >
           Select Checklist

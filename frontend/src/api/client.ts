@@ -2,6 +2,7 @@
 
 import type { Audit, Template } from './types';
 import { API_BASE_URL } from './config';
+import { DEFAULT_TEMPLATES } from '../data/defaultTemplates';
 
 const BASE = `${API_BASE_URL}/api`;
 
@@ -19,6 +20,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
   });
+
+  const contentType = (res.headers && typeof res.headers.get === 'function')
+    ? res.headers.get('content-type') || ''
+    : '';
 
   let rawText = '';
   let textRead = false;
@@ -55,22 +60,44 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(errMsg, res.status);
   }
 
+  const trimmed = rawText ? rawText.trim() : '';
+
+  // Detect HTML responses (SPA fallback / 404 / 502 error pages returned with 200 OK)
+  const isHtml =
+    contentType.includes('text/html') ||
+    trimmed.startsWith('<!DOCTYPE') ||
+    trimmed.startsWith('<!doctype') ||
+    trimmed.startsWith('<html');
+
+  if (isHtml) {
+    throw new ApiError(
+      `Expected JSON from ${path}, but received HTML. The backend service may be initializing or VITE_API_BASE_URL is not set.`,
+      502
+    );
+  }
+
   if (textRead) {
-    if (!rawText || rawText.trim() === '') {
+    if (!trimmed) {
       return {} as T;
     }
     try {
-      return JSON.parse(rawText) as T;
-    } catch {
-      return rawText as unknown as T;
+      return JSON.parse(trimmed) as T;
+    } catch (e) {
+      throw new ApiError(
+        `Failed to parse JSON response from ${path}: ${(e as Error).message}`,
+        500
+      );
     }
   }
 
   if (typeof res.json === 'function') {
     try {
       return (await res.json()) as T;
-    } catch {
-      return {} as T;
+    } catch (e) {
+      throw new ApiError(
+        `Failed to parse JSON from ${path}: ${(e as Error).message}`,
+        500
+      );
     }
   }
 
@@ -143,8 +170,16 @@ export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health');
 }
 
-export function getTemplates(): Promise<Template[]> {
-  return request<Template[]>('/templates');
+export async function getTemplates(): Promise<Template[]> {
+  try {
+    const data = await request<Template[]>('/templates');
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Backend templates unreachable, using bundled fallback templates:', err);
+  }
+  return DEFAULT_TEMPLATES;
 }
 
 export interface CompileTemplateResponse {
@@ -162,12 +197,31 @@ export function compileTemplate(text: string): Promise<CompileTemplateResponse> 
   });
 }
 
-export function getTemplate(id: string): Promise<Template> {
-  return request<Template>(`/templates/${id}`);
+export async function getTemplate(id: string): Promise<Template> {
+  try {
+    const data = await request<Template>(`/templates/${id}`);
+    if (data && typeof data === 'object' && data.id) {
+      return data;
+    }
+  } catch (err) {
+    console.warn(`Template '${id}' fetch failed, checking fallback templates:`, err);
+  }
+  const fallback = DEFAULT_TEMPLATES.find((t) => t.id === id);
+  if (fallback) return fallback;
+  return DEFAULT_TEMPLATES[0];
 }
 
-export function getAudits(): Promise<Audit[]> {
-  return request<Audit[]>('/audits');
+export async function getAudits(): Promise<Audit[]> {
+  try {
+    const data = await request<Audit[]>('/audits');
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return [];
+  } catch (err) {
+    console.warn('Failed to fetch audits from backend:', err);
+    return [];
+  }
 }
 
 export function getAudit(id: string): Promise<Audit> {
