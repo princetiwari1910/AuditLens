@@ -17,7 +17,7 @@ from app.db import engine
 from app.events import event_manager
 from app.frames import sample_frames_from_images, sample_frames_from_video
 from app.models import Audit, AuditStatus, Frame, RuleModel
-from app.providers import get_segmentation_provider, get_transcription_provider, get_reasoner
+from app.providers import get_segmentation_provider, get_transcription_provider
 from app.template_loader import get_template
 
 logger = logging.getLogger("auditlens.job_runner")
@@ -336,11 +336,9 @@ def run_audit_job_sync(audit_id: str) -> None:
 
                 # 4. Instantiate Runner and Providers
                 asr_provider = get_transcription_provider()
-                reasoner = get_reasoner()
                 runner = AgentRunner(
                     segmentation_provider=seg_provider,
                     transcription_provider=asr_provider,
-                    reasoner=reasoner,
                 )
 
                 # 4. Run Audit
