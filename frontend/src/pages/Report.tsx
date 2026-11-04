@@ -384,19 +384,31 @@ export default function Report({ isShared = false, initialAudit = null }: Report
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
       {/* Top Navbar */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur px-4 sm:px-6 py-3.5 sticky top-0 z-20 print:hidden shadow-xs">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors py-1"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Home
-          </Link>
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur px-4 sm:px-6 py-2.5 sm:py-3.5 sticky top-0 z-20 print:hidden shadow-xs">
+        <div className="mx-auto flex max-w-5xl flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center justify-between shrink-0">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors py-1.5 min-h-[36px]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Home
+            </Link>
 
-          <div className="flex flex-wrap items-center gap-2">
             {isReadOnly && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-mono font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+              <span className="sm:hidden inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-mono font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300">
+                <Shield className="h-3.5 w-3.5" />
+                Read-Only Share
+              </span>
+            )}
+          </div>
+
+          <nav
+            aria-label="Report action buttons"
+            className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap sm:justify-end no-scrollbar touch-pan-x"
+          >
+            {isReadOnly && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-mono font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 shrink-0 min-h-[36px]">
                 <Shield className="h-3.5 w-3.5" />
                 Read-Only Share
               </span>
@@ -405,24 +417,25 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             {!isReadOnly && (
               <Link
                 to={`/audits/${id}/trace`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors"
               >
                 <Activity className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="hidden sm:inline">Trace</span>
+                <span>Trace</span>
               </Link>
             )}
 
             {!isReadOnly && (
               <>
                 <button
+                  type="button"
                   onClick={handleShare}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors cursor-pointer"
                 >
                   <Share2 className="h-3.5 w-3.5 text-blue-500" />
                   <span>{shareCopied ? 'Copied!' : 'Share'}</span>
                 </button>
                 {shareError && (
-                  <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-1 rounded border border-rose-200 dark:border-rose-800">
+                  <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-1 rounded border border-rose-200 dark:border-rose-800 shrink-0">
                     {shareError}
                   </span>
                 )}
@@ -432,7 +445,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             <a
               href={`${API_BASE_URL}/api/audits/${audit.id}/bundle`}
               download={`audit-${audit.id}-evidence.zip`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors whitespace-nowrap"
               title="Download SHA-256 verified evidence bundle"
             >
               <Download className="h-3.5 w-3.5 text-indigo-500" />
@@ -441,33 +454,34 @@ export default function Report({ isShared = false, initialAudit = null }: Report
 
             <Link
               to="/eval"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors whitespace-nowrap"
             >
               <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Eval Benchmark</span>
+              <span>Eval Benchmark</span>
             </Link>
 
             {!isReadOnly && (
               <Link
                 to={`/compare?before=${id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-secondary)] shrink-0 min-h-[36px] transition-colors whitespace-nowrap"
               >
                 <Layers className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-                <span className="hidden sm:inline">Compare</span>
+                <span>Compare</span>
               </Link>
             )}
 
             <button
+              type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[var(--color-accent-hover)] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[var(--color-accent-hover)] shrink-0 min-h-[36px] transition-colors whitespace-nowrap cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
               <span>Export PDF</span>
             </button>
-          </div>
+          </nav>
         </div>
-        <div className="mx-auto max-w-5xl pt-1 flex justify-end">
-          <p className="text-[11px] text-[var(--color-text-secondary)] font-mono">
+        <div className="mx-auto max-w-5xl pt-1.5 flex justify-start sm:justify-end">
+          <p className="text-[10px] sm:text-[11px] text-[var(--color-text-secondary)] font-mono break-words leading-tight">
             Integrity check: scripts/verify_bundle.py checks the hashes.
           </p>
         </div>
@@ -614,9 +628,9 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             </div>
 
             {/* Filter Tabs (Hidden in Print) */}
-            <div className="flex flex-wrap items-center gap-2 print:hidden">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 print:hidden w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar sm:flex-wrap">
+                <span className="text-xs text-[var(--color-text-secondary)] flex items-center gap-1 shrink-0">
                   <Filter className="h-3 w-3" /> Status:
                 </span>
                 {(
@@ -630,8 +644,9 @@ export default function Report({ isShared = false, initialAudit = null }: Report
                 ).map(({ key, label, count }) => (
                   <button
                     key={key}
+                    type="button"
                     onClick={() => setStatusFilter(key)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 min-h-[32px] cursor-pointer ${
                       statusFilter === key
                         ? 'bg-[var(--color-accent)] text-white shadow-xs'
                         : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] border border-[var(--color-border)]'
@@ -655,13 +670,14 @@ export default function Report({ isShared = false, initialAudit = null }: Report
                 ))}
               </div>
 
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[var(--color-text-secondary)]">Severity:</span>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar sm:flex-wrap">
+                <span className="text-xs text-[var(--color-text-secondary)] shrink-0">Severity:</span>
                 {(['all', 'high', 'medium', 'low'] as const).map((sev) => (
                   <button
                     key={sev}
+                    type="button"
                     onClick={() => setSeverityFilter(sev)}
-                    className={`rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors shrink-0 min-h-[32px] cursor-pointer ${
                       severityFilter === sev
                         ? 'bg-slate-700 text-white dark:bg-slate-300 dark:text-black'
                         : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] border border-[var(--color-border)]'

@@ -111,17 +111,18 @@ export default function Compare() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
       {/* Navbar */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 sticky top-0 z-20">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 sm:px-6 py-3.5 sticky top-0 z-20">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors shrink-0 min-h-[36px]"
           >
             <ArrowLeft className="h-4 w-4" />
             Home
           </Link>
-          <span className="text-xs font-mono text-[var(--color-text-secondary)]">
-            AuditLens Differential Re-Audit Verification
+          <span className="text-xs font-mono text-[var(--color-text-secondary)] truncate">
+            <span className="hidden sm:inline">AuditLens Differential Re-Audit Verification</span>
+            <span className="sm:hidden">Differential Comparison</span>
           </span>
         </div>
       </header>

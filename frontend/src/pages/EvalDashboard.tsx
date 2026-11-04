@@ -86,23 +86,24 @@ export default function EvalDashboard() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
       {/* Top Header */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 sticky top-0 z-20">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 sm:px-6 py-3.5 sticky top-0 z-20">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors shrink-0 min-h-[36px]"
           >
             <ArrowLeft className="h-4 w-4" />
             Home
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isMock ? (
-              <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                MOCK (SIMULATED, NOT A RESULT)
+              <span className="rounded-full bg-amber-500/20 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                <span className="hidden sm:inline">MOCK (SIMULATED, NOT A RESULT)</span>
+                <span className="sm:hidden">MOCK (SIMULATED)</span>
               </span>
             ) : (
-              <span className="rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 border border-blue-500/30">
-                LIVE {data.provider_mode.toUpperCase()} BENCHMARK
+              <span className="rounded-full bg-blue-500/20 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-bold text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                LIVE {data.provider_mode.toUpperCase()}
               </span>
             )}
           </div>

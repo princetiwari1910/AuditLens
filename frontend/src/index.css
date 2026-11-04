@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Utility to hide scrollbars while allowing touch scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @media print {
   html, body {
     background-color: #ffffff !important;

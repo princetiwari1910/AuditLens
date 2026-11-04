@@ -90,20 +90,21 @@ export default function SitesPage({
   return (
     <div className="min-h-screen bg-[var(--color-bg)] pb-20">
       {/* Top Navbar */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 sticky top-0 z-20 print:hidden">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 sm:px-6 py-3.5 sticky top-0 z-20 print:hidden">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors shrink-0 min-h-[36px]"
           >
             <ArrowLeft className="h-4 w-4" />
             Home
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs font-semibold text-[var(--color-text)] flex items-center gap-1.5">
               <Building2 className="h-4 w-4 text-indigo-500" />
-              <span>Multi-Audit Trend History</span>
+              <span className="hidden sm:inline">Multi-Audit Trend History</span>
+              <span className="sm:hidden">Trends</span>
             </span>
           </div>
         </div>
