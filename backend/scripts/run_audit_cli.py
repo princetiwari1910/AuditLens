@@ -23,7 +23,7 @@ from app.costlog import get_audit_cost_summary
 from app.db import engine, init_db
 from app.events import event_manager
 from app.job_runner import run_audit_job_sync
-from app.models import Audit, Finding
+from app.models import Audit, AuditSpan, CostLogEntry, Finding
 from app.template_loader import get_template, list_templates
 from scripts.make_sample_video import generate_sample_video
 
@@ -114,6 +114,8 @@ def run_cli_audit(
         audit_row = session.get(Audit, audit_id)
         findings = session.exec(select(Finding).where(Finding.audit_id == audit_id)).all()
         cost_summary = get_audit_cost_summary(session, audit_id)
+        trace_spans = session.exec(select(AuditSpan).where(AuditSpan.audit_id == audit_id)).all()
+        cost_entries = session.exec(select(CostLogEntry).where(CostLogEntry.audit_id == audit_id)).all()
 
     summary = json.loads(audit_row.summary_json) if audit_row.summary_json else {}
 
@@ -134,7 +136,12 @@ def run_cli_audit(
 
     print("=" * 90)
 
-    # Print Summary & Cost
+    # Frame counts: N of M frames analyzed
+    analyzed = summary.get("frames_analyzed", len(findings))
+    considered = summary.get("frames_considered", analyzed)
+    print(f"\n🖼️  Keyframe Sampling: {analyzed} of {considered} frames analyzed")
+
+    # Compliance summary
     print(f"\n📊 Compliance Summary:")
     print(f"   Safety Score:   {summary.get('score', 0)} / 100")
     print(f"   Pass:           {summary.get('pass', 0)}")
@@ -142,9 +149,23 @@ def run_cli_audit(
     print(f"   Unsure:         {summary.get('unsure', 0)}")
     print(f"   Duration:       {dur}s")
 
-    print(f"\n💰 Estimated Provider Usage & Cost:")
-    print(f"   Total Calls:    {cost_summary.get('total_calls', 0)}")
-    print(f"   Total USD:      ${cost_summary.get('total_cost_usd', 0.0):.4f}")
+    # Per-stage timing
+    stage_timings: dict[str, int] = {}
+    for span in trace_spans:
+        stage_timings[span.stage] = stage_timings.get(span.stage, 0) + (span.latency_ms or 0)
+    print(f"\n⏱️  Per-Stage Timing:")
+    for stg, ms in sorted(stage_timings.items()):
+        print(f"   - {stg:<22}: {ms} ms")
+
+    # Provider calls, cache hits, and cost
+    total_calls = len(cost_entries)
+    cache_hits = sum(1 for c in cost_entries if c.cache_hit)
+    cache_hit_pct = (cache_hits / total_calls * 100) if total_calls else 0.0
+    total_cost_usd = sum(c.cost_usd for c in cost_entries)
+    print(f"\n💰 Provider Usage, Cache Hits & Cost:")
+    print(f"   Total Calls:    {total_calls}")
+    print(f"   Cache Hits:     {cache_hits} ({cache_hit_pct:.1f}%)")
+    print(f"   Total USD:      ${total_cost_usd:.5f}")
     for prov, p_data in cost_summary.get("by_provider", {}).items():
         print(f"   - {prov:<16}: {p_data.get('calls')} calls ({p_data.get('units')} units) -> ${p_data.get('cost_usd', 0.0):.4f}")
 
@@ -168,6 +189,16 @@ if __name__ == "__main__":
         choices=["fire_exit_safety", "workshop_ppe"],
         help="Template checklist ID",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Run audit in live mode (PROVIDER_MODE=record with Meta foundation models)",
+    )
     args = parser.parse_args()
+
+    if args.live:
+        import os
+        os.environ["PROVIDER_MODE"] = "record"
+        get_settings.cache_clear()
 
     run_cli_audit(args.video, template_id=args.template)

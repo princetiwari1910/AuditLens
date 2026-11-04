@@ -337,7 +337,7 @@ class ToolRegistry:
         # 2. Query provider for cache misses
         if frames_to_query:
             query_paths = [f["path"] for f in frames_to_query]
-            query_timestamps = [f["timestamp_s"] for f in frames_to_query]
+            query_timestamps = [f.get("timestamp_s", 0.0) for f in frames_to_query]
 
             t0 = time.time()
             raw_detections = self.ctx.segmentation_provider.find_objects(

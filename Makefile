@@ -1,4 +1,6 @@
-.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video record-demo smoke-ui
+.PHONY: setup dev backend frontend test lint clean clear-cache eval sample-video record-demo smoke-ui live-audit
+
+VIDEO ?= ./data/sample_walkthrough.mp4
 
 # ── Setup ────────────────────────────────────────────────────────────────
 setup: setup-backend setup-frontend
@@ -38,6 +40,9 @@ eval:
 	backend/.venv/bin/python eval/run_eval.py --mode both --allow-mock
 
 # ── Utilities ────────────────────────────────────────────────────────────
+live-audit:
+	cd backend && PROVIDER_MODE=record .venv/bin/python scripts/run_audit_cli.py --video "$(VIDEO)" --live
+
 sample-video:
 	cd backend && .venv/bin/python scripts/make_sample_video.py
 
