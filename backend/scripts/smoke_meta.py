@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Live smoke test for Meta Foundation Models (SAM 3.1, Muse Spark 1.3, Muse Voice Transcribe 1.0).
 
-Exits 0 if MODEL_API_KEY is missing (safe for CI).
-When key is present: runs Spark hello, SAM segmentation, and prints verification checklist.
-Supports --record flag to save raw responses to data/fixtures/ for offline replay.
+Each step (Spark, SAM, Voice) is independent: a failure in one does NOT skip the others.
+At the end, prints a summary table: step, PASS/FAIL, latency, estimated cost, error.
+
+Exit code 1 if any step fails or MODEL_API_KEY is missing.
+Supports --record to save raw responses to data/fixtures/ for offline replay.
+Supports --image for a custom photo, --audio for a voice file.
+Supports --concepts "a,b,c" for SAM (one request per concept, validated by concept_validation).
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ import json
 import os
 import sys
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # Add backend directory to path
@@ -23,18 +28,25 @@ import cv2
 import numpy as np
 
 from app.config import get_settings
-from app.providers.client import estimate_reasoner_cost, estimate_segmentation_cost
-from app.providers.meta import (
-    MetaAgentProvider,
-    MetaSegmentationProvider,
-    MetaTranscriptionProvider,
-)
+from app.concept_validation import validate_concept
+from app.providers.client import estimate_reasoner_cost, estimate_segmentation_cost, estimate_transcription_cost
+
+
+@dataclass
+class StepResult:
+    name: str
+    status: str = "SKIP"
+    latency_ms: float = 0.0
+    cost_usd: float = 0.0
+    error: str = ""
+    details: list[str] = field(default_factory=list)
 
 
 def ensure_test_image(data_dir: Path) -> Path:
     """Ensure a sample image with a fire extinguisher illustration exists for SAM smoke test."""
-    data_dir.mkdir(parents=True, exist_ok=True)
-    img_path = data_dir / "smoke_test_frame.jpg"
+    photos_dir = data_dir / "photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    img_path = photos_dir / "smoke_test_frame.jpg"
     if img_path.exists():
         return img_path
 
@@ -55,6 +67,181 @@ def ensure_test_image(data_dir: Path) -> Path:
     )
     cv2.imwrite(str(img_path), img)
     return img_path
+
+
+def draw_overlay(
+    image_path: Path,
+    concept: str,
+    detections: list,
+    output_dir: Path,
+) -> Path | None:
+    """Draw bounding boxes and mask contours on the image, save as overlay_<concept>.png."""
+    try:
+        img = cv2.imread(str(image_path))
+        if img is None:
+            return None
+
+        h, w = img.shape[:2]
+        for det in detections:
+            box = det.box
+            x1 = int(box["x"] * w)
+            y1 = int(box["y"] * h)
+            x2 = int((box["x"] + box["w"]) * w)
+            y2 = int((box["y"] + box["h"]) * h)
+
+            # Draw bounding box
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            label = f"{concept} ({det.score:.2f})"
+            cv2.putText(img, label, (x1, max(y1 - 8, 15)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+            # Draw mask contour if available
+            if isinstance(det.mask, list) and len(det.mask) >= 3:
+                pts = np.array(
+                    [[int(p[0] * w), int(p[1] * h)] for p in det.mask],
+                    dtype=np.int32,
+                )
+                cv2.polylines(img, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
+
+        safe_concept = concept.replace(" ", "_").replace("/", "_")
+        out_path = output_dir / f"overlay_{safe_concept}.png"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(out_path), img)
+        return out_path
+    except Exception:
+        return None
+
+
+def run_spark_step(fixtures_dir: Path, record: bool) -> StepResult:
+    """Test Muse Spark 1.3 (Reasoner & Structured Output)."""
+    from app.providers.meta import MetaAgentProvider
+
+    result = StepResult(name="Spark (verdict)")
+    t0 = time.perf_counter()
+    try:
+        spark = MetaAgentProvider()
+        verdict = spark.judge(
+            rule={"title": "Emergency exit sign visibility", "description": "Exit sign must be clearly visible."},
+            evidence=[{"frame_id": 0, "label": "exit sign", "score": 0.95}],
+        )
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.cost_usd = estimate_reasoner_cost(1.0, 0.25)
+        result.status = "PASS"
+        result.details.append(f"status={verdict.get('status')}")
+        result.details.append(f"confidence={verdict.get('confidence')}")
+
+        if record:
+            fixtures_dir.mkdir(parents=True, exist_ok=True)
+            (fixtures_dir / "spark_smoke_fixture.json").write_text(
+                json.dumps(verdict, indent=2), encoding="utf-8"
+            )
+    except Exception as exc:
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.status = "FAIL"
+        result.error = f"{type(exc).__name__}: {exc}"
+
+    return result
+
+
+def run_sam_step(
+    image_path: Path,
+    concepts: list[str],
+    fixtures_dir: Path,
+    photos_dir: Path,
+    record: bool,
+) -> StepResult:
+    """Test SAM 3.1 (Responses API Streaming & Masks)."""
+    from app.providers.meta import MetaSegmentationProvider
+
+    result = StepResult(name="SAM (segment)")
+    t0 = time.perf_counter()
+    try:
+        sam = MetaSegmentationProvider()
+        all_detections = []
+
+        for concept in concepts:
+            validated = validate_concept(concept)
+            dets = sam.segment(image_path, [validated])
+            all_detections.extend(dets)
+
+            # Print per-concept results
+            result.details.append(f"concept='{validated}': {len(dets)} matches")
+            for idx, det in enumerate(dets):
+                mask_shape = f"{len(det.mask)} pts" if isinstance(det.mask, list) else "none"
+                result.details.append(
+                    f"  match {idx+1}: score={det.score:.3f}, box={det.box}, mask={mask_shape}"
+                )
+
+            # Draw overlay
+            overlay_path = draw_overlay(image_path, validated, dets, photos_dir)
+            if overlay_path:
+                result.details.append(f"  overlay: {overlay_path}")
+
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.cost_usd = estimate_segmentation_cost(len(concepts))
+        result.status = "PASS"
+
+        if record:
+            fixtures_dir.mkdir(parents=True, exist_ok=True)
+            record_data = [
+                {"label": d.label, "score": d.score, "box": d.box, "mask": d.mask}
+                for d in all_detections
+            ]
+            (fixtures_dir / "sam_smoke_fixture.json").write_text(
+                json.dumps(record_data, indent=2), encoding="utf-8"
+            )
+    except Exception as exc:
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.status = "FAIL"
+        result.error = f"{type(exc).__name__}: {exc}"
+
+    return result
+
+
+def run_voice_step(audio_path: Path, fixtures_dir: Path, record: bool) -> StepResult:
+    """Test Muse Voice Transcribe 1.0."""
+    from app.providers.meta import MetaTranscriptionProvider
+
+    result = StepResult(name="Voice (transcribe)")
+    t0 = time.perf_counter()
+    try:
+        asr = MetaTranscriptionProvider()
+        transcript = asr.transcribe(str(audio_path))
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.cost_usd = estimate_transcription_cost(1.0)
+        result.status = "PASS"
+        result.details.append(f"text={transcript.text[:80]}...")
+        result.details.append(f"turns={len(transcript.turns)}")
+        result.details.append(f"language={transcript.language}")
+
+        if record:
+            fixtures_dir.mkdir(parents=True, exist_ok=True)
+            (fixtures_dir / "voice_smoke_fixture.json").write_text(
+                json.dumps({
+                    "text": transcript.text,
+                    "language": transcript.language,
+                    "turns": [{"start_s": t.start_s, "end_s": t.end_s, "text": t.text} for t in transcript.turns],
+                }, indent=2), encoding="utf-8"
+            )
+    except Exception as exc:
+        result.latency_ms = (time.perf_counter() - t0) * 1000
+        result.status = "FAIL"
+        result.error = f"{type(exc).__name__}: {exc}"
+
+    return result
+
+
+def print_table(results: list[StepResult]) -> None:
+    """Print a summary table."""
+    print()
+    print(f"{'Step':<25} {'Status':<8} {'Latency':<12} {'Est. Cost':<12} {'Error'}")
+    print("-" * 90)
+    for r in results:
+        latency_str = f"{r.latency_ms:.0f} ms" if r.latency_ms > 0 else "-"
+        cost_str = f"${r.cost_usd:.5f}" if r.cost_usd > 0 else "-"
+        error_str = r.error[:40] if r.error else "-"
+        print(f"{r.name:<25} {r.status:<8} {latency_str:<12} {cost_str:<12} {error_str}")
+    print()
 
 
 def main() -> int:
@@ -78,129 +265,109 @@ def main() -> int:
         default="",
         help="Optional path to audio file for Muse Voice Transcribe testing.",
     )
+    parser.add_argument(
+        "--concepts",
+        type=str,
+        default="fire extinguisher",
+        help="Comma-separated SAM concepts (one request per concept). Default: 'fire extinguisher'.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
     api_key = os.environ.get("MODEL_API_KEY") or settings.MODEL_API_KEY or settings.META_API_KEY
 
-    print("========================================================================")
+    print("=" * 80)
     print("AuditLens: Meta Foundation Models Smoke Test (dev.meta.ai)")
-    print("========================================================================")
+    print("=" * 80)
 
-    # 1. Check if MODEL_API_KEY is present
     if not api_key:
-        print("Status: MODEL_API_KEY is not set.")
-        print()
-        print("To run this smoke test against the live Meta developer APIs:")
-        print("  1. Obtain your API key from https://dev.meta.ai/")
-        print("  2. Set the environment variable:")
-        print("     export MODEL_API_KEY=\"your_meta_api_key_here\"")
-        print("  3. Run this script again:")
-        print("     python backend/scripts/smoke_meta.py")
-        print()
         print("NOT VERIFIED: no key")
-        print("========================================================================")
+        print()
+        print("Set MODEL_API_KEY to run against the live Meta developer APIs.")
+        print("  export MODEL_API_KEY=\"your_meta_api_key_here\"")
+        print("=" * 80)
         return 1
 
     print("MODEL_API_KEY detected. Connecting to https://api.meta.ai/v1...")
+
     fixtures_dir = settings.DATA_DIR / "fixtures"
-    if args.record:
-        fixtures_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Record mode active: fixtures will be saved to {fixtures_dir}")
+    photos_dir = settings.DATA_DIR / "photos"
 
-    verified_items: list[str] = []
+    # Parse concepts
+    concepts = [c.strip() for c in args.concepts.split(",") if c.strip()]
+    # Validate all concepts upfront
+    for c in concepts:
+        try:
+            validate_concept(c)
+        except ValueError as e:
+            print(f"ERROR: Invalid concept: {e}")
+            return 1
 
-    # 2. Test Muse Spark 1.3 (Reasoner)
-    print("\n--- 1. Testing Muse Spark 1.3 (Reasoner & Structured Output) ---")
-    spark = MetaAgentProvider()
-    t0 = time.perf_counter()
-    try:
-        verdict = spark.judge(
-            rule={"title": "Emergency exit sign visibility", "description": "Exit sign must be clearly visible."},
-            evidence=[{"frame_id": 0, "label": "exit sign", "score": 0.95}],
-        )
-        latency_spark = (time.perf_counter() - t0) * 1000
-        cost_spark = estimate_reasoner_cost(1.0, 0.25)
-        print(f"Spark verdict status: {verdict.get('status')}")
-        print(f"Spark reason:         {verdict.get('reason')}")
-        print(f"Cited frame IDs:      {verdict.get('cited_frame_ids')}")
-        print(f"Confidence:           {verdict.get('confidence')}")
-        print(f"Latency:              {latency_spark:.1f} ms")
-        print(f"Estimated cost:       ${cost_spark:.5f}")
-        verified_items.append("Muse Spark 1.3 structured output with strict schema")
-
-        if args.record:
-            spark_fixture = fixtures_dir / "spark_smoke_fixture.json"
-            spark_fixture.write_text(json.dumps(verdict, indent=2), encoding="utf-8")
-    except Exception as exc:
-        print(f"FAILED: Spark call raised {type(exc).__name__}: {exc}")
-        return 1
-
-    # 3. Test SAM 3.1 (Segmenter)
-    print("\n--- 2. Testing SAM 3.1 (Responses API Streaming & Masks) ---")
+    # Determine image path
     if args.image:
         img_path = Path(args.image)
         if not img_path.exists():
-            print(f"Error: Specified image file does not exist: {img_path}")
+            print(f"ERROR: Specified image file does not exist: {img_path}")
             return 1
     else:
         img_path = ensure_test_image(settings.DATA_DIR)
-    print(f"Using image: {img_path}")
-    sam = MetaSegmentationProvider()
-    t0 = time.perf_counter()
-    try:
-        detections = sam.segment(img_path, ["fire extinguisher"])
-        latency_sam = (time.perf_counter() - t0) * 1000
-        cost_sam = estimate_segmentation_cost(1)
-        print(f"Matches found:        {len(detections)}")
-        for idx, det in enumerate(detections):
-            poly_pts = len(det.mask) if isinstance(det.mask, list) else 0
-            print(f"  Match {idx + 1}: score={det.score:.3f}, box={det.box}, polygon_points={poly_pts}")
-        print(f"Latency:              {latency_sam:.1f} ms")
-        print(f"Estimated cost:       ${cost_sam:.5f}")
-        verified_items.append("SAM 3.1 Responses API streaming parsed with meta-sam-parser")
-        verified_items.append("SAM 3.1 bounding box, confidence, and raster mask decoding")
+    print(f"Image: {img_path}")
+    print(f"Concepts: {concepts}")
 
-        if args.record:
-            sam_fixture = fixtures_dir / "sam_smoke_fixture.json"
-            record_data = [
-                {"label": d.label, "score": d.score, "box": d.box, "mask": d.mask}
-                for d in detections
-            ]
-            sam_fixture.write_text(json.dumps(record_data, indent=2), encoding="utf-8")
-    except Exception as exc:
-        print(f"FAILED: SAM call raised {type(exc).__name__}: {exc}")
-        return 1
+    results: list[StepResult] = []
 
-    # 4. Optional: Test Muse Voice Transcribe
-    if args.audio and Path(args.audio).exists():
-        print(f"\n--- 3. Testing Muse Voice Transcribe with {args.audio} ---")
-        asr = MetaTranscriptionProvider()
-        t0 = time.perf_counter()
-        try:
-            transcript = asr.transcribe(args.audio)
-            latency_asr = (time.perf_counter() - t0) * 1000
-            print(f"Transcript text:      {transcript.text}")
-            print(f"Language:             {transcript.language}")
-            print(f"Turn count:           {len(transcript.turns)}")
-            print(f"Latency:              {latency_asr:.1f} ms")
-            verified_items.append("Muse Voice Transcribe turn-level timestamps")
-        except Exception as exc:
-            print(f"FAILED: Transcription raised {type(exc).__name__}: {exc}")
-            return 1
+    # 1. Spark
+    print("\n--- 1. Muse Spark 1.3 (Reasoner) ---")
+    spark_result = run_spark_step(fixtures_dir, args.record)
+    for d in spark_result.details:
+        print(f"  {d}")
+    if spark_result.error:
+        print(f"  ERROR: {spark_result.error}")
+    results.append(spark_result)
 
-    # 5. Print Checklist of what is now VERIFIED
-    print("\n========================================================================")
-    print("Live Meta API Smoke Test Verification Checklist:")
-    print("========================================================================")
-    for item in verified_items:
-        print(f" [x] {item}")
-    print(" [x] Authentication against https://api.meta.ai/v1 with MODEL_API_KEY")
-    print(" [x] BudgetGuard and cost logging verified against dev.meta.ai rates")
-    print("========================================================================")
-    print("STATUS: VERIFIED against live Meta API")
-    print("========================================================================")
-    return 0
+    # 2. SAM
+    print("\n--- 2. SAM 3.1 (Segmentation) ---")
+    sam_result = run_sam_step(img_path, concepts, fixtures_dir, photos_dir, args.record)
+    for d in sam_result.details:
+        print(f"  {d}")
+    if sam_result.error:
+        print(f"  ERROR: {sam_result.error}")
+    results.append(sam_result)
+
+    # 3. Voice (only if --audio provided)
+    if args.audio:
+        audio_path = Path(args.audio)
+        if audio_path.exists():
+            print(f"\n--- 3. Muse Voice Transcribe ({audio_path.name}) ---")
+            voice_result = run_voice_step(audio_path, fixtures_dir, args.record)
+            for d in voice_result.details:
+                print(f"  {d}")
+            if voice_result.error:
+                print(f"  ERROR: {voice_result.error}")
+            results.append(voice_result)
+        else:
+            print(f"\n--- 3. Muse Voice Transcribe ---")
+            print(f"  SKIP: audio file not found: {audio_path}")
+            results.append(StepResult(name="Voice (transcribe)", status="SKIP", error=f"File not found: {audio_path}"))
+    else:
+        print("\n--- 3. Muse Voice Transcribe ---")
+        print("  SKIP: no --audio flag provided")
+        results.append(StepResult(name="Voice (transcribe)", status="SKIP"))
+
+    # Summary table
+    print("=" * 80)
+    print("SUMMARY")
+    print_table(results)
+
+    any_fail = any(r.status == "FAIL" for r in results)
+    if any_fail:
+        print("STATUS: PARTIAL FAILURE (see errors above)")
+    else:
+        ran = [r for r in results if r.status == "PASS"]
+        print(f"STATUS: {'VERIFIED' if ran else 'NO STEPS RAN'} ({len(ran)} steps passed)")
+    print("=" * 80)
+
+    return 1 if any_fail else 0
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ eval/runs/
 data/audits/
 data/uploads/
 data/fixtures/
+data/photos/
 data/*.db
 data/*.sqlite
 backend/data/
