@@ -86,8 +86,7 @@ export default function ModelsUsedPanel({
       data: transData,
       icon: Zap,
       color: 'text-purple-400',
-      badgeBg: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
-      description: 'Speech recognition correlating spoken hazard observations to visual keyframes.'
+      description: 'Speech recognition for spoken notes. (API currently returns 404 live; live transcription unavailable).'
     },
   ];
 
@@ -223,8 +222,11 @@ export default function ModelsUsedPanel({
             <span className="text-slate-400">Multimodal reasoning agent. Dispatches tool calls, evaluates visual evidence against rules, compiles checklists, and generates fix plans.</span>
           </div>
           <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 space-y-1">
-            <span className="font-bold text-white block font-mono text-xs">Muse Voice (muse-voice-transcribe)</span>
-            <span className="text-slate-400">Walkthrough speech-to-text. Transcribes auditor field notes and associates observations to nearest keyframe timestamps.</span>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-white block font-mono text-xs">Muse Voice (muse-voice-transcribe)</span>
+              <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">API 404 (Unavailable)</span>
+            </div>
+            <span className="text-slate-400">Walkthrough speech-to-text. (The live Meta Voice endpoint currently returns 404; live transcription is unavailable. Offline stub only). Transcribes auditor field notes and associates observations to nearest keyframe timestamps when available.</span>
           </div>
         </div>
       </div>

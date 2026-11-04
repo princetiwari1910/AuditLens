@@ -593,12 +593,15 @@ export default function Home() {
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 shadow-sm">
-              <div className="flex items-center gap-2 text-indigo-400">
-                <Mic className="h-4 w-4" />
-                <h4 className="text-xs font-bold text-white">Voice Note Mapping</h4>
+              <div className="flex items-center justify-between text-indigo-400">
+                <div className="flex items-center gap-2">
+                  <Mic className="h-4 w-4" />
+                  <h4 className="text-xs font-bold text-white">Voice Note Mapping</h4>
+                </div>
+                <span className="text-[10px] font-mono text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">API 404</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Muse Voice Transcribe captures spoken walkthrough notes and automatically correlates reported hazards to keyframe visual locations.
+                Muse Voice Transcribe associates auditor verbal observations to keyframe visual locations. (The live Meta Voice endpoint currently returns 404; live calls are unavailable).
               </p>
             </div>
           </div>
