@@ -14,6 +14,10 @@ import {
   Building2,
   AlertCircle,
   RefreshCw,
+  CheckCircle2,
+  Ruler,
+  Flame,
+  Mic,
 } from 'lucide-react';
 import {
   getAudits,
@@ -126,8 +130,8 @@ export default function Home() {
       )}
 
       {/* Top Navigation */}
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur px-6 py-4 sticky top-0 z-20">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur px-4 sm:px-6 py-3 sticky top-0 z-20">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white shadow-sm">
               <Shield className="h-5 w-5" />
@@ -142,10 +146,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <Link
               to="/sites"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)] min-h-[36px]"
             >
               <Building2 className="h-4 w-4 text-indigo-500" />
               <span className="hidden sm:inline">Sites & History</span>
@@ -153,14 +157,14 @@ export default function Home() {
 
             <Link
               to="/eval"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)] min-h-[36px]"
             >
               <BarChart3 className="h-4 w-4 text-blue-500" />
               <span className="hidden sm:inline">Eval & Calibration</span>
             </Link>
 
             {health && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 dark:bg-blue-950/60 dark:text-blue-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 sm:px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 dark:bg-blue-950/60 dark:text-blue-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
                 {health.provider_mode} mode
               </span>
@@ -169,14 +173,14 @@ export default function Home() {
             <button
               onClick={() => handleLoadDemo(false)}
               disabled={isStartingDemo}
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+              className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 sm:px-3.5 py-1.5 text-xs font-medium text-[var(--color-text)] shadow-sm hover:bg-[var(--color-bg-secondary)] min-h-[36px] cursor-pointer"
             >
               {isStartingDemo ? (
                 <Loader2 className="h-4 w-4 animate-spin text-[var(--color-accent)]" />
               ) : (
                 <PlayCircle className="h-4 w-4 text-[var(--color-accent)]" />
               )}
-              <span>Load Demo Audit <strong className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">(Demo Data)</strong></span>
+              <span>Demo Audit</span>
             </button>
           </div>
         </div>
@@ -201,33 +205,51 @@ export default function Home() {
             AuditLens delivers an evidence-backed pre-inspection report with pixel-level segmentation masks, optical measurements, and plain-language corrective fixes.
           </p>
 
-          {/* 3-Step Process Strip for Judges */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 max-w-3xl mx-auto text-left">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">1</span>
-                <span className="text-xs font-bold text-[var(--color-text)]">Walkthrough Capture</span>
+          {/* 5-Step Process Strip for Judges */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-3 max-w-4xl mx-auto text-left">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold font-mono">1</span>
+                <span className="text-xs font-bold text-[var(--color-text)] truncate">Walkthrough</span>
               </div>
-              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
-                Standard smartphone video or photo keyframes (up to 90s, no special hardware).
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-tight">
+                Phone video or keyframe photos across rooms.
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">2</span>
-                <span className="text-xs font-bold text-[var(--color-text)]">Foundation Vision</span>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold font-mono">2</span>
+                <span className="text-xs font-bold text-[var(--color-text)] truncate">SAM 3.1 Vision</span>
               </div>
-              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
-                SAM 3.1 mask segmentation + Muse Spark tool-calling agent with strict confidence floors.
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-tight">
+                Mask segmentation with confidence floors.
               </p>
             </div>
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 shadow-sm">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold font-mono">3</span>
-                <span className="text-xs font-bold text-[var(--color-text)]">Verified Report & Fixes</span>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[11px] font-bold font-mono">3</span>
+                <span className="text-xs font-bold text-[var(--color-text)] truncate">Geometry & Code</span>
               </div>
-              <p className="text-[11px] text-[var(--color-text-secondary)] leading-normal">
-                Pass/Fail pre-audit score, bounding-box overlays, optical scale and corrective fix plan.
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-tight">
+                Optical clear width & clearance thresholds.
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold font-mono">4</span>
+                <span className="text-xs font-bold text-[var(--color-text)] truncate">Evidence Report</span>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-tight">
+                Score, timestamps, overlays, and fix plan.
+              </p>
+            </div>
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-xs col-span-2 sm:col-span-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-[11px] font-bold font-mono">5</span>
+                <span className="text-xs font-bold text-[var(--color-text)] truncate">Re-Audit Compare</span>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-tight">
+                Differential proof that defects were resolved.
               </p>
             </div>
           </div>
@@ -269,6 +291,61 @@ export default function Home() {
                 <span>Launch Guided Demo</span>
                 <ArrowRight className="h-3.5 w-3.5 text-indigo-200" />
               </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Supported Capabilities Card Grid (What the AI checks) */}
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--color-text)] flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <span>What AuditLens Inspects (Evidence-Backed Rules)</span>
+            </h2>
+            <span className="text-xs text-[var(--color-text-secondary)] hidden sm:inline">
+              Evidence-first • No hallucinated findings
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                <Ruler className="h-4 w-4" />
+                <h4 className="text-xs font-bold text-[var(--color-text)]">Clear Egress Width</h4>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                Measures passage clearance against physical thresholds (≥ 36 in / 0.91 m) using optical depth scaling and corridor boundary planes.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                <Flame className="h-4 w-4" />
+                <h4 className="text-xs font-bold text-[var(--color-text)]">Fire Extinguisher Access</h4>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                SAM 3.1 segmenter detects wall-mounted extinguishers, verifies unobstructed access cones, and checks proximity signage.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <Shield className="h-4 w-4" />
+                <h4 className="text-xs font-bold text-[var(--color-text)]">Exit Signage & Doors</h4>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                Verifies visible illuminated emergency exit signs along paths and checks that panic hardware and emergency doors are not padlocked.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <Mic className="h-4 w-4" />
+                <h4 className="text-xs font-bold text-[var(--color-text)]">Voice Note Mapping</h4>
+              </div>
+              <p className="text-[11px] text-[var(--color-text-secondary)] leading-relaxed">
+                Muse Voice Transcribe captures spoken walkthrough notes and automatically correlates reported hazards to keyframe visual locations.
+              </p>
             </div>
           </div>
         </section>

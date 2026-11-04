@@ -19,6 +19,8 @@ import {
   Share2,
   FileText,
   Download,
+  AlertTriangle,
+  HelpCircle,
 } from 'lucide-react';
 import {
   getAudit,
@@ -561,10 +563,42 @@ export default function Report({ isShared = false, initialAudit = null }: Report
             const failUnit = failCount === 1 ? 'finding' : 'findings';
             const unsureUnit = unsureCount === 1 ? 'item' : 'items';
             return (
-              <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
-                AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id || 'general'}</code> across {framesCount} {framesUnit}.
-                Overall pre-inspection score is <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {passCount} passed, {failCount} {failUnit} needing attention, and {unsureCount} {unsureUnit} pending review.
-              </p>
+              <div className="space-y-3">
+                <p className="text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
+                  AuditLens assistive safety pre-audit completed for template <code className="font-mono text-xs bg-[var(--color-bg)] px-1.5 py-0.5 rounded font-semibold">{audit.template_id || 'general'}</code> across {framesCount} {framesUnit}.
+                  Overall pre-inspection score is <strong className="font-mono text-[var(--color-accent)]">{audit.summary?.score ?? 0}/100</strong> with {passCount} passed, {failCount} {failUnit} needing attention, and {unsureCount} {unsureUnit} pending review.
+                </p>
+                {(failCount > 0 || unsureCount > 0) && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1 print:hidden">
+                    {failCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('fail');
+                          document.getElementById('findings-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                        <span>View {failCount} {failCount === 1 ? 'Finding' : 'Findings'} Needing Attention</span>
+                      </button>
+                    )}
+                    {unsureCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('needs_review');
+                          document.getElementById('findings-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5 text-amber-600" />
+                        <span>Review {unsureCount} {unsureCount === 1 ? 'Item' : 'Items'} Pending Guidance</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             );
           })()}
         </div>
@@ -616,7 +650,7 @@ export default function Report({ isShared = false, initialAudit = null }: Report
         />
 
         {/* Checklist Findings Section */}
-        <section className="space-y-4">
+        <section id="findings-section" className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-3">
             <div>
               <h2 className="text-lg font-bold text-[var(--color-text)]">
