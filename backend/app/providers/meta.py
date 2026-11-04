@@ -435,6 +435,18 @@ class MetaAgentProvider:
         self.escalation_model = escalation_model
         self._client = client
 
+    # ── Reasoning effort per call type (dev.meta.ai/docs/reasoning) ────────────
+    # Low-effort calls: verdict, verify_presence, extract_note
+    # High-effort calls: fix_plan (plan_fixes), compile_template
+    _HIGH_EFFORT_CALLS: set[str] = {"fix_plan", "compile_template"}
+
+    def _reasoning_effort(self, call_type: str) -> str:
+        """Return reasoning effort level for a given call type."""
+        settings = get_settings()
+        if call_type in self._HIGH_EFFORT_CALLS:
+            return settings.SPARK_REASONING_EFFORT_HIGH
+        return settings.SPARK_REASONING_EFFORT
+
     def _get_client(self) -> OpenAI:
         settings = get_settings()
         if settings.PROVIDER_MODE.lower() == "replay":
@@ -505,6 +517,7 @@ class MetaAgentProvider:
         def _call_spark(target_model: str) -> dict[str, Any]:
             resp = client.chat.completions.create(
                 model=target_model,
+                reasoning_effort=self._reasoning_effort("verdict"),
                 messages=[
                     {
                         "role": "system",
@@ -625,6 +638,7 @@ class MetaAgentProvider:
         def _call_spark_presence(target_model: str) -> dict[str, Any]:
             resp = client.chat.completions.create(
                 model=target_model,
+                reasoning_effort=self._reasoning_effort("verify_presence"),
                 messages=[
                     {
                         "role": "system",
@@ -709,6 +723,7 @@ class MetaAgentProvider:
             ]
             resp = client.chat.completions.create(
                 model=self.model_id,
+                reasoning_effort=self._reasoning_effort("fix_plan"),
                 messages=[
                     {
                         "role": "system",
@@ -762,6 +777,7 @@ class MetaAgentProvider:
         def _call_spark_compile() -> dict[str, Any]:
             resp = client.chat.completions.create(
                 model=self.model_id,
+                reasoning_effort=self._reasoning_effort("compile_template"),
                 messages=[
                     {
                         "role": "system",
@@ -808,6 +824,7 @@ class MetaAgentProvider:
         def _call_spark_extract() -> dict[str, Any]:
             resp = client.chat.completions.create(
                 model=self.model_id,
+                reasoning_effort=self._reasoning_effort("extract_note"),
                 messages=[
                     {
                         "role": "system",

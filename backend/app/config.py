@@ -119,6 +119,14 @@ class Settings(BaseSettings):
     ENABLE_ESCALATION_CASCADE: bool = False  # default OFF per WP16
     ESCALATION_MODEL: str | None = None
 
+    # Reasoning effort for Muse Spark (dev.meta.ai/docs/reasoning)
+    # Values: minimal, low, medium, high, xhigh, max
+    # Default "low" to reduce reasoning token cost/latency.
+    # Per-call overrides: verdict, verify_presence, extract_note use SPARK_REASONING_EFFORT (low).
+    # fix_plan and compile_template use high by default (complex tasks).
+    SPARK_REASONING_EFFORT: str = "low"
+    SPARK_REASONING_EFFORT_HIGH: str = "high"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property
